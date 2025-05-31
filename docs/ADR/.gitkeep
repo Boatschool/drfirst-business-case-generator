@@ -1,0 +1,9 @@
+# Architecture Decision Records (ADRs) will go here
+# 
+# Format: ADR-001-decision-title.md
+# 
+# Example ADRs:
+# - ADR-001-use-react-for-frontend.md
+# - ADR-002-use-fastapi-for-backend.md
+# - ADR-003-use-firestore-for-database.md
+# - ADR-004-use-google-cloud-adk-for-agents.md 

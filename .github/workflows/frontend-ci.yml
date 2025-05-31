@@ -1,0 +1,21 @@
+# Frontend CI Placeholder
+name: Frontend CI
+
+on:
+  push:
+    branches: [ main, develop ]
+    paths: ['frontend/**']
+  pull_request:
+    branches: [ main ]
+    paths: ['frontend/**']
+
+jobs:
+  frontend-ci:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '18'
+      # Add frontend CI steps here 

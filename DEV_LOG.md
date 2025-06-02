@@ -396,3 +396,30 @@ curl http://localhost:4000/api/health
 **Last Updated**: 2025-05-31  
 **Status**: Authentication & Infrastructure Complete ✅  
 **Next Milestone**: AI Agent System Implementation 🤖 
+
+### May 31, 2025 - Backend Agent Development: EchoTool
+
+#### ✅ Task 2.1.3: Implement EchoTool for Orchestrator Agent
+**Goal**: Create a basic tool within the Orchestrator Agent to echo input, serving as an initial test for agent functionality.
+
+**Actions Taken**:
+- Defined `EchoTool` class in `backend/app/agents/orchestrator_agent.py`.
+  - Added `run(input_string: str) -> str` method to return the input.
+- Integrated `EchoTool` into `OrchestratorAgent`:
+  - Initialized `self.echo_tool = EchoTool()` in `__init__`.
+  - Added `async def run_echo_tool(self, input_text: str)` method to `OrchestratorAgent`.
+- Created unit tests in `backend/tests/unit/agents/test_orchestrator_agent.py`:
+  - `test_echo_tool_run`: Directly tests the `EchoTool`.
+  - `test_orchestrator_run_echo_tool`: Tests `OrchestratorAgent`'s usage of `EchoTool`.
+- **Environment & Path Resolution**:
+  - Re-created backend Python virtual environment (`backend/venv`).
+  - Installed all dependencies from `backend/requirements.txt`.
+  - Resolved `ModuleNotFoundError: No module named 'app'` by:
+    - Creating `backend/__init__.py`.
+    - Correcting import paths in test files to be relative to the project root (e.g., `from backend.app.agents...`).
+    - Running `pytest` from the project root with `PYTHONPATH=.`.
+- **Testing Success**: All unit tests for `EchoTool` and its integration passed successfully.
+
+**Status**: Task 2.1.3 COMPLETE ✅
+
+---

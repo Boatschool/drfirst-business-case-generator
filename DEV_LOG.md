@@ -529,6 +529,7 @@ curl http://localhost:4000/api/health
   -   **`frontend/src/layouts/AppLayout.tsx` (Task 3.1.5)**:
       - Created a basic layout component with a header (AppBar, Toolbar, Title) and a main content area using `Outlet` from `react-router-dom`.
       - Header includes a "Sign In" button or "Sign Out ({email})" button based on authentication state from `AuthContext`.
+      - The sign-out button calls `authContext.signOut()` and navigates to `/login`.
   -   **`frontend/src/App.tsx` (Task 3.1.4 Refinement)**:
       - Replaced initial content with `react-router-dom` setup (`BrowserRouter`, `Routes`, `Route`).
       - Wrapped the entire application with `AuthProvider`.
@@ -537,5 +538,15 @@ curl http://localhost:4000/api/health
       - Implemented a basic `ProtectedRoute` component that checks `authContext.currentUser` and `authContext.loading` to guard the `/dashboard` route.
 
 **Status**: Task 3.3.3 COMPLETE ✅ (and foundational routing/auth context setup significantly improved).
+
+#### ✅ Task 3.3.4: Implement basic Header.tsx component
+**Goal**: Display login/logout button and user email in a header.
+**Actions Taken**:
+- This functionality was implemented as part of `frontend/src/layouts/AppLayout.tsx` created during the setup for Task 3.3.3.
+  - `AppLayout.tsx` includes an `AppBar` with a `Toolbar`.
+  - It conditionally renders a "Sign In" button (linking to `/login`) or a "Sign Out ({email})" button based on `authContext.currentUser`.
+  - The sign-out button calls `authContext.signOut()` and navigates to `/login`.
+
+**Status**: Task 3.3.4 COMPLETE ✅ (Implemented within `AppLayout.tsx`).
 
 ---

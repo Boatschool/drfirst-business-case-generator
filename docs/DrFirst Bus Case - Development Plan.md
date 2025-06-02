@@ -74,7 +74,7 @@
 | 3.3.1 | Create src/contexts/AuthContext.tsx using the abstract authService to manage auth state and provide it to components | COMPLETE | highest | low | 3.2.4 |  |
 | 3.3.2 | Implement LoginPage.tsx component with basic email/password form, using authService.signIn() | COMPLETE | highest | low | 3.1.4, 3.3.1 | Basic UI, no styling focus yet. |
 | 3.3.3 | Implement SignUpPage.tsx component (if direct sign-up needed, or adapt for admin-invited users later) | COMPLETE | high | low | 3.1.4, 3.3.1 |  |
-| 3.3.4 | Implement basic Header.tsx component showing login/logout button and user email (if logged in) using AuthContext | COMPLETE | high | low | 3.1.5, 3.3.1 |  |
+| 3.3.4 | Implement basic Header.tsx component showing login/logout button and user email (if logged in) using AuthContext | COMPLETE | high | low | 3.1.5, 3.3.1 | Done as part of AppLayout.tsx |
 | 3.3.5 | Implement ProtectedRoute component/logic to restrict access to /dashboard based on auth state from AuthContext | COMPLETE | highest | low | 3.1.4, 3.3.1 |  |
 | 3.4 | **Backend GCIP Token Validation** |  |  |  |  |  |
 | 3.4.1 | Update Application Server (Python): Add middleware/decorator to validate GCIP ID tokens for protected API endpoints | todo | highest | low | 1.1.5, 2.2.3 | Use Firebase Admin SDK (Python) for token verification. |

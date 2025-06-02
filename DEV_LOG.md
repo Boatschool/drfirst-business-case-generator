@@ -647,4 +647,29 @@ curl http://localhost:4000/api/health
 
 **Status**: Task 4.1.2 COMPLETE ✅
 
+#### ✅ Task 4.1.3: Create src/contexts/AgentContext.tsx
+**Goal**: Manage interaction state with the agent system (current case ID, agent messages, loading state).
+
+**Actions Taken**:
+- Created `frontend/src/contexts/AgentContext.tsx`.
+- Defined `AgentContextState` (currentCaseId, messages, isLoading, error) and `AgentContextType` (state + actions).
+- Implemented `AgentProvider` component:
+  - Initializes an `HttpAgentAdapter` instance.
+  - Manages agent-related state using `useState`.
+  - Provides `initiateBusinessCase` function:
+    - Sets loading state.
+    - Calls `agentService.initiateCase()`.
+    - Updates `currentCaseId` and optionally initial messages from the response.
+    - Handles errors.
+  - Provides `sendFeedbackToAgent` function:
+    - Sets loading state.
+    - Immediately adds the user's message to the local `messages` state for responsiveness.
+    - Calls `agentService.provideFeedback()`.
+    - Handles errors. (Note: Agent's response to feedback isn't automatically added yet, relies on future `onAgentUpdate`)
+  - Provides `clearAgentState` function to reset the context state.
+- Implemented `useAgentContext` custom hook for easy context consumption.
+- Included a `TODO` for implementing the `useEffect` hook to subscribe to `agentService.onAgentUpdate` for real-time updates when a case is active.
+
+**Status**: Task 4.1.3 COMPLETE ✅
+
 ---

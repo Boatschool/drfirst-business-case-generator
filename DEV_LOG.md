@@ -672,4 +672,16 @@ curl http://localhost:4000/api/health
 
 **Status**: Task 4.1.3 COMPLETE ✅
 
+### May 31, 2025 - Orchestrator Agent Enhancements
+
+#### ✅ Task 4.2.1: Enhance Orchestrator Agent: Define states for a business case lifecycle
+**Goal**: Define an enumeration for the various states a business case can go through in its lifecycle.
+
+**Actions Taken**:
+- Added `BusinessCaseStatus(Enum)` to `backend/app/agents/orchestrator_agent.py`.
+- Defined states: `INTAKE`, `PRD_DRAFTING`, `PRD_REVIEW`, `SYSTEM_DESIGN_DRAFTING`, `SYSTEM_DESIGN_REVIEW`, `FINANCIAL_ANALYSIS`, `FINAL_REVIEW`, `APPROVED`, `REJECTED`.
+- This Enum will be used by the OrchestratorAgent to track and manage the progression of business cases.
+
+**Status**: Task 4.2.1 COMPLETE ✅
+
 ---

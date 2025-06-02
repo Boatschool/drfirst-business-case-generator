@@ -4,6 +4,19 @@ Orchestrator Agent for coordinating business case generation
 
 from typing import Dict, Any, List
 import asyncio
+from enum import Enum
+
+class BusinessCaseStatus(Enum):
+    """Represents the various states of a business case lifecycle."""
+    INTAKE = "INTAKE"
+    PRD_DRAFTING = "PRD_DRAFTING"
+    PRD_REVIEW = "PRD_REVIEW"
+    SYSTEM_DESIGN_DRAFTING = "SYSTEM_DESIGN_DRAFTING"
+    SYSTEM_DESIGN_REVIEW = "SYSTEM_DESIGN_REVIEW"
+    FINANCIAL_ANALYSIS = "FINANCIAL_ANALYSIS"
+    FINAL_REVIEW = "FINAL_REVIEW"
+    APPROVED = "APPROVED"
+    REJECTED = "REJECTED"
 
 class EchoTool:
     """A simple tool that echoes back the input string."""

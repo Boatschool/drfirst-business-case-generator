@@ -94,7 +94,7 @@
 | 4.1.2 | Implement basic HttpAgentAdapter.ts for AgentService to call the backend /api/v1/invoke\_agent endpoint | COMPLETE | highest | low | 3.4.2, 4.1.1 | This adapter will handle sending requests to the backend. onAgentUpdate might initially be polled or use a simple WebSocket stub if needed later. |
 | 4.1.3 | Create src/contexts/AgentContext.tsx to manage interaction state with the agent system (e.g., current case ID, agent messages, loading state) | COMPLETE | high | low | 3.1.2, 4.1.2 |  |
 | 4.2 | **Orchestrator & Intake Agent Logic (Backend \- ADK)** |  |  |  |  |  |
-| 4.2.1 | Enhance Orchestrator Agent: Define states for a business case lifecycle (e.g., INTAKE, PRD\_DRAFTING, PRD\_REVIEW) | todo | highest | low | 2.1.2 | SDD Section 6.3 (MCP State Management). |
+| 4.2.1 | Enhance Orchestrator Agent: Define states for a business case lifecycle (e.g., INTAKE, PRD\_DRAFTING, PRD\_REVIEW) | COMPLETE | highest | low | 2.1.2 | SDD Section 6.3 (MCP State Management). |
 | 4.2.2 | Implement IntakeAgent logic within Orchestrator (or as a separate called agent): Prompt user for initial project details (via AG-UI) | todo | highest | low | 2.1.2, 4.2.1 | For now, this could be a simple "ask for problem statement" prompt. The orchestrator will manage sending this prompt to UI. |
 | 4.2.3 | Orchestrator: Store initial user input from IntakeAgent into a new businessCases document in Firestore | todo | highest | low | 2.3.1, 4.2.2 | Store with status: INTAKE\_COMPLETE. |
 | 4.3 | **Product Manager Agent Stub & PRD Drafting (Backend \- ADK)** |  |  |  |  |  |

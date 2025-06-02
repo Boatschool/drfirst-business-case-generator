@@ -100,7 +100,7 @@
 | 4.3 | **Product Manager Agent Stub & PRD Drafting (Backend \- ADK)** |  |  |  |  |  |
 | 4.3.1 | Create ProductManagerAgent stub (ADK agent structure) | COMPLETE | highest | low | 2.1.2 | SDD Section 5\. |
 | 4.3.2 | ProductManagerAgent: Implement logic to take user's problem statement (from Firestore) and generate a very basic PRD draft using Vertex AI | COMPLETE | high | low | 1.1.2 (Vertex AI API), 2.3.1, 4.3.1 | Prompt: "Based on this problem statement: \[input\], write a one-paragraph PRD overview." |
-| 4.3.3 | Orchestrator: After intake, invoke ProductManagerAgent and store the generated PRD draft in the businessCases Firestore document | todo | highest | low | 4.2.3, 4.3.2 | Update status to PRD\_DRAFTED. |
+| 4.3.3 | Orchestrator: After intake, invoke ProductManagerAgent and store the generated PRD draft in the businessCases Firestore document | COMPLETE | highest | low | 4.2.3, 4.3.2 | Update status to PRD\_DRAFTED. |
 | 4.4 | **Displaying PRD Draft (Frontend)** |  |  |  |  |  |
 | 4.4.1 | Create DashboardPage.tsx: List existing business cases for the logged-in user (read from Firestore via a new backend API endpoint) | todo | high | low | 3.3.5, 4.1.3 | New backend endpoint needed: /api/v1/cases (GET). |
 | 4.4.2 | Create BusinessCaseDetailPage.tsx: Display basic details of a selected business case, including the PRD draft from Firestore | todo | high | low | 4.4.1 | Fetch full case details: /api/v1/cases/{caseId} (GET). |

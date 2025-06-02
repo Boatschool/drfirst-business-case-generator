@@ -11,6 +11,9 @@ from datetime import datetime, timezone
 from pydantic import BaseModel, Field
 from google.cloud import firestore
 
+# Import ProductManagerAgent
+from .product_manager_agent import ProductManagerAgent 
+
 class BusinessCaseStatus(Enum):
     """Represents the various states of a business case lifecycle."""
     INTAKE = "INTAKE"
@@ -32,6 +35,7 @@ class BusinessCaseData(BaseModel):
     relevant_links: List[Dict[str, str]] = Field(default_factory=list, description="Relevant links provided by user")
     status: BusinessCaseStatus = Field(BusinessCaseStatus.INTAKE, description="Current status of the business case")
     history: List[Dict[str, Any]] = Field(default_factory=list, description="History of agent interactions and status changes")
+    prd_draft: Optional[Dict[str, Any]] = Field(None, description="Generated PRD draft content")
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
@@ -57,11 +61,12 @@ class OrchestratorAgent:
         self.description = "Coordinates the business case generation process"
         self.status = "initialized"
         self.echo_tool = EchoTool()
+        self.product_manager_agent = ProductManagerAgent()
         try:
             self.db = firestore.Client()
-            print("Firestore client initialized successfully.")
+            print("OrchestratorAgent: Firestore client initialized successfully.")
         except Exception as e:
-            print(f"Failed to initialize Firestore client: {e}")
+            print(f"OrchestratorAgent: Failed to initialize Firestore client: {e}")
             self.db = None
     
     async def handle_request(self, request_type: str, payload: Dict[str, Any], user_id: str) -> Dict[str, Any]:
@@ -108,20 +113,15 @@ class OrchestratorAgent:
             
             case_id = str(uuid.uuid4())
             
-            initial_message = f"Business case '{project_title}' initiated with ID: {case_id}. The problem stated is: '{problem_statement}'. Let's begin structuring the PRD."
+            current_time = datetime.now(timezone.utc)
+            initial_status_message = f"Case initiated. Current status: {BusinessCaseStatus.INTAKE.value}"
             
             case_history = [
                 {
-                    "timestamp": datetime.now(timezone.utc).isoformat(),
+                    "timestamp": current_time.isoformat(),
                     "source": "AGENT",
                     "type": "STATUS_UPDATE",
-                    "content": f"Case initiated. Current status: {BusinessCaseStatus.INTAKE.value}"
-                },
-                {
-                    "timestamp": datetime.now(timezone.utc).isoformat(),
-                    "source": "AGENT",
-                    "type": "MESSAGE",
-                    "content": initial_message
+                    "content": initial_status_message
                 }
             ]
 
@@ -133,26 +133,78 @@ class OrchestratorAgent:
                 relevant_links=relevant_links if isinstance(relevant_links, list) else [],
                 status=BusinessCaseStatus.INTAKE,
                 history=case_history,
+                created_at=current_time,
+                updated_at=current_time
             )
 
+            case_doc_ref = self.db.collection("businessCases").document(case_id)
             try:
-                case_doc_ref = self.db.collection("businessCases").document(case_id)
                 await asyncio.to_thread(case_doc_ref.set, case_data.model_dump())
-                print(f"Case {case_id} for user {user_id} stored in Firestore.")
+                print(f"Case {case_id} for user {user_id} stored in Firestore with status INTAKE.")
             except Exception as e:
-                print(f"Error storing case {case_id} in Firestore: {e}")
-                # Log the exception e
-                return {
-                    "status": "error",
-                    "message": f"Failed to store business case in database: {str(e)}",
-                    "result": None
-                }
+                print(f"Error storing initial case {case_id} in Firestore: {e}")
+                return {"status": "error", "message": f"Failed to store business case: {str(e)}", "result": None}
+
+            # Now, invoke ProductManagerAgent to draft PRD
+            print(f"OrchestratorAgent: Invoking ProductManagerAgent for case {case_id}...")
+            prd_response = await self.product_manager_agent.draft_prd(
+                problem_statement=case_data.problem_statement,
+                case_title=case_data.title,
+                relevant_links=case_data.relevant_links
+            )
+
+            updated_at_time = datetime.now(timezone.utc)
+            if prd_response.get("status") == "success" and prd_response.get("prd_draft"):
+                case_data.prd_draft = prd_response["prd_draft"]
+                case_data.status = BusinessCaseStatus.PRD_DRAFTING
+                case_data.updated_at = updated_at_time
+                
+                prd_draft_message = "Initial PRD draft generated by Product Manager Agent."
+                case_data.history.append({
+                    "timestamp": updated_at_time.isoformat(),
+                    "source": "AGENT",
+                    "type": "STATUS_UPDATE",
+                    "content": f"Status updated to {BusinessCaseStatus.PRD_DRAFTING.value}. {prd_draft_message}"
+                })
+                case_data.history.append({
+                    "timestamp": updated_at_time.isoformat(),
+                    "source": "PRODUCT_MANAGER_AGENT", 
+                    "type": "PRD_DRAFT",
+                    "content": prd_response["prd_draft"]["content_markdown"]
+                })
+                
+                try:
+                    await asyncio.to_thread(case_doc_ref.update, {
+                        "prd_draft": case_data.prd_draft,
+                        "status": case_data.status.value,
+                        "history": case_data.history,
+                        "updated_at": case_data.updated_at
+                    })
+                    print(f"Case {case_id} updated with PRD draft and status {case_data.status.value}.")
+                    initial_user_message = f"Business case '{case_data.title}' initiated (ID: {case_id}). Problem: '{case_data.problem_statement}'. PRD drafting has begun."
+                except Exception as e:
+                    print(f"Error updating case {case_id} with PRD draft: {e}")
+                    initial_user_message = f"Business case '{case_data.title}' initiated (ID: {case_id}). Problem: '{case_data.problem_statement}'. Error occurred during PRD draft storage."
+            else:
+                prd_error_message = prd_response.get("message", "Failed to generate PRD draft.")
+                print(f"OrchestratorAgent: ProductManagerAgent failed for case {case_id}: {prd_error_message}")
+                case_data.history.append({
+                    "timestamp": updated_at_time.isoformat(),
+                    "source": "ORCHESTRATOR_AGENT",
+                    "type": "ERROR",
+                    "content": f"Failed to generate PRD draft: {prd_error_message}"
+                })
+                try:
+                    await asyncio.to_thread(case_doc_ref.update, {"history": case_data.history, "updated_at": updated_at_time})
+                except Exception as e:
+                    print(f"Error updating case {case_id} history with PRD error: {e}")
+                initial_user_message = f"Business case '{case_data.title}' initiated (ID: {case_id}). Problem: '{case_data.problem_statement}'. PRD draft generation encountered an error."
 
             return {
-                "status": "success",
-                "message": f"Case '{project_title}' initiated successfully and stored.",
+                "status": "success", 
+                "message": initial_user_message,
                 "caseId": case_id,
-                "initialMessage": initial_message
+                "initialMessage": initial_user_message 
             }
         # TODO: Add handlers for other request_types as functionality expands
         # (e.g., "generate_business_case", "get_case_status")

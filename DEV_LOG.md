@@ -761,4 +761,29 @@ curl http://localhost:4000/api/health
 
 **Status**: Task 4.3.2 COMPLETE ✅
 
+#### ✅ Task 4.3.3: Orchestrator: After intake, invoke ProductManagerAgent and store the generated PRD draft in Firestore
+**Goal**: Integrate PRD drafting into the case initiation flow and persist the draft.
+
+**Actions Taken**:
+- Updated `backend/app/agents/orchestrator_agent.py`:
+  - Imported `ProductManagerAgent` from `.product_manager_agent`.
+  - Initialized `self.product_manager_agent = ProductManagerAgent()` in `OrchestratorAgent.__init__`.
+  - Added `prd_draft: Optional[Dict[str, Any]]` field to the `BusinessCaseData` Pydantic model.
+  - In the `handle_request` method, under `request_type="initiate_case"`:
+    - After successfully saving the initial case data to Firestore (status `INTAKE`):
+      - It now calls `await self.product_manager_agent.draft_prd()` with `problem_statement`, `title`, and `relevant_links`.
+      - **If PRD generation is successful**:
+        - Updates the local `case_data` object with the `prd_draft` content and sets `case_data.status` to `BusinessCaseStatus.PRD_DRAFTING`.
+        - Appends status update and PRD content messages to `case_data.history`.
+        - Updates the Firestore document for the case with the new `prd_draft`, `status` (as `status.value`), `history`, and `updated_at` timestamp.
+        - Modifies the `initialMessage` returned to the UI to indicate that PRD drafting has begun.
+      - **If PRD generation fails**:
+        - Logs the error from `ProductManagerAgent`.
+        - Appends an error message to `case_data.history`.
+        - Updates the Firestore document's history and `updated_at` timestamp.
+        - Modifies the `initialMessage` to indicate an error occurred during PRD generation.
+    - Timestamps are now consistently using `datetime.now(timezone.utc)`.
+
+**Status**: Task 4.3.3 COMPLETE ✅
+
 ---

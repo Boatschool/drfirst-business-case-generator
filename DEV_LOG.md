@@ -786,4 +786,151 @@ curl http://localhost:4000/api/health
 
 **Status**: Task 4.3.3 COMPLETE ✅
 
+### May 31, 2025 - Frontend: Business Case Listing, Creation Flow, and Detail Page Placeholder
+
+#### ✅ Task 4.4.1 (Frontend): Implement Business Case Listing on DashboardPage
+**Goal**: Display a list of existing business cases for the logged-in user on the DashboardPage.
+
+**Actions Taken**:
+- Added `listCases()` method to `AgentService` interface and `HttpAgentAdapter` implementation to fetch cases from `/api/v1/cases`.
+- Defined `BusinessCaseSummary` type in `AgentService.ts`.
+- Updated `AgentContext.tsx`:
+  - Added `cases: BusinessCaseSummary[]`, `isLoadingCases`, and `casesError` to state.
+  - Implemented `fetchUserCases` function to call `agentService.listCases()` and update context state.
+  - Modified `initiateBusinessCase` to call `fetchUserCases` after successful case creation to refresh the list.
+- Updated `DashboardPage.tsx`:
+  - Uses `useAgentContext` to get `cases`, loading/error states, and `fetchUserCases`.
+  - Calls `fetchUserCases` in `useEffect` hook.
+  - Displays a list of cases with links to their detail pages (e.g., `/cases/:caseId`).
+  - Includes a "Create New Business Case" button linking to `/new-case`.
+  - Handles loading and error states for case listing.
+
+**Status**: Task 4.4.1 (Frontend Part) COMPLETE ✅
+
+#### ✅ Task 4.4.3: Implement "New Business Case" button/flow on DashboardPage.tsx to trigger the IntakeAgent via AgentService
+**Goal**: Allow users to navigate to a form to create a new business case and submit it.
+
+**Actions Taken**:
+- Created `frontend/src/pages/NewCasePage.tsx`:
+  - Implemented a form with fields for Project Title, Problem Statement, and a dynamic list for Relevant Links (name/URL pairs).
+  - Uses `useAgentContext` to access `initiateBusinessCase`, `isLoading`, and `error` states.
+  - On submit, calls `initiateBusinessCase` with the form payload.
+  - Navigates to `/dashboard` on successful case creation.
+  - Includes loading and error display.
+- Added a route `/new-case` (protected) in `frontend/src/App.tsx` pointing to `NewCasePage`.
+- The "Create New Business Case" button on `DashboardPage.tsx` now links to this new page.
+
+**Status**: Task 4.4.3 COMPLETE ✅
+
+#### ✅ Task 4.4.2 (Frontend Placeholder): Create BusinessCaseDetailPage.tsx
+**Goal**: Create a placeholder page for displaying the full details of a selected business case.
+
+**Actions Taken**:
+- Created `frontend/src/pages/BusinessCaseDetailPage.tsx` as a placeholder component.
+  - Uses `useParams` to get `caseId` from the URL.
+  - Displays the `caseId` and placeholder text indicating where future content (PRD, system design, etc.) will go.
+  - Includes commented-out sections for future integration with `AgentContext` to fetch and display case details.
+- Added a route `/cases/:caseId` (protected) in `frontend/src/App.tsx` pointing to `BusinessCaseDetailPage`.
+- List items on `DashboardPage.tsx` now link to this detail page structure.
+
+**Status**: Task 4.4.2 (Frontend Placeholder) COMPLETE ✅
+
+### May 31, 2025 - Backend & Frontend: Business Case Detail View
+
+#### ✅ Task 4.4.2 (Backend): Implement Get Case Details Endpoint
+**Goal**: Create a backend endpoint to fetch the full details of a specific business case.
+
+**Actions Taken**:
+- Defined `BusinessCaseDetailsModel` Pydantic model in `backend/app/api/v1/case_routes.py`.
+- Implemented `GET /api/v1/cases/{case_id}` endpoint:
+  - Fetches the specified business case document from Firestore.
+  - Performs basic authorization (checks if `user_id` in token matches `user_id` in the case document).
+  - Returns data conforming to `BusinessCaseDetailsModel`.
+- Updated `backend/openapi-spec.yaml`:
+  - Added the definition for `BusinessCaseDetails`.
+  - Added the path specification for `GET /api/v1/cases/{case_id}`.
+
+**Status**: Task 4.4.2 (Backend Part for Detail View) COMPLETE ✅
+
+#### ✅ Task 4.4.2 (Frontend): Implement Business Case Detail Page
+**Goal**: Make the `BusinessCaseDetailPage` functional to display full case details.
+
+**Actions Taken**:
+- **Service Layer (`AgentService.ts`, `HttpAgentAdapter.ts`)**:
+  - Defined `BusinessCaseDetails` interface.
+  - Added and implemented `getCaseDetails(caseId: string): Promise<BusinessCaseDetails>` method to fetch data from the new backend endpoint.
+- **Context Layer (`AgentContext.tsx`)**:
+  - Added `currentCaseDetails`, `isLoadingCaseDetails`, `caseDetailsError` to state.
+  - Implemented `fetchCaseDetails(caseId: string)` function to call the service method and update context.
+  - Added `clearCurrentCaseDetails` to reset state on component unmount or `caseId` change.
+  - Ensured `useCallback` dependencies are correctly managed for functions like `sendFeedbackToAgent` (to refresh details after feedback) and `initiateBusinessCase`.
+- **Page Component (`BusinessCaseDetailPage.tsx`)**:
+  - Uses `useParams` to get `caseId`.
+  - Calls `fetchCaseDetails` in `useEffect` to load data.
+  - Handles loading and error states.
+  - Displays: Title, Status (Chip), Problem Statement, Relevant Links, PRD Draft (rendered from Markdown using `react-markdown`), and Interaction History (formatted list).
+  - Corrected a `messageType` comparison error in history rendering logic.
+- **Dependencies**:
+  - Installed `react-markdown` for rendering PRD content.
+
+**Status**: Task 4.4.2 (Full Frontend and Backend) COMPLETE ✅
+
+#### ✅ Task 4.4.4: Implement Feedback Mechanism on BusinessCaseDetailPage
+**Goal**: Allow users to send feedback or messages to the agent from the case detail page.
+
+**Actions Taken**:
+- Added a feedback section to `frontend/src/pages/BusinessCaseDetailPage.tsx`:
+  - Includes a `TextField` for message input and a "Send Message" `Button`.
+  - Uses a local state `feedbackMessage` to manage the input.
+  - On send, calls `sendFeedbackToAgent(payload)` from `AgentContext`.
+  - Clears the input field on successful submission.
+  - Displays general loading and error states from `AgentContext` related to the send operation.
+- The `AgentContext` was previously updated to ensure that `fetchCaseDetails` is called after feedback is sent, refreshing the interaction history and any other case updates.
+
+**Status**: Task 4.4.4 COMPLETE ✅
+
+---
+
+**Phase 5: HITL for PRD & Core Agent Enhancements**
+
+### May 31, 2025 - Frontend: PRD Editing UI
+
+#### ✅ Task 5.1.1: Enhance BusinessCaseDetailPage.tsx: Allow editing of the PRD draft
+**Goal**: Provide a UI mechanism for users to edit the PRD draft directly on the case detail page.
+
+**Actions Taken**:
+- Added state variables `isEditingPrd` and `editedPrdContent` to `frontend/src/pages/BusinessCaseDetailPage.tsx`.
+- Implemented an "Edit PRD" button that, when clicked:
+  - Sets `isEditingPrd` to true.
+  - Populates `editedPrdContent` with the current PRD content.
+- When `isEditingPrd` is true:
+  - The PRD draft section displays a multi-line `TextField` with the `editedPrdContent`.
+  - "Save Changes" and "Cancel" buttons are shown.
+- **"Save Changes" Button**: Currently logs the edited content to the console and sets `isEditingPrd` to false. Actual save functionality will be implemented in Task 5.1.2.
+- **"Cancel" Button**: Resets `editedPrdContent` to the original PRD content (if available) and sets `isEditingPrd` to false.
+- The display of the PRD (using `ReactMarkdown`) is shown when not in edit mode.
+- Added an `useEffect` hook to initialize `editedPrdContent` when `currentCaseDetails` loads or changes, but only if not already in edit mode.
+
+**Status**: Task 5.1.1 COMPLETE ✅
+
+### May 31, 2025 - Frontend: PRD Editing UI
+
+#### ✅ Task 5.1.2: Enhance BusinessCaseDetailPage.tsx: Allow editing of the PRD draft
+**Goal**: Provide a UI mechanism for users to edit the PRD draft directly on the case detail page.
+
+**Actions Taken**:
+- Added state variables `isEditingPrd` and `editedPrdContent` to `frontend/src/pages/BusinessCaseDetailPage.tsx`.
+- Implemented an "Edit PRD" button that, when clicked:
+  - Sets `isEditingPrd` to true.
+  - Populates `editedPrdContent` with the current PRD content.
+- When `isEditingPrd` is true:
+  - The PRD draft section displays a multi-line `TextField` with the `editedPrdContent`.
+  - "Save Changes" and "Cancel" buttons are shown.
+- **"Save Changes" Button**: Currently logs the edited content to the console and sets `isEditingPrd` to false. Actual save functionality will be implemented in Task 5.1.2.
+- **"Cancel" Button**: Resets `editedPrdContent` to the original PRD content (if available) and sets `isEditingPrd` to false.
+- The display of the PRD (using `ReactMarkdown`) is shown when not in edit mode.
+- Added an `useEffect` hook to initialize `editedPrdContent` when `currentCaseDetails` loads or changes, but only if not already in edit mode.
+
+**Status**: Task 5.1.2 COMPLETE ✅
+
 ---

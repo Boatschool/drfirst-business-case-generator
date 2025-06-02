@@ -7,7 +7,9 @@ from fastapi.middleware.cors import CORSMiddleware
 import firebase_admin
 from firebase_admin import credentials
 
-from app.api.v1 import agent_routes, auth_routes, admin_routes
+from app.api.v1 import agent_routes as agent_routes_v1
+from app.api.v1 import auth_routes, admin_routes
+from app.api.v1 import case_routes as case_routes_v1
 from app.core.config import settings
 
 # Initialize Firebase Admin SDK
@@ -45,9 +47,10 @@ app.add_middleware(
 )
 
 # Include API routers
-app.include_router(agent_routes.router, prefix="/api/v1/agents", tags=["agents"])
+app.include_router(agent_routes_v1.router, prefix="/api/v1/agents", tags=["Agent API v1"])
 app.include_router(auth_routes.router, prefix="/api/v1/auth", tags=["auth"])
 app.include_router(admin_routes.router, prefix="/api/v1/admin", tags=["admin"])
+app.include_router(case_routes_v1.router, prefix="/api/v1", tags=["Case API v1"])
 
 @app.get("/")
 async def root():

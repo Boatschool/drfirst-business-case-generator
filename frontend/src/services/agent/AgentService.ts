@@ -40,6 +40,33 @@ export interface AgentUpdate {
 }
 
 /**
+ * Represents a summary of a business case, typically for list views.
+ */
+export interface BusinessCaseSummary {
+  case_id: string;
+  user_id: string;
+  title: string;
+  status: string; // Matches the BusinessCaseStatus enum values from backend
+  created_at: string; // ISO 8601 timestamp string
+  updated_at: string; // ISO 8601 timestamp string
+}
+
+/**
+ * Represents the full details of a business case.
+ */
+export interface BusinessCaseDetails extends BusinessCaseSummary {
+  problem_statement: string;
+  relevant_links: Array<{ name: string; url: string }>;
+  history: AgentUpdate[]; // Re-using AgentUpdate for history items
+  prd_draft?: { // Assuming prd_draft structure from OrchestratorAgent
+    title: string;
+    content_markdown: string;
+    version: string;
+  } | null;
+  // Add other fields as they are defined, e.g., system_design_draft, financial_model
+}
+
+/**
  * Defines the contract for agent communication services.
  */
 export interface AgentService {
@@ -64,6 +91,19 @@ export interface AgentService {
    * @returns A function to unsubscribe from updates.
    */
   onAgentUpdate(caseId: string, onUpdateCallback: (update: AgentUpdate) => void): () => void;
+
+  /**
+   * Retrieves a list of business case summaries for the authenticated user.
+   * @returns A promise that resolves with an array of business case summaries.
+   */
+  listCases(): Promise<BusinessCaseSummary[]>;
+
+  /**
+   * Retrieves the full details for a specific business case.
+   * @param caseId - The ID of the business case to retrieve.
+   * @returns A promise that resolves with the full details of the business case.
+   */
+  getCaseDetails(caseId: string): Promise<BusinessCaseDetails>;
 
   // Potential future methods:
   // getCaseHistory(caseId: string): Promise<AgentUpdate[]>;

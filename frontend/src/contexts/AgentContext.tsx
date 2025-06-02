@@ -1,24 +1,35 @@
-import React, { createContext, useContext, useState, ReactNode, useCallback } from 'react';
+import React, { createContext, useContext, useState, ReactNode, useCallback, useEffect } from 'react';
 import {
   AgentService,
   InitiateCasePayload,
   InitiateCaseResponse,
   ProvideFeedbackPayload,
   AgentUpdate,
+  BusinessCaseSummary,
+  BusinessCaseDetails,
 } from '../services/agent/AgentService';
 import { HttpAgentAdapter } from '../services/agent/HttpAgentAdapter'; // Concrete implementation
 
 interface AgentContextState {
   currentCaseId: string | null;
   messages: AgentUpdate[];
+  cases: BusinessCaseSummary[];
+  currentCaseDetails: BusinessCaseDetails | null;
   isLoading: boolean;
+  isLoadingCases: boolean;
+  isLoadingCaseDetails: boolean;
   error: Error | null;
+  casesError: Error | null;
+  caseDetailsError: Error | null;
 }
 
 interface AgentContextType extends AgentContextState {
   initiateBusinessCase: (payload: InitiateCasePayload) => Promise<InitiateCaseResponse | undefined>;
   sendFeedbackToAgent: (payload: ProvideFeedbackPayload) => Promise<void>;
+  fetchUserCases: () => Promise<void>;
+  fetchCaseDetails: (caseId: string) => Promise<void>;
   clearAgentState: () => void;
+  clearCurrentCaseDetails: () => void;
   // TODO: Add a way to subscribe to agent updates via onAgentUpdate from AgentService
 }
 
@@ -35,9 +46,29 @@ export const AgentProvider: React.FC<AgentProviderProps> = ({ children }) => {
   const [state, setState] = useState<AgentContextState>({
     currentCaseId: null,
     messages: [],
+    cases: [],
+    currentCaseDetails: null,
     isLoading: false,
+    isLoadingCases: false,
+    isLoadingCaseDetails: false,
     error: null,
+    casesError: null,
+    caseDetailsError: null,
   });
+
+  const fetchUserCases = useCallback(async () => {
+    setState(prevState => ({ ...prevState, isLoadingCases: true, casesError: null }));
+    try {
+      const userCases = await agentService.listCases();
+      setState(prevState => ({
+        ...prevState,
+        cases: userCases,
+        isLoadingCases: false,
+      }));
+    } catch (err: any) {
+      setState(prevState => ({ ...prevState, isLoadingCases: false, casesError: err }));
+    }
+  }, []);
 
   const initiateBusinessCase = useCallback(async (payload: InitiateCasePayload): Promise<InitiateCaseResponse | undefined> => {
     setState(prevState => ({ ...prevState, isLoading: true, error: null }));
@@ -47,7 +78,6 @@ export const AgentProvider: React.FC<AgentProviderProps> = ({ children }) => {
         ...prevState,
         isLoading: false,
         currentCaseId: response.caseId,
-        // Optionally add initial message from response if it exists
         messages: response.initialMessage ? [
           {
             caseId: response.caseId,
@@ -58,44 +88,51 @@ export const AgentProvider: React.FC<AgentProviderProps> = ({ children }) => {
           }
         ] : [],
       }));
+      fetchUserCases();
       return response;
     } catch (err: any) {
       setState(prevState => ({ ...prevState, isLoading: false, error: err }));
       return undefined;
     }
-  }, []);
+  }, [fetchUserCases]);
 
-  const sendFeedbackToAgent = useCallback(async (payload: ProvideFeedbackPayload) => {
-    setState(prevState => ({ ...prevState, isLoading: true, error: null }));
+  const fetchCaseDetails = useCallback(async (caseId: string) => {
+    setState(prevState => ({ ...prevState, isLoadingCaseDetails: true, caseDetailsError: null, currentCaseDetails: null }));
     try {
-      // Add user message to local state immediately for better UX
-      const userMessage: AgentUpdate = {
-        caseId: payload.caseId,
-        timestamp: new Date().toISOString(),
-        source: 'USER',
-        messageType: 'TEXT',
-        content: payload.message, 
-      };
+      const details = await agentService.getCaseDetails(caseId);
       setState(prevState => ({
         ...prevState,
-        messages: [...prevState.messages, userMessage],
+        currentCaseDetails: details,
+        currentCaseId: caseId,
+        messages: details.history || [],
+        isLoadingCaseDetails: false,
       }));
-
-      await agentService.provideFeedback(payload);
-      setState(prevState => ({ ...prevState, isLoading: false }));
-      // Here, we might expect an update from the agent via onAgentUpdate
-      // For now, the agent's response isn't automatically added after feedback
     } catch (err: any) {
-      setState(prevState => ({ ...prevState, isLoading: false, error: err }));
+      setState(prevState => ({ ...prevState, isLoadingCaseDetails: false, caseDetailsError: err }));
     }
+  }, []);
+  
+  const clearCurrentCaseDetails = useCallback(() => {
+    setState(prevState => ({
+      ...prevState,
+      currentCaseDetails: null,
+      messages: [],
+      caseDetailsError: null,
+    }));
   }, []);
 
   const clearAgentState = useCallback(() => {
     setState({
       currentCaseId: null,
       messages: [],
+      cases: [],
+      currentCaseDetails: null,
       isLoading: false,
+      isLoadingCases: false,
+      isLoadingCaseDetails: false,
       error: null,
+      casesError: null,
+      caseDetailsError: null,
     });
   }, []);
   
@@ -105,8 +142,35 @@ export const AgentProvider: React.FC<AgentProviderProps> = ({ children }) => {
   const value = {
     ...state,
     initiateBusinessCase,
-    sendFeedbackToAgent,
+    sendFeedbackToAgent: async (payload: ProvideFeedbackPayload) => {
+      setState(prevState => ({ ...prevState, isLoading: true, error: null }));
+      try {
+        const userMessage: AgentUpdate = {
+          caseId: payload.caseId,
+          timestamp: new Date().toISOString(),
+          source: 'USER',
+          messageType: 'TEXT',
+          content: payload.message, 
+        };
+        setState(prevState => ({
+          ...prevState,
+          messages: [...prevState.messages, userMessage],
+        }));
+
+        await agentService.provideFeedback(payload);
+        setState(prevState => ({ ...prevState, isLoading: false }));
+        
+        if (state.currentCaseId === payload.caseId && state.currentCaseDetails) {
+          fetchCaseDetails(payload.caseId);
+        }
+      } catch (err: any) {
+        setState(prevState => ({ ...prevState, isLoading: false, error: err }));
+      }
+    },
+    fetchUserCases,
+    fetchCaseDetails,
     clearAgentState,
+    clearCurrentCaseDetails,
   };
 
   return <AgentContext.Provider value={value}>{children}</AgentContext.Provider>;

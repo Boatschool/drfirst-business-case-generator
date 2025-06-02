@@ -11,6 +11,8 @@ import { AuthProvider, AuthContext } from './contexts/AuthContext';
 import LoginPage from './pages/LoginPage';
 import SignUpPage from './pages/SignUpPage';
 import DashboardPage from './pages/DashboardPage';
+import NewCasePage from './pages/NewCasePage';
+import BusinessCaseDetailPage from './pages/BusinessCaseDetailPage';
 import AppLayout from './layouts/AppLayout';
 import { Container, Typography, Box, Alert } from '@mui/material';
 
@@ -73,6 +75,8 @@ function App() {
             {/* Protected Routes */}
             <Route element={<ProtectedRoute />}>
               <Route path="/dashboard" element={<DashboardPage />} />
+              <Route path="/new-case" element={<NewCasePage />} />
+              <Route path="/cases/:caseId" element={<BusinessCaseDetailPage />} />
               {/* Add other protected routes here */}
             </Route>
             

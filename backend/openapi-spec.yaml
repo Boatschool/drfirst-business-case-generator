@@ -16,7 +16,7 @@ securityDefinitions:
     type: apiKey
     name: Authorization
     in: header
-    description: "Firebase ID token (JWT). Prefix with 'Bearer '. Example: 'Bearer eyJhbGciOiJSUzI1NiIsImtpZCI6ImFiY...'"
+    description: "Firebase ID token (JWT). Prefix with 'Bearer '. Example: 'Bearer eyJhbGciOiJSUzI1NiIsImtpZCI6ImFiY...'."
 
 paths:
   /health:
@@ -65,41 +65,176 @@ paths:
             properties:
               request_type:
                 type: string
-                description: "The type of request/action to perform (e.g., 'echo')."
-                example: "echo"
+                description: "The type of request to the agent (e.g., echo, initiate_case)"
               payload:
                 type: object
-                description: "The payload for the request. Structure depends on request_type."
-                example: {"input_text": "Hello World"}
-            # Example for 'echo' payload explicitly for clarity, though payload is generic object
-            # example:
-            #   request_type: "echo"
-            #   payload: {"input_text": "Hello from API Gateway"}
+                description: "Payload specific to the request_type"
+                example: { "input_text": "Hello World" }
       responses:
         '200':
           description: Successful agent invocation
           schema:
-            type: object
-            properties:
-              status:
-                type: string
-              message:
-                type: string
-              result:
-                # For echo, this is a string. For others, it might be an object.
-                # Using a generic object type here for flexibility.
-                type: object
+            type: object # Define a more specific schema if possible
         '400':
-          description: Bad Request (e.g., missing fields, agent processing error)
-          schema:
-            type: object
-            properties:
-              detail: # FastAPI uses 'detail' for HTTPException
-                type: string
+          description: Bad Request (e.g., missing fields)
+        '401':
+          description: Unauthorized (e.g., invalid token)
         '500':
           description: Internal Server Error
+
+  /api/v1/cases:  # New endpoint for listing cases
+    get:
+      summary: List business cases for the authenticated user
+      operationId: listUserCases
+      security:
+        - firebaseIdToken: [] # Protected by Firebase ID token
+      produces:
+        - application/json
+      responses:
+        '200':
+          description: A list of business case summaries
           schema:
-            type: object
-            properties:
-              detail:
-                type: string 
+            type: array
+            items:
+              $ref: '#/definitions/BusinessCaseSummary' # Reference the definition
+        '401':
+          description: Unauthorized (e.g., invalid token)
+        '500':
+          description: Internal Server Error
+
+  /api/v1/cases/{case_id}: # New endpoint for specific case details
+    get:
+      summary: Get full details for a specific business case
+      operationId: getCaseDetailsById
+      security:
+        - firebaseIdToken: []
+      parameters:
+        - name: case_id
+          in: path
+          required: true
+          description: ID of the business case to retrieve
+          type: string
+      produces:
+        - application/json
+      responses:
+        '200':
+          description: Successfully retrieved business case details
+          schema:
+            $ref: '#/definitions/BusinessCaseDetails'
+        '401':
+          description: Unauthorized (e.g., invalid token)
+        '403':
+          description: Forbidden (e.g., user does not have permission to view this case)
+        '404':
+          description: Business case not found
+        '500':
+          description: Internal Server Error
+
+# Define data models used in responses or requests
+definitions:
+  BusinessCaseSummary:
+    type: object
+    properties:
+      case_id:
+        type: string
+        description: "Unique ID of the business case."
+      user_id:
+        type: string
+        description: "ID of the user who initiated the case."
+      title:
+        type: string
+        description: "Title of the business case."
+      status:
+        type: string
+        description: "Current status of the business case (e.g., INTAKE, PRD_DRAFTING)."
+      created_at:
+        type: string
+        format: date-time
+        description: "Timestamp of case creation."
+      updated_at:
+        type: string
+        format: date-time
+        description: "Timestamp of last update."
+    required:
+      - case_id
+      - user_id
+      - title
+      - status
+      - created_at
+      - updated_at
+
+  BusinessCaseDetails:
+    type: object
+    properties:
+      case_id:
+        type: string
+        description: "Unique ID of the business case."
+      user_id:
+        type: string
+        description: "ID of the user who initiated the case."
+      title:
+        type: string
+        description: "Title of the business case."
+      problem_statement:
+        type: string
+        description: "Problem statement for the case."
+      relevant_links:
+        type: array
+        items:
+          type: object
+          properties:
+            name:
+              type: string
+            url:
+              type: string
+        description: "Relevant links provided by user."
+      status:
+        type: string
+        description: "Current status of the business case (e.g., INTAKE, PRD_DRAFTING)."
+      history:
+        type: array
+        items:
+          type: object
+          # additionalProperties: true # Keeps it flexible
+          properties: # More defined history item structure
+            timestamp:
+              type: string
+              format: date-time
+            source:
+              type: string
+              enum: [USER, AGENT, PRODUCT_MANAGER_AGENT, ORCHESTRATOR_AGENT] # Example sources
+            type:
+              type: string
+              enum: [STATUS_UPDATE, TEXT, PROMPT, PRD_DRAFT, ERROR] # Example types
+            content:
+              type: string # Or object for structured content
+        description: "History of agent interactions and status changes."
+      prd_draft:
+        type: object
+        # additionalProperties: true # Keeps it flexible
+        properties:
+          title:
+            type: string
+          content_markdown:
+            type: string
+          version:
+            type: string
+        description: "Generated PRD draft content. Can be null."
+        nullable: true # Explicitly state that prd_draft can be null
+      created_at:
+        type: string
+        format: date-time
+        description: "Timestamp of case creation."
+      updated_at:
+        type: string
+        format: date-time
+        description: "Timestamp of last update."
+    required:
+      - case_id
+      - user_id
+      - title
+      - problem_statement
+      - status
+      - history
+      - created_at
+      - updated_at 

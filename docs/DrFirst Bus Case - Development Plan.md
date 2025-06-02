@@ -102,10 +102,10 @@
 | 4.3.2 | ProductManagerAgent: Implement logic to take user's problem statement (from Firestore) and generate a very basic PRD draft using Vertex AI | COMPLETE | high | low | 1.1.2 (Vertex AI API), 2.3.1, 4.3.1 | Prompt: "Based on this problem statement: \[input\], write a one-paragraph PRD overview." |
 | 4.3.3 | Orchestrator: After intake, invoke ProductManagerAgent and store the generated PRD draft in the businessCases Firestore document | COMPLETE | highest | low | 4.2.3, 4.3.2 | Update status to PRD\_DRAFTED. |
 | 4.4 | **Displaying PRD Draft (Frontend)** |  |  |  |  |  |
-| 4.4.1 | Create DashboardPage.tsx: List existing business cases for the logged-in user (read from Firestore via a new backend API endpoint) | todo | high | low | 3.3.5, 4.1.3 | New backend endpoint needed: /api/v1/cases (GET). |
-| 4.4.2 | Create BusinessCaseDetailPage.tsx: Display basic details of a selected business case, including the PRD draft from Firestore | todo | high | low | 4.4.1 | Fetch full case details: /api/v1/cases/{caseId} (GET). |
-| 4.4.3 | Implement "New Business Case" button/flow on DashboardPage.tsx to trigger the IntakeAgent via AgentService | todo | highest | low | 4.1.2, 4.2.2, 4.4.1 | This will initiate the AG-UI conversation for intake. UI needs a text input and send button. |
-| 4.4.4 | Basic UI in BusinessCaseDetailPage.tsx to show conversational prompts from Intake Agent & display final PRD draft | todo | high | low | 4.1.3, 4.2.2, 4.3.3, 4.4.2 | For now, agent messages can be simple text displays. PRD draft can be a read-only text area. |
+| 4.4.1 | Create DashboardPage.tsx: List existing business cases for the logged-in user (read from Firestore via a new backend API endpoint) | COMPLETE | high | low | 3.3.5, 4.1.3 | New backend endpoint needed: /api/v1/cases (GET). Backend COMPLETE, Frontend COMPLETE. |
+| 4.4.2 | Create BusinessCaseDetailPage.tsx: Display basic details of a selected business case, including the PRD draft from Firestore | COMPLETE | high | low | 4.4.1 | Fetch full case details: /api/v1/cases/{caseId} (GET). Full implementation. |
+| 4.4.3 | Implement "New Business Case" button/flow on DashboardPage.tsx to trigger the IntakeAgent via AgentService | COMPLETE | highest | low | 4.1.2, 4.2.2, 4.4.1 | This will initiate the AG-UI conversation for intake. UI needs a text input and send button. Implemented NewCasePage.tsx. |
+| 4.4.4 | Basic UI in BusinessCaseDetailPage.tsx to show conversational prompts from Intake Agent & display final PRD draft | COMPLETE | high | low | 4.1.3, 4.2.2, 4.3.3, 4.4.2 | Conversational history and PRD draft are displayed. Feedback input mechanism added. |
 
 ---
 
@@ -117,7 +117,7 @@
 | Task ID | Title | Status | Priority | Complexity | Dependencies | Notes |
 | :---- | :---- | :---- | :---- | :---- | :---- | :---- |
 | 5.1 | **PRD Review & Editing (Frontend)** |  |  |  |  |  |
-| 5.1.1 | Enhance BusinessCaseDetailPage.tsx: Allow editing of the PRD draft (e.g., using a simple textarea or a basic rich text editor) | todo | high | low | 4.4.4 |  |
+| 5.1.1 | Enhance BusinessCaseDetailPage.tsx: Allow editing of the PRD draft (e.g., using a simple textarea or a basic rich text editor) | COMPLETE | high | low | 4.4.4 | Frontend UI for editing PRD draft is implemented. Save via API is next. |
 | 5.1.2 | Implement "Save PRD Draft" button on BusinessCaseDetailPage.tsx to update the PRD in Firestore (via backend API endpoint) | todo | high | low | 5.1.1 | New backend endpoint: /api/v1/cases/{caseId}/prd (PUT). |
 | 5.1.3 | Implement "Submit PRD for Review" button, updating case status in Firestore (via backend API) | todo | high | low | 5.1.2 | Updates status to PRD\_PENDING\_APPROVAL. Backend API: /api/v1/cases/{caseId}/status (PUT). |
 | 5.2 | **PRD Approval Logic (Simplified)** |  |  |  |  |  |

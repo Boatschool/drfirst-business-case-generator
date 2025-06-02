@@ -5,6 +5,8 @@ import {
   InitiateCaseResponse,
   ProvideFeedbackPayload,
   AgentUpdate,
+  BusinessCaseSummary,
+  BusinessCaseDetails,
 } from './AgentService';
 
 const API_BASE_URL = '/api/v1'; // Using relative path for proxy
@@ -100,6 +102,18 @@ export class HttpAgentAdapter implements AgentService {
     return () => clearInterval(intervalId);
     */
     return () => {}; // Return a no-op unsubscribe function
+  }
+
+  async listCases(): Promise<BusinessCaseSummary[]> {
+    return this.fetchWithAuth<BusinessCaseSummary[]>('/cases', {
+      method: 'GET',
+    });
+  }
+
+  async getCaseDetails(caseId: string): Promise<BusinessCaseDetails> {
+    return this.fetchWithAuth<BusinessCaseDetails>(`/cases/${caseId}`, {
+      method: 'GET',
+    });
   }
 }
 

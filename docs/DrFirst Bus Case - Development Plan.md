@@ -37,7 +37,7 @@
 | 2.1.1 | Set up ADK Development Environment locally (Python, ADK libraries) | COMPLETE | highest | low | (Python installed) | SDD Section 4.2. Refer to Google ADK documentation. |
 | 2.1.2 | Create initial "Orchestrator Agent" project structure using ADK | COMPLETE | highest | low | 2.1.1 | SDD Section 5\. This will be the main agent managing workflow. |
 | 2.1.3 | Implement a basic "EchoTool" for the Orchestrator Agent (takes input string, returns it) \- local test | COMPLETE | high | low | 2.1.2 | Simple ADK tool for testing agent invocation. |
-| 2.1.4 | Define main function/entry point for Orchestrator Agent to handle requests (e.g., process an "echo" request using EchoTool) | todo | high | low | 2.1.3 |  |
+| 2.1.4 | Define main function/entry point for Orchestrator Agent to handle requests (e.g., process an "echo" request using EchoTool) | COMPLETE | high | low | 2.1.3 |  |
 | 2.2 | **Application Server (Cloud Run) & API Scaffolding** |  |  |  |  |  |
 | 2.2.1 | Create Python Flask/FastAPI project for Application Server (to host ADK agents) | COMPLETE | highest | low | (Python installed) | SDD Section 4.2. This will be containerized for Cloud Run. |
 | 2.2.2 | Implement a basic health check endpoint (e.g., /health) in the Application Server | COMPLETE | high | low | 2.2.1 | For Cloud Run liveness/readiness probes. |

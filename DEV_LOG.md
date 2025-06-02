@@ -422,4 +422,26 @@ curl http://localhost:4000/api/health
 
 **Status**: Task 2.1.3 COMPLETE ✅
 
+### May 31, 2025 - Backend Agent Development: Orchestrator Request Handling
+
+#### ✅ Task 2.1.4: Define main function/entry point for Orchestrator Agent
+**Goal**: Implement a primary request handling method in the Orchestrator Agent to process various request types, starting with an "echo" request.
+
+**Actions Taken**:
+- Added `async def handle_request(self, request_type: str, payload: Dict[str, Any])` to `OrchestratorAgent` in `backend/app/agents/orchestrator_agent.py`.
+  - This method serves as the main entry point for agent requests.
+  - Implemented logic to handle `request_type="echo"`:
+    - Retrieves `input_text` from the `payload`.
+    - Calls `self.run_echo_tool()`.
+    - Returns a structured response dictionary with status, message, and result.
+  - Added error handling for missing `input_text` in echo requests.
+  - Added error handling for unknown `request_type`.
+- Updated unit tests in `backend/tests/unit/agents/test_orchestrator_agent.py`:
+  - `test_orchestrator_handle_request_echo_success`: Verifies successful echo via `handle_request`.
+  - `test_orchestrator_handle_request_echo_missing_payload`: Tests error handling for missing payload.
+  - `test_orchestrator_handle_request_unknown_type`: Tests error handling for invalid request types.
+- **Testing Success**: All existing and new unit tests passed.
+
+**Status**: Task 2.1.4 COMPLETE ✅
+
 ---

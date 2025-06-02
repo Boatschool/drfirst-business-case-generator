@@ -26,6 +26,36 @@ async def test_orchestrator_run_echo_tool(orchestrator_agent: OrchestratorAgent)
     result = await orchestrator_agent.run_echo_tool(input_text)
     assert result == input_text
 
+@pytest.mark.asyncio
+async def test_orchestrator_handle_request_echo_success(orchestrator_agent: OrchestratorAgent):
+    """Test the OrchestratorAgent's handle_request method for a successful echo."""
+    request_type = "echo"
+    payload = {"input_text": "Hello via handle_request"}
+    response = await orchestrator_agent.handle_request(request_type, payload)
+    assert response["status"] == "success"
+    assert response["message"] == "Echo request processed successfully."
+    assert response["result"] == "Hello via handle_request"
+
+@pytest.mark.asyncio
+async def test_orchestrator_handle_request_echo_missing_payload(orchestrator_agent: OrchestratorAgent):
+    """Test handle_request with echo type but missing input_text in payload."""
+    request_type = "echo"
+    payload = {}
+    response = await orchestrator_agent.handle_request(request_type, payload)
+    assert response["status"] == "error"
+    assert response["message"] == "Missing 'input_text' in payload for echo request."
+    assert response["result"] is None
+
+@pytest.mark.asyncio
+async def test_orchestrator_handle_request_unknown_type(orchestrator_agent: OrchestratorAgent):
+    """Test handle_request with an unknown request_type."""
+    request_type = "unknown_action"
+    payload = {"data": "some_data"}
+    response = await orchestrator_agent.handle_request(request_type, payload)
+    assert response["status"] == "error"
+    assert response["message"] == "Unknown request_type: unknown_action"
+    assert response["result"] is None
+
 # Example of how to run this test locally (optional, for demonstration)
 # if __name__ == "__main__":
 #     async def main():

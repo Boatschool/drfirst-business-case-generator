@@ -28,6 +28,42 @@ class OrchestratorAgent:
         self.status = "initialized"
         self.echo_tool = EchoTool()
     
+    async def handle_request(self, request_type: str, payload: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Main entry point for handling various requests to the Orchestrator Agent.
+        Routes requests to the appropriate tool or method based on request_type.
+        """
+        if request_type == "echo":
+            input_text = payload.get("input_text")
+            if input_text is None:
+                return {
+                    "status": "error",
+                    "message": "Missing 'input_text' in payload for echo request.",
+                    "result": None
+                }
+            try:
+                echoed_text = await self.run_echo_tool(input_text)
+                return {
+                    "status": "success",
+                    "message": "Echo request processed successfully.",
+                    "result": echoed_text
+                }
+            except Exception as e:
+                # Log the exception e
+                return {
+                    "status": "error",
+                    "message": f"Error processing echo request: {str(e)}",
+                    "result": None
+                }
+        # TODO: Add handlers for other request_types as functionality expands
+        # (e.g., "generate_business_case", "get_case_status")
+        else:
+            return {
+                "status": "error",
+                "message": f"Unknown request_type: {request_type}",
+                "result": None
+            }
+    
     async def generate_business_case(self, requirements: Dict[str, Any]) -> Dict[str, Any]:
         """
         Main method to orchestrate the business case generation process

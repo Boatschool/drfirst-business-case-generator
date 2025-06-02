@@ -1,20 +1,19 @@
 import firebase_admin
 from firebase_admin import auth
 from fastapi import Depends, HTTPException, status
-from fastapi.security import OAuth2PasswordBearer
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from typing import Optional
+from app.services.auth_service import auth_service
 
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/v1/auth/token") # Placeholder tokenUrl
+# HTTP Bearer token security scheme
+security = HTTPBearer(auto_error=False)
 
-async def get_current_user(token: str = Depends(oauth2_scheme)) -> dict:
+async def get_current_user(credentials: Optional[HTTPAuthorizationCredentials] = Depends(security)) -> dict:
     """
     Dependency to verify Firebase ID token and get user data.
     
     Args:
-        token: The ID token extracted by OAuth2PasswordBearer.
-               Note: Despite the name 'OAuth2PasswordBearer', we're using it
-               to extract a Firebase ID token (JWT Bearer token).
-               The tokenUrl is a placeholder and not actually used by Firebase ID token flow.
+        credentials: The Bearer token credentials extracted by HTTPBearer
     
     Returns:
         Decoded Firebase user claims (dictionary).
@@ -22,74 +21,122 @@ async def get_current_user(token: str = Depends(oauth2_scheme)) -> dict:
     Raises:
         HTTPException: If the token is invalid, expired, or authentication fails.
     """
-    if not firebase_admin._DEFAULT_APP_NAME in firebase_admin._apps:
-        # This check is important if the app might not initialize Firebase Admin correctly.
-        # However, main.py should handle initialization.
-        # Consider how to handle this error robustly, perhaps by ensuring init during startup.
+    if not credentials:
+        print("❌ [AUTH] No credentials provided")
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Authentication required. Please provide a valid Bearer token.",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    
+    token = credentials.credentials
+    print(f"🔐 [AUTH] Verifying Firebase ID token...")
+    print(f"🎫 [AUTH] Token preview: {token[:50] if token else 'NULL'}...")
+    
+    if not auth_service.is_initialized:
+        print("❌ [AUTH] Firebase Admin SDK not initialized!")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Firebase Admin SDK not initialized. Cannot authenticate user.",
+            detail="Authentication service not available. Please try again later.",
         )
+
     try:
-        decoded_token = auth.verify_id_token(token)
+        print("🔍 [AUTH] Calling auth_service.verify_id_token()...")
+        decoded_token = auth_service.verify_id_token(token)
+        
+        if not decoded_token:
+            print("❌ [AUTH] Token verification failed")
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Invalid or expired token. Please re-authenticate.",
+                headers={"WWW-Authenticate": "Bearer"},
+            )
+        
+        print(f"✅ [AUTH] Token verified successfully for user: {decoded_token.get('email', 'unknown')}")
         return decoded_token
-    except firebase_admin.auth.ExpiredIdTokenError:
+        
+    except HTTPException:
+        # Re-raise HTTPExceptions as-is
+        raise
+    except Exception as e:
+        # Log unexpected errors and return a generic auth error
+        print(f"❌ [AUTH] Unexpected error during token verification: {e}")
+        print(f"❌ [AUTH] Exception type: {type(e)}")
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="ID token has expired. Please re-authenticate.",
-            headers={"WWW-Authenticate": "Bearer"},
-        )
-    except firebase_admin.auth.InvalidIdTokenError:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid ID token. Please re-authenticate.",
-            headers={"WWW-Authenticate": "Bearer"},
-        )
-    except firebase_admin.auth.RevokedIdTokenError:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="ID token has been revoked. Please re-authenticate.",
-            headers={"WWW-Authenticate": "Bearer"},
-        )
-    except firebase_admin.auth.UserDisabledError:
-         raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN, # Or 401, depending on desired UX
-            detail="User account has been disabled.",
-        )
-    except Exception as e: # Catch any other Firebase auth errors or general exceptions
-        # Log the exception e for server-side review
-        print(f"An unexpected error occurred during token verification: {e}")
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Could not validate credentials. An unexpected error occurred.",
+            detail="Authentication failed. Please re-authenticate.",
             headers={"WWW-Authenticate": "Bearer"},
         )
 
 async def get_current_active_user(decoded_token: dict = Depends(get_current_user)) -> dict:
     """
-    Placeholder for a user that is active. 
-    Currently, just returns the decoded token.
-    In the future, you could check if decoded_token['disabled'] is False,
-    or check against a user status in your database.
-    Firebase's verify_id_token() already checks for disabled users if the user
-    was disabled via the Firebase console, raising UserDisabledError.
+    Get current active user. Additional checks can be added here.
+    
+    Args:
+        decoded_token: Decoded Firebase token from get_current_user
+        
+    Returns:
+        Decoded token with additional validation
+        
+    Raises:
+        HTTPException: If user is disabled or inactive
     """
-    # Example: if decoded_token.get("disabled"):
-    #     raise HTTPException(status_code=400, detail="Inactive user")
+    # Check if user is disabled (this is already checked by Firebase verify_id_token)
+    # but we can add additional business logic here
+    
+    if decoded_token.get('disabled', False):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="User account has been disabled.",
+        )
+    
+    # Additional business logic checks can be added here
+    # For example, checking user roles, subscription status, etc.
+    
     return decoded_token
 
-# You can also create a dependency that optionally gets the user
-async def get_optional_current_user(token: Optional[str] = Depends(oauth2_scheme)) -> Optional[dict]:
-    if not token:
+async def get_optional_current_user(
+    credentials: Optional[HTTPAuthorizationCredentials] = Depends(security)
+) -> Optional[dict]:
+    """
+    Optional authentication dependency that doesn't raise errors if no token is provided.
+    
+    Args:
+        credentials: Optional Bearer token credentials
+        
+    Returns:
+        Decoded user claims if valid token provided, None otherwise
+    """
+    if not credentials:
         return None
+    
     try:
-        # Re-use get_current_user logic but handle its specific HTTPExceptions differently if needed,
-        # or let them propagate if a 401 is acceptable for an invalid optional token.
-        # For simplicity, we'll just call it and handle errors generally.
-        return await get_current_user(token)
+        return await get_current_user(credentials)
     except HTTPException:
-        # If token is provided but invalid, treat as no user
+        # If token is provided but invalid, treat as no user for optional auth
         return None
     except Exception:
         # Catch-all for other unexpected errors
-        return None 
+        return None
+
+# Convenience function for checking if user has specific roles/permissions
+def require_role(required_role: str):
+    """
+    Dependency factory for role-based access control.
+    
+    Args:
+        required_role: The role required to access the endpoint
+        
+    Returns:
+        A dependency function that checks for the required role
+    """
+    async def role_checker(current_user: dict = Depends(get_current_active_user)) -> dict:
+        user_role = current_user.get('role', '')
+        if user_role != required_role and 'admin' not in user_role.lower():
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail=f"Access denied. Required role: {required_role}",
+            )
+        return current_user
+    
+    return role_checker 

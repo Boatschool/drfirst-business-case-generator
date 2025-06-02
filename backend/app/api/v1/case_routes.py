@@ -3,7 +3,7 @@ API routes for managing business cases.
 """
 from typing import List, Dict, Any, Optional
 from fastapi import APIRouter, Depends, HTTPException
-from datetime import datetime
+from datetime import datetime, timezone
 from pydantic import BaseModel, Field
 import asyncio
 
@@ -41,6 +41,10 @@ class BusinessCaseDetailsModel(BaseModel):
     created_at: datetime
     updated_at: datetime
 
+class PrdUpdateRequest(BaseModel):
+    content_markdown: str
+    # version: Optional[str] = None # Could add versioning later
+
 @router.get("/cases", response_model=List[BusinessCaseSummary], summary="List business cases for the authenticated user")
 async def list_user_cases(
     current_user: dict = Depends(get_current_active_user)
@@ -55,11 +59,15 @@ async def list_user_cases(
 
     try:
         db = firestore.Client()
-        cases_query = db.collection("businessCases").where("user_id", "==", user_id).order_by("updated_at", direction=firestore.Query.DESCENDING)
+        cases_query = db.collection("businessCases").where("user_id", "==", user_id)
         docs_snapshot = await asyncio.to_thread(cases_query.stream)
         
+        # Convert to list and sort by updated_at in Python (since we removed Firestore ordering)
+        docs_list = list(docs_snapshot)
+        docs_list.sort(key=lambda doc: doc.to_dict().get("updated_at", datetime.min), reverse=True)
+        
         summaries: List[BusinessCaseSummary] = []
-        for doc in docs_snapshot:
+        for doc in docs_list:
             data = doc.to_dict()
             if data: # Ensure data exists
                 # Convert status Enum to string if it's an Enum object, otherwise assume it's already a string
@@ -138,4 +146,68 @@ async def get_case_details(
         raise http_exc
     except Exception as e:
         print(f"Error retrieving case {case_id} for user {user_id}: {e}")
-        raise HTTPException(status_code=500, detail=f"Failed to retrieve business case details: {str(e)}") 
+        raise HTTPException(status_code=500, detail=f"Failed to retrieve business case details: {str(e)}")
+
+@router.put("/cases/{case_id}/prd", status_code=200, summary="Update PRD for a specific business case")
+async def update_prd_draft(
+    case_id: str,
+    prd_update_request: PrdUpdateRequest,
+    current_user: dict = Depends(get_current_active_user)
+):
+    """
+    Updates the PRD draft for a specific business case.
+    Ensures the authenticated user is the owner of the case.
+    """
+    user_id = current_user.get("uid")
+    if not user_id:
+        raise HTTPException(status_code=401, detail="User ID not found in token.")
+
+    try:
+        db = firestore.Client()
+        case_doc_ref = db.collection("businessCases").document(case_id)
+
+        doc_snapshot = await asyncio.to_thread(case_doc_ref.get)
+        if not doc_snapshot.exists:
+            raise HTTPException(status_code=404, detail=f"Business case {case_id} not found.")
+
+        case_data = doc_snapshot.to_dict()
+        if not case_data:
+            raise HTTPException(status_code=404, detail=f"Business case {case_id} data is empty.")
+
+        if case_data.get("user_id") != user_id:
+            raise HTTPException(status_code=403, detail="You do not have permission to edit this business case.")
+
+        # Construct the PRD draft object to be stored
+        # This assumes a similar structure to how ProductManagerAgent might store it initially
+        updated_prd_draft = {
+            "title": case_data.get("title", "PRD") + " - Draft", # Or derive title differently
+            "content_markdown": prd_update_request.content_markdown,
+            "version": case_data.get("prd_draft", {}).get("version", "1.0.0") # Basic versioning, could be incremented
+            # Potentially add last_edited_by, last_edited_at fields here
+        }
+
+        # Prepare history entry
+        history_entry = {
+            "timestamp": datetime.now(timezone.utc),
+            "source": "USER",
+            "messageType": "PRD_UPDATE",
+            "content": f"User updated the PRD draft. New version: {updated_prd_draft.get('version')}"
+        }
+
+        update_data = {
+            "prd_draft": updated_prd_draft,
+            "updated_at": datetime.now(timezone.utc),
+            "history": firestore.ArrayUnion([history_entry])
+        }
+
+        await asyncio.to_thread(case_doc_ref.update, update_data)
+        
+        # Return the updated PRD draft or a success message
+        # For consistency with GET, could return the whole updated case, or just the PRD part
+        return {"message": "PRD draft updated successfully", "updated_prd_draft": updated_prd_draft}
+
+    except HTTPException as http_exc:
+        raise http_exc
+    except Exception as e:
+        print(f"Error updating PRD for case {case_id}, user {user_id}: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to update PRD draft: {str(e)}") 

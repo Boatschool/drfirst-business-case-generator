@@ -23,6 +23,7 @@ services:
       - ENVIRONMENT=development
     volumes:
       - ./backend:/app
+      - ./gcp-service-account-key.json:/app/gcp-service-account-key.json:ro
     env_file:
       - ./backend/.env
 

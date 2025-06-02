@@ -7,13 +7,21 @@ import {
   AgentUpdate,
   BusinessCaseSummary,
   BusinessCaseDetails,
+  UpdatePrdPayload,
+  UpdatePrdResponse,
 } from './AgentService';
 
-const API_BASE_URL = '/api/v1'; // Using relative path for proxy
+// Use environment variable for API base URL
+const API_BASE_URL = `${import.meta.env.VITE_API_BASE_URL}/api/${import.meta.env.VITE_API_VERSION}`;
+
+console.log('🔗 HttpAgentAdapter using API_BASE_URL:', API_BASE_URL);
 
 export class HttpAgentAdapter implements AgentService {
   private async getAuthHeaders(): Promise<HeadersInit> {
+    console.log('🔑 Getting auth headers...');
     const token = await authService.getIdToken();
+    console.log('🎫 Token received:', token ? `${token.substring(0, 20)}...` : 'NULL');
+    
     if (!token) {
       throw new Error('User not authenticated. Cannot make API call.');
     }
@@ -113,6 +121,14 @@ export class HttpAgentAdapter implements AgentService {
   async getCaseDetails(caseId: string): Promise<BusinessCaseDetails> {
     return this.fetchWithAuth<BusinessCaseDetails>(`/cases/${caseId}`, {
       method: 'GET',
+    });
+  }
+
+  async updatePrd(payload: UpdatePrdPayload): Promise<UpdatePrdResponse> {
+    const { caseId, ...requestBody } = payload;
+    return this.fetchWithAuth<UpdatePrdResponse>(`/cases/${caseId}/prd`, {
+      method: 'PUT',
+      body: JSON.stringify(requestBody),
     });
   }
 }

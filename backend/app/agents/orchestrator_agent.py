@@ -39,6 +39,13 @@ class BusinessCaseData(BaseModel):
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
+    def to_firestore_dict(self) -> Dict[str, Any]:
+        """Convert model to dictionary suitable for Firestore storage"""
+        data = self.model_dump()
+        # Convert enum to string value
+        data['status'] = self.status.value
+        return data
+
 class EchoTool:
     """A simple tool that echoes back the input string."""
     def __init__(self, name: str = "EchoTool", description: str = "Echoes input back to the user."):
@@ -139,7 +146,7 @@ class OrchestratorAgent:
 
             case_doc_ref = self.db.collection("businessCases").document(case_id)
             try:
-                await asyncio.to_thread(case_doc_ref.set, case_data.model_dump())
+                await asyncio.to_thread(case_doc_ref.set, case_data.to_firestore_dict())
                 print(f"Case {case_id} for user {user_id} stored in Firestore with status INTAKE.")
             except Exception as e:
                 print(f"Error storing initial case {case_id} in Firestore: {e}")

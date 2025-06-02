@@ -8,27 +8,69 @@ import {
   useLocation,
 } from 'react-router-dom';
 import { AuthProvider, AuthContext } from './contexts/AuthContext';
+import { AgentProvider } from './contexts/AgentContext';
 import LoginPage from './pages/LoginPage';
 import SignUpPage from './pages/SignUpPage';
 import DashboardPage from './pages/DashboardPage';
 import NewCasePage from './pages/NewCasePage';
 import BusinessCaseDetailPage from './pages/BusinessCaseDetailPage';
 import AppLayout from './layouts/AppLayout';
-import { Container, Typography, Box, Alert } from '@mui/material';
+import { Container, Typography, Box, Alert, Button, Stack } from '@mui/material';
+import { Link as RouterLink } from 'react-router-dom';
 
-// Placeholder for a simple Home Page component
-const HomePage: React.FC = () => (
-  <Container>
-    <Box sx={{ my: 4, textAlign: 'center' }}>
-      <Typography variant="h4" component="h1" gutterBottom>
-        Welcome to DrFirst Business Case Generator
-      </Typography>
-      <Typography variant="body1">
-        Please log in or sign up to continue.
-      </Typography>
-    </Box>
-  </Container>
-);
+// Smart Home Page component that redirects based on auth status
+const HomePage: React.FC = () => {
+  const authContext = useContext(AuthContext);
+
+  if (!authContext) {
+    return <Alert severity="error">Auth context not available.</Alert>;
+  }
+
+  if (authContext.loading) {
+    return (
+      <Container sx={{display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh'}}>
+        <Typography>Loading authentication status...</Typography>
+      </Container>
+    );
+  }
+
+  // If user is authenticated, redirect to dashboard
+  if (authContext.currentUser) {
+    return <Navigate to="/dashboard" replace />;
+  }
+
+  // If not authenticated, show welcome screen
+  return (
+    <Container>
+      <Box sx={{ my: 4, textAlign: 'center' }}>
+        <Typography variant="h4" component="h1" gutterBottom>
+          Welcome to DrFirst Business Case Generator
+        </Typography>
+        <Typography variant="body1" sx={{ mb: 4 }}>
+          Please log in or sign up to continue.
+        </Typography>
+        <Stack direction="row" spacing={2} justifyContent="center">
+          <Button 
+            component={RouterLink} 
+            to="/login" 
+            variant="contained" 
+            size="large"
+          >
+            Sign In
+          </Button>
+          <Button 
+            component={RouterLink} 
+            to="/signup" 
+            variant="outlined" 
+            size="large"
+          >
+            Sign Up
+          </Button>
+        </Stack>
+      </Box>
+    </Container>
+  );
+};
 
 // ProtectedRoute component
 interface ProtectedRouteProps {
@@ -65,26 +107,28 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = () => {
 function App() {
   return (
     <AuthProvider>
-      <Router>
-        <Routes>
-          <Route element={<AppLayout />}> {/* AppLayout wraps all pages */}
-            <Route path="/login" element={<LoginPage />} />
-            <Route path="/signup" element={<SignUpPage />} />
-            <Route path="/" element={<HomePage />} />
-            
-            {/* Protected Routes */}
-            <Route element={<ProtectedRoute />}>
-              <Route path="/dashboard" element={<DashboardPage />} />
-              <Route path="/new-case" element={<NewCasePage />} />
-              <Route path="/cases/:caseId" element={<BusinessCaseDetailPage />} />
-              {/* Add other protected routes here */}
+      <AgentProvider>
+        <Router>
+          <Routes>
+            <Route element={<AppLayout />}> {/* AppLayout wraps all pages */}
+              <Route path="/login" element={<LoginPage />} />
+              <Route path="/signup" element={<SignUpPage />} />
+              <Route path="/" element={<HomePage />} />
+              
+              {/* Protected Routes */}
+              <Route element={<ProtectedRoute />}>
+                <Route path="/dashboard" element={<DashboardPage />} />
+                <Route path="/new-case" element={<NewCasePage />} />
+                <Route path="/cases/:caseId" element={<BusinessCaseDetailPage />} />
+                {/* Add other protected routes here */}
+              </Route>
+              
+              {/* Catch-all for unmatched routes (optional) */}
+              <Route path="*" element={<Navigate to="/" replace />} />
             </Route>
-            
-            {/* Catch-all for unmatched routes (optional) */}
-            <Route path="*" element={<Navigate to="/" replace />} />
-          </Route>
-        </Routes>
-      </Router>
+          </Routes>
+        </Router>
+      </AgentProvider>
     </AuthProvider>
   );
 }

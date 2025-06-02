@@ -67,6 +67,27 @@ export interface BusinessCaseDetails extends BusinessCaseSummary {
 }
 
 /**
+ * Represents the payload for updating a PRD.
+ */
+export interface UpdatePrdPayload {
+  caseId: string;
+  content_markdown: string;
+  // version?: string; // Optional: if client wants to suggest/send a version
+}
+
+/**
+ * Represents the response from updating a PRD.
+ */
+export interface UpdatePrdResponse {
+  message: string;
+  updated_prd_draft: { // This should match the structure returned by the backend
+    title: string;
+    content_markdown: string;
+    version: string;
+  };
+}
+
+/**
  * Defines the contract for agent communication services.
  */
 export interface AgentService {
@@ -104,6 +125,13 @@ export interface AgentService {
    * @returns A promise that resolves with the full details of the business case.
    */
   getCaseDetails(caseId: string): Promise<BusinessCaseDetails>;
+
+  /**
+   * Updates the PRD draft for a specific business case.
+   * @param payload - The case ID and the new PRD content.
+   * @returns A promise that resolves with a confirmation message and the updated PRD draft.
+   */
+  updatePrd(payload: UpdatePrdPayload): Promise<UpdatePrdResponse>;
 
   // Potential future methods:
   // getCaseHistory(caseId: string): Promise<AgentUpdate[]>;

@@ -8,28 +8,14 @@ import firebase_admin
 from firebase_admin import credentials
 
 from app.api.v1 import agent_routes as agent_routes_v1
-from app.api.v1 import auth_routes, admin_routes
+from app.api.v1 import auth_routes, admin_routes, debug_routes
 from app.api.v1 import case_routes as case_routes_v1
 from app.core.config import settings
+from app.services.auth_service import auth_service
 
-# Initialize Firebase Admin SDK
-try:
-    # Attempt to initialize with default credentials (e.g., GOOGLE_APPLICATION_CREDENTIALS env var or Cloud Run service account)
-    firebase_admin.initialize_app()
-    print("Firebase Admin SDK initialized with default credentials.")
-except Exception as e:
-    print(f"Failed to initialize Firebase Admin SDK with default credentials: {e}")
-    # As a fallback for local development if GOOGLE_APPLICATION_CREDENTIALS is not set,
-    # you might explicitly load a service account key, but this is less secure for production.
-    # For example (ensure 'path/to/your/serviceAccountKey.json' is correct and secure):
-    # cred_path = "path/to/your/serviceAccountKey.json"
-    # try:
-    #     cred = credentials.Certificate(cred_path)
-    #     firebase_admin.initialize_app(cred)
-    #     print(f"Firebase Admin SDK initialized with credentials from: {cred_path}")
-    # except Exception as e_cred:
-    #     print(f"Failed to initialize Firebase Admin SDK with specified credentials ({cred_path}): {e_cred}")
-    #     print("Firebase Admin SDK NOT initialized. Authentication will fail.")
+# Initialize Firebase Admin SDK using our auth service
+# The auth_service handles the initialization with proper fallbacks
+print(f"🔥 Firebase Admin SDK initialization status: {auth_service.is_initialized}")
 
 app = FastAPI(
     title="DrFirst Business Case Generator API",
@@ -37,10 +23,17 @@ app = FastAPI(
     version="1.0.0"
 )
 
-# Configure CORS
+# Configure CORS to allow frontend development servers
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:4000"],  # Add frontend URL
+    allow_origins=[
+        "http://localhost:4000",
+        "http://localhost:4001", 
+        "http://localhost:4002",
+        "http://127.0.0.1:4000",
+        "http://127.0.0.1:4001",
+        "http://127.0.0.1:4002"
+    ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -51,6 +44,7 @@ app.include_router(agent_routes_v1.router, prefix="/api/v1/agents", tags=["Agent
 app.include_router(auth_routes.router, prefix="/api/v1/auth", tags=["auth"])
 app.include_router(admin_routes.router, prefix="/api/v1/admin", tags=["admin"])
 app.include_router(case_routes_v1.router, prefix="/api/v1", tags=["Case API v1"])
+app.include_router(debug_routes.router, prefix="/api/v1", tags=["debug"])
 
 @app.get("/")
 async def root():

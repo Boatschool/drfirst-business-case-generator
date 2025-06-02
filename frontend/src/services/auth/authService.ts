@@ -1,28 +1,17 @@
 import { 
-  initializeApp, 
-  FirebaseApp, 
-  getApps 
-} from 'firebase/app';
-import { 
-  getAuth, 
-  Auth, 
-  GoogleAuthProvider, 
-  signInWithPopup, 
-  signOut as firebaseSignOut,
-  onAuthStateChanged,
   User,
   UserCredential,
+  signInWithEmailAndPassword,
   createUserWithEmailAndPassword,
-  signInWithEmailAndPassword
+  signInWithPopup,
+  GoogleAuthProvider,
+  onAuthStateChanged,
+  signOut,
+  getIdToken,
 } from 'firebase/auth';
+import { auth } from '../../config/firebase';
 
-// Firebase configuration
-const firebaseConfig = {
-  apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
-  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
-  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
-};
-
+// User type for our application
 export interface AuthUser {
   uid: string;
   email: string | null;
@@ -31,6 +20,7 @@ export interface AuthUser {
   emailVerified: boolean;
 }
 
+// Auth state type
 export interface AuthState {
   user: AuthUser | null;
   loading: boolean;
@@ -38,32 +28,54 @@ export interface AuthState {
 }
 
 class AuthService {
-  private app: FirebaseApp;
-  private auth: Auth;
   private googleProvider: GoogleAuthProvider;
 
   constructor() {
-    // Initialize Firebase (only if not already initialized)
-    this.app = getApps().length > 0 ? getApps()[0] : initializeApp(firebaseConfig);
-    this.auth = getAuth(this.app);
-    
-    // Configure Google provider
+    // Initialize Google provider
     this.googleProvider = new GoogleAuthProvider();
     this.googleProvider.addScope('email');
     this.googleProvider.addScope('profile');
     
-    // Force account selection for cleaner UX
-    this.googleProvider.setCustomParameters({
-      prompt: 'select_account'
-    });
+    console.log('🔐 AuthService initialized');
+  }
+
+  /**
+   * Sign up with email and password
+   */
+  signUp = async (email: string, password: string): Promise<UserCredential> => {
+    try {
+      console.log('📝 Attempting email sign-up for:', email);
+      const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+      console.log('✅ Email sign-up successful:', userCredential.user.email);
+      return userCredential;
+    } catch (error) {
+      console.error('❌ Email sign-up error:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Sign in with email and password
+   */
+  signIn = async (email: string, password: string): Promise<UserCredential> => {
+    try {
+      console.log('🔓 Attempting email sign-in for:', email);
+      const userCredential = await signInWithEmailAndPassword(auth, email, password);
+      console.log('✅ Email sign-in successful:', userCredential.user.email);
+      return userCredential;
+    } catch (error) {
+      console.error('❌ Email sign-in error:', error);
+      throw error;
+    }
   }
 
   /**
    * Sign in with Google using popup
    */
-  async signInWithGoogle(): Promise<UserCredential | null> {
+  signInWithGoogle = async (): Promise<UserCredential> => {
     try {
-      const result = await signInWithPopup(this.auth, this.googleProvider);
+      console.log('🌐 Attempting Google sign-in...');
+      const result = await signInWithPopup(auth, this.googleProvider);
       console.log('✅ Google sign-in successful:', result.user.email);
       return result;
     } catch (error) {
@@ -75,9 +87,10 @@ class AuthService {
   /**
    * Sign out current user
    */
-  async signOut(): Promise<void> {
+  signOut = async (): Promise<void> => {
     try {
-      await firebaseSignOut(this.auth);
+      console.log('👋 Signing out...');
+      await signOut(auth);
       console.log('✅ Sign-out successful');
     } catch (error) {
       console.error('❌ Sign-out error:', error);
@@ -88,24 +101,62 @@ class AuthService {
   /**
    * Get current user
    */
-  getCurrentUser(): User | null {
-    return this.auth.currentUser;
+  getCurrentUser(): AuthUser | null {
+    const user = auth.currentUser;
+    return user ? this.convertFirebaseUser(user) : null;
   }
 
   /**
-   * Get current user's ID token
+   * Get ID token for authenticated requests
    */
-  async getIdToken(): Promise<string | null> {
-    const user = this.getCurrentUser();
-    if (user) {
-      try {
-        return await user.getIdToken();
-      } catch (error) {
-        console.error('❌ Error getting ID token:', error);
+  getIdToken = async (): Promise<string | null> => {
+    try {
+      const user = auth.currentUser;
+      if (!user) {
+        console.log('No authenticated user for token');
         return null;
       }
+      
+      console.log('🎫 Getting ID token for user:', user.email);
+      const token = await getIdToken(user);
+      console.log('✅ ID token retrieved successfully');
+      return token;
+    } catch (error) {
+      console.error('❌ Error getting ID token:', error);
+      throw error;
     }
-    return null;
+  }
+
+  /**
+   * Force refresh ID token to get a new token with current project configuration
+   */
+  refreshIdToken = async (): Promise<string | null> => {
+    try {
+      const user = auth.currentUser;
+      if (!user) {
+        console.log('No authenticated user for token refresh');
+        return null;
+      }
+      
+      console.log('🔄 Force refreshing ID token for user:', user.email);
+      const token = await getIdToken(user, true); // Force refresh
+      console.log('✅ ID token refreshed successfully');
+      return token;
+    } catch (error) {
+      console.error('❌ Error refreshing ID token:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Listen to auth state changes
+   */
+  onAuthStateChanged = (callback: (user: AuthUser | null) => void): (() => void) => {
+    console.log('👂 Setting up auth state listener');
+    return onAuthStateChanged(auth, (user: User | null) => {
+      console.log('🔄 Auth state changed:', user ? `${user.email} (${user.uid})` : 'null');
+      callback(user ? this.convertFirebaseUser(user) : null);
+    });
   }
 
   /**
@@ -122,73 +173,34 @@ class AuthService {
   }
 
   /**
-   * Subscribe to authentication state changes
-   */
-  onAuthStateChanged(callback: (user: AuthUser | null) => void): () => void {
-    return onAuthStateChanged(this.auth, (user) => {
-      callback(user ? this.convertFirebaseUser(user) : null);
-    });
-  }
-
-  /**
-   * Check if user email is from DrFirst domain
+   * Check if user has DrFirst email domain
    */
   isDrFirstUser(user: AuthUser | null): boolean {
-    return user?.email?.endsWith('@drfirst.com') ?? false;
+    if (!user?.email) return false;
+    return user.email.endsWith('@drfirst.com');
   }
 
   /**
-   * Validate user access (DrFirst domain only)
+   * Validate user access based on business rules
    */
-  validateUserAccess(user: AuthUser | null): { isValid: boolean; error?: string } {
+  validateUserAccess(user: AuthUser | null): { isValid: boolean; reason?: string } {
     if (!user) {
-      return { isValid: false, error: 'No user authenticated' };
+      return { isValid: false, reason: 'No user authenticated' };
     }
 
     if (!user.emailVerified) {
-      return { isValid: false, error: 'Email not verified' };
+      return { isValid: false, reason: 'Email not verified' };
     }
 
-    if (!this.isDrFirstUser(user)) {
-      return { 
-        isValid: false, 
-        error: 'Access restricted to DrFirst employees. Please use your @drfirst.com email.' 
-      };
-    }
+    // For now, allow all verified users
+    // In the future, you might want to restrict to DrFirst emails only:
+    // if (!this.isDrFirstUser(user)) {
+    //   return { isValid: false, reason: 'Access restricted to DrFirst employees' };
+    // }
 
     return { isValid: true };
-  }
-
-  /**
-   * Sign up with email and password
-   */
-  async signUp(email: string, password: string): Promise<UserCredential> {
-    try {
-      const userCredential = await createUserWithEmailAndPassword(this.auth, email, password);
-      console.log('✅ Email sign-up successful:', userCredential.user.email);
-      // You might want to send a verification email here
-      return userCredential;
-    } catch (error) {
-      console.error('❌ Email sign-up error:', error);
-      throw error;
-    }
-  }
-
-  /**
-   * Sign in with email and password
-   */
-  async signIn(email: string, password: string): Promise<UserCredential> {
-    try {
-      const userCredential = await signInWithEmailAndPassword(this.auth, email, password);
-      console.log('✅ Email sign-in successful:', userCredential.user.email);
-      return userCredential;
-    } catch (error) {
-      console.error('❌ Email sign-in error:', error);
-      throw error;
-    }
   }
 }
 
 // Export singleton instance
-export const authService = new AuthService();
-export default authService; 
+export const authService = new AuthService(); 

@@ -1,10 +1,10 @@
 import React from 'react';
-import { useAuth } from '../../hooks/useAuth';
+import { useAuth } from '../../contexts/AuthContext';
 import './AuthTest.css';
 
 export const AuthTest: React.FC = () => {
   const { 
-    user, 
+    currentUser, 
     loading, 
     error, 
     signInWithGoogle, 
@@ -38,7 +38,7 @@ export const AuthTest: React.FC = () => {
     );
   }
 
-  if (!user) {
+  if (!currentUser) {
     return (
       <div className="auth-test">
         <div className="sign-in">
@@ -64,45 +64,43 @@ export const AuthTest: React.FC = () => {
     );
   }
 
+  // User is signed in
   return (
     <div className="auth-test">
-      <div className="user-profile">
-        <h1>✅ Authentication Successful!</h1>
-        
-        <div className="user-info">
-          {user.photoURL && (
-            <img 
-              src={user.photoURL} 
-              alt="Profile" 
-              className="profile-picture"
-            />
-          )}
-          
-          <div className="user-details">
-            <h2>Welcome, {user.displayName || user.email}!</h2>
-            <p><strong>Email:</strong> {user.email}</p>
-            <p><strong>UID:</strong> {user.uid}</p>
-            <p><strong>Email Verified:</strong> {user.emailVerified ? '✅' : '❌'}</p>
-            <p><strong>DrFirst User:</strong> {isDrFirstUser ? '✅' : '❌'}</p>
-            <p><strong>Access Granted:</strong> {isValidUser ? '✅' : '❌'}</p>
-          </div>
+      <div className="user-info">
+        <h2>✅ Authentication Successful</h2>
+        <div className="user-details">
+          <p><strong>Email:</strong> {currentUser.email}</p>
+          <p><strong>Name:</strong> {currentUser.displayName || 'Not provided'}</p>
+          <p><strong>UID:</strong> {currentUser.uid}</p>
+          <p><strong>Email Verified:</strong> {currentUser.emailVerified ? '✅ Yes' : '❌ No'}</p>
+          <p><strong>DrFirst User:</strong> {isDrFirstUser ? '✅ Yes' : '❌ No'}</p>
+          <p><strong>Valid Access:</strong> {isValidUser ? '✅ Yes' : '❌ No'}</p>
         </div>
-
+        
+        {currentUser.photoURL && (
+          <div className="user-avatar">
+            <img 
+              src={currentUser.photoURL} 
+              alt="User Avatar" 
+              width="60" 
+              height="60" 
+              style={{ borderRadius: '50%' }}
+            />
+          </div>
+        )}
+        
         <div className="actions">
           <button onClick={signOut} className="sign-out-btn">
             Sign Out
           </button>
         </div>
-
-        <div className="status">
-          <h3>🎉 Identity Platform Status</h3>
-          <ul>
-            <li>✅ Firebase SDK initialized</li>
-            <li>✅ Google authentication working</li>
-            <li>✅ DrFirst domain validation active</li>
-            <li>✅ User session management ready</li>
-          </ul>
-        </div>
+        
+        {!isValidUser && (
+          <div className="warning">
+            <p>⚠️ Your account doesn't have valid access. Please contact an administrator.</p>
+          </div>
+        )}
       </div>
     </div>
   );

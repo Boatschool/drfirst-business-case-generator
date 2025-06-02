@@ -130,6 +130,55 @@ paths:
         '500':
           description: Internal Server Error
 
+    put: # New PUT operation to update PRD
+      summary: Update the PRD draft for a specific business case
+      operationId: updatePrdDraft
+      security:
+        - firebaseIdToken: []
+      parameters:
+        - name: case_id
+          in: path
+          required: true
+          description: ID of the business case whose PRD is to be updated
+          type: string
+        - name: body
+          in: body
+          required: true
+          description: The updated PRD content
+          schema:
+            $ref: '#/definitions/PrdUpdateRequest'
+      produces:
+        - application/json
+      consumes:
+        - application/json
+      responses:
+        '200':
+          description: PRD draft updated successfully
+          schema:
+            type: object
+            properties:
+              message:
+                type: string
+              updated_prd_draft:
+                type: object # Or $ref to a more specific PRD draft model if defined
+                properties:
+                  title:
+                    type: string
+                  content_markdown:
+                    type: string
+                  version:
+                    type: string
+        '400':
+          description: Bad Request (e.g., invalid input)
+        '401':
+          description: Unauthorized
+        '403':
+          description: Forbidden (e.g., user does not have permission to edit this case)
+        '404':
+          description: Business case not found
+        '500':
+          description: Internal Server Error
+
 # Define data models used in responses or requests
 definitions:
   BusinessCaseSummary:
@@ -237,4 +286,16 @@ definitions:
       - status
       - history
       - created_at
-      - updated_at 
+      - updated_at
+
+  PrdUpdateRequest: # Definition for the PRD update request body
+    type: object
+    required:
+      - content_markdown
+    properties:
+      content_markdown:
+        type: string
+        description: "The new markdown content for the PRD draft."
+      # version: # Optional: if client can suggest a version
+      #   type: string
+      #   description: "Optional new version for the PRD draft." 

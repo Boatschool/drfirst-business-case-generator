@@ -549,4 +549,39 @@ curl http://localhost:4000/api/health
 
 **Status**: Task 3.3.4 COMPLETE ✅ (Implemented within `AppLayout.tsx`).
 
+#### ✅ Task 3.3.5: Implement ProtectedRoute component
+**Goal**: Restrict access to certain routes based on authentication state.
+**Actions Taken**:
+- This functionality was implemented as part of `frontend/src/App.tsx` during the routing and `SignUpPage` setup (Task 3.3.3).
+  - A `ProtectedRoute` component was created that checks `AuthContext` for `currentUser` and `loading` states.
+  - If not authenticated, it redirects to `/login`, preserving the intended destination.
+  - If loading, it shows a loading message.
+  - If authenticated, it renders the child route via `<Outlet />`.
+  - This `ProtectedRoute` is used to guard the `/dashboard` route.
+
+**Status**: Task 3.3.5 COMPLETE ✅ (Implemented within `App.tsx`).
+
+### May 31, 2025 - Backend GCIP/Firebase Token Validation Setup
+
+#### ✅ Task 3.4.1: Update Application Server (Python): Add middleware/decorator to validate GCIP ID tokens for protected API endpoints
+**Goal**: Set up backend to validate Firebase ID tokens sent from the frontend.
+
+**Actions Taken**:
+- Verified `firebase-admin` package is present in `backend/requirements.txt`.
+- Added Firebase Admin SDK initialization in `backend/app/main.py`:
+  - Uses `firebase_admin.initialize_app()` to attempt initialization with default credentials (suitable for Cloud Run service accounts or `GOOGLE_APPLICATION_CREDENTIALS` env var locally).
+  - Includes basic error handling and print statements for initialization status.
+- Created `backend/app/auth/firebase_auth.py` containing:
+  - `oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/v1/auth/token")` (placeholder `tokenUrl` as Firebase ID tokens don't use OAuth2 token endpoint).
+  - `async def get_current_user(token: str = Depends(oauth2_scheme)) -> dict`:
+    - FastAPI dependency to extract Bearer token.
+    - Verifies the token using `firebase_admin.auth.verify_id_token()`.
+    - Handles various Firebase auth errors (ExpiredIdTokenError, InvalidIdTokenError, RevokedIdTokenError, UserDisabledError) by raising appropriate `HTTPException`.
+    - Returns the decoded token (user claims) upon successful verification.
+  - `async def get_current_active_user(decoded_token: dict = Depends(get_current_user)) -> dict`:
+    - A further dependency that currently passes through the result of `get_current_user`.
+    - Can be extended later to check custom active/disabled flags if needed (though `verify_id_token` already checks Firebase user disablement).
+
+**Status**: Task 3.4.1 COMPLETE ✅
+
 ---

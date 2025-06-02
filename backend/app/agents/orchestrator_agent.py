@@ -5,6 +5,7 @@ Orchestrator Agent for coordinating business case generation
 from typing import Dict, Any, List
 import asyncio
 from enum import Enum
+import uuid # Added for generating unique case IDs
 
 class BusinessCaseStatus(Enum):
     """Represents the various states of a business case lifecycle."""
@@ -40,6 +41,7 @@ class OrchestratorAgent:
         self.description = "Coordinates the business case generation process"
         self.status = "initialized"
         self.echo_tool = EchoTool()
+        self.active_cases: Dict[str, Dict[str, Any]] = {} # To store info about active cases
     
     async def handle_request(self, request_type: str, payload: Dict[str, Any]) -> Dict[str, Any]:
         """
@@ -68,6 +70,51 @@ class OrchestratorAgent:
                     "message": f"Error processing echo request: {str(e)}",
                     "result": None
                 }
+        elif request_type == "initiate_case":
+            problem_statement = payload.get("problemStatement")
+            project_title = payload.get("projectTitle", "Untitled Business Case")
+            relevant_links = payload.get("relevantLinks", [])
+
+            if not problem_statement:
+                return {
+                    "status": "error",
+                    "message": "Missing 'problemStatement' in payload for initiate_case request.",
+                    "result": None
+                }
+            
+            case_id = str(uuid.uuid4())
+            
+            # Store basic case info (in-memory for now, Firestore in next task)
+            self.active_cases[case_id] = {
+                "title": project_title,
+                "problem_statement": problem_statement,
+                "relevant_links": relevant_links,
+                "status": BusinessCaseStatus.INTAKE.value, # Using the Enum
+                "history": [] # To store conversation history or agent steps
+            }
+            
+            initial_message = f"Business case '{project_title}' initiated with ID: {case_id}. The problem stated is: '{problem_statement}'. Let's begin structuring the PRD."
+            
+            # Add to history
+            self.active_cases[case_id]["history"].append({
+                "timestamp": asyncio.get_event_loop().time(), # Or use datetime
+                "source": "AGENT",
+                "type": "STATUS_UPDATE",
+                "content": f"Case initiated. Current status: {BusinessCaseStatus.INTAKE.value}"
+            })
+            self.active_cases[case_id]["history"].append({
+                "timestamp": asyncio.get_event_loop().time(),
+                "source": "AGENT",
+                "type": "MESSAGE",
+                "content": initial_message
+            })
+
+            return {
+                "status": "success",
+                "message": f"Case '{project_title}' initiated successfully.",
+                "caseId": case_id,
+                "initialMessage": initial_message # As per InitiateCaseResponse
+            }
         # TODO: Add handlers for other request_types as functionality expands
         # (e.g., "generate_business_case", "get_case_status")
         else:

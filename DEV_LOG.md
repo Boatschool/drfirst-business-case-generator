@@ -684,4 +684,21 @@ curl http://localhost:4000/api/health
 
 **Status**: Task 4.2.1 COMPLETE ✅
 
+#### ✅ Task 4.2.2: Implement IntakeAgent logic within Orchestrator
+**Goal**: Enable the Orchestrator Agent to handle initial case intake requests from the UI.
+
+**Actions Taken**:
+- Updated `OrchestratorAgent.handle_request` in `backend/app/agents/orchestrator_agent.py`:
+  - Added `import uuid` for unique ID generation.
+  - Implemented logic to process `request_type="initiate_case"`.
+  - Extracts `problemStatement`, `projectTitle` (defaults to "Untitled Business Case"), and `relevantLinks` from the payload.
+  - Generates a unique `case_id` using `uuid.uuid4()`.
+  - Stores basic case information (title, problem statement, links, initial status `BusinessCaseStatus.INTAKE.value`, and an empty history list) in an in-memory dictionary `self.active_cases[case_id]`. (Note: Firestore persistence will be in Task 4.2.3).
+  - Creates an `initial_message` acknowledging the case creation and details.
+  - Adds initial status update and the message to the in-memory case history.
+  - Returns a success response dictionary including `caseId` and `initialMessage`, conforming to the frontend's `InitiateCaseResponse` interface.
+- Added `self.active_cases: Dict[str, Dict[str, Any]] = {}` to `OrchestratorAgent.__init__` for in-memory case storage.
+
+**Status**: Task 4.2.2 COMPLETE ✅
+
 ---

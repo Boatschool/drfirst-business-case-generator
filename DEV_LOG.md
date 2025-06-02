@@ -626,4 +626,25 @@ curl http://localhost:4000/api/health
 
 **Status**: Task 4.1.1 COMPLETE ✅
 
+#### ✅ Task 4.1.2: Implement basic HttpAgentAdapter.ts for AgentService
+**Goal**: Create an HTTP-based implementation of the `AgentService` interface to communicate with the backend.
+
+**Actions Taken**:
+- Created `frontend/src/services/agent/HttpAgentAdapter.ts`.
+- Implemented the `HttpAgentAdapter` class which adheres to the `AgentService` interface.
+- **Authentication**: Added a private `getAuthHeaders` method that retrieves the Firebase ID token using `authService.getIdToken()` and prepares the `Authorization: Bearer <token>` header along with `Content-Type: application/json`.
+- **HTTP Requests**: Implemented a private generic `fetchWithAuth<T>` method that uses the browser's `fetch` API to make authenticated requests to the backend. It includes error handling for non-ok responses, attempting to parse JSON error details.
+- **`initiateCase` Method**:
+  - Constructs a `requestPayload` with `request_type: 'initiate_case'` and the provided `InitiateCasePayload`.
+  - Calls `/api/v1/agents/invoke` via `fetchWithAuth`.
+- **`provideFeedback` Method**:
+  - Constructs a `requestPayload` with `request_type: 'provide_feedback'` and the provided `ProvideFeedbackPayload`.
+  - Calls `/api/v1/agents/invoke` via `fetchWithAuth`.
+- **`onAgentUpdate` Method**:
+  - Implemented as a placeholder. It logs a warning that real-time updates are not supported by this basic HTTP adapter and returns a no-op unsubscribe function.
+  - Includes commented-out example code for a simple polling mechanism as a potential future enhancement.
+- The base API URL is set to `/api/v1` to leverage the Vite proxy configured for development.
+
+**Status**: Task 4.1.2 COMPLETE ✅
+
 ---

@@ -43,7 +43,7 @@
 | 2.2.2 | Implement a basic health check endpoint (e.g., /health) in the Application Server | COMPLETE | high | low | 2.2.1 | For Cloud Run liveness/readiness probes. |
 | 2.2.3 | Implement an API endpoint (e.g., /api/v1/invoke\_agent) in Application Server to receive requests and call the Orchestrator Agent | COMPLETE | high | low | 2.1.4, 2.2.1 | This endpoint will initially call the "echo" functionality of the orchestrator. Request/response format stub. |
 | 2.2.4 | Create Dockerfile for the Application Server | COMPLETE | high | low | 2.2.1 | To containerize the Python application. |
-| 2.2.5 | Deploy initial Application Server stub to Cloud Run (manual deployment for now) | todo | high | low | 1.1.2 (Cloud Run API), 2.2.4 | Test health check and basic agent invocation endpoint. |
+| 2.2.5 | Deploy initial Application Server stub to Cloud Run (manual deployment for now) | COMPLETE | high | low | 1.1.2 (Cloud Run API), 2.2.4 | Test health check and basic agent invocation endpoint. |
 | 2.2.6 | Set up API Gateway: Create API config and route for the /api/v1/invoke\_agent endpoint on Cloud Run | todo | high | low | 1.1.2 (API Gateway API), 2.2.5 | SDD Section 4.2. Initially no auth for easy testing. |
 | 2.3 | **Firestore Data Model Definition (Code)** |  |  |  |  |  |
 | 2.3.1 | Define TypeScript interfaces/Python Pydantic models for businessCases collection (core fields from SDD Section 7\) | COMPLETE | high | low | 1.1.3 | Store these in a shared types library if frontend and backend are in different repos. |

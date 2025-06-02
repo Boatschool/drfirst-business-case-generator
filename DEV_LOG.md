@@ -444,4 +444,34 @@ curl http://localhost:4000/api/health
 
 **Status**: Task 2.1.4 COMPLETE ✅
 
+### May 31, 2025 - Backend Deployment: Initial Cloud Run Deployment
+
+#### ✅ Task 2.2.5: Deploy initial Application Server stub to Cloud Run
+**Goal**: Deploy the backend application (Application Server with Orchestrator Agent stub) to Cloud Run and test basic functionality.
+
+**Actions Taken**:
+1.  **Local Docker Build**: Confirmed `backend/Dockerfile` builds successfully (`docker build -t drfirst-backend-stub ./backend`).
+2.  **GCP Configuration**:
+    - Set active gcloud project to `df-bus-case-generator`.
+    - Created Google Artifact Registry repository: `drfirst-images` in `us-central1` (`gcloud artifacts repositories create`).
+    - Configured Docker to authenticate with Artifact Registry (`gcloud auth configure-docker`).
+3.  **Image Build & Push (Platform Specific)**:
+    - Encountered Cloud Run deployment error: `Container manifest type 'application/vnd.oci.image.index.v1+json' must support amd64/linux`.
+    - Rebuilt Docker image for `linux/amd64` platform: `docker buildx build --platform linux/amd64 -t drfirst-backend-stub --load ./backend`.
+    - Tagged the image: `us-central1-docker.pkg.dev/df-bus-case-generator/drfirst-images/drfirst-backend-stub:latest`.
+    - Pushed the platform-specific image to Artifact Registry.
+4.  **Cloud Run Deployment**:
+    - Deployed service `drfirst-backend-api` to Cloud Run in `us-central1`.
+    - Command: `gcloud run deploy drfirst-backend-api --image=... --platform=managed --region=us-central1 --port=8000 --allow-unauthenticated`.
+    - Service URL: `https://drfirst-backend-api-14237270112.us-central1.run.app`.
+5.  **Endpoint Implementation for Testing**:
+    - Added `POST /api/v1/agents/invoke` endpoint to `backend/app/api/v1/agent_routes.py`.
+    - This endpoint calls `OrchestratorAgent.handle_request()` to process agent actions (e.g., "echo").
+    - Rebuilt, re-tagged, re-pushed image, and re-deployed Cloud Run service with this new endpoint.
+6.  **Testing Deployed Service**:
+    - Health Check: `curl <service_url>/health` returned `{"status":"healthy","version":"1.0.0"}` ✅.
+    - Agent Invocation (Echo): `curl -X POST ... <service_url>/api/v1/agents/invoke` with `{"request_type": "echo", "payload": {"input_text": "Hello Cloud Run Echo"}}` returned `{"status":"success","message":"Echo request processed successfully.","result":"Hello Cloud Run Echo"}` ✅.
+
+**Status**: Task 2.2.5 COMPLETE ✅
+
 ---

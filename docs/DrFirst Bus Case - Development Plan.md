@@ -98,7 +98,7 @@
 | 4.2.2 | Implement IntakeAgent logic within Orchestrator (or as a separate called agent): Prompt user for initial project details (via AG-UI) | COMPLETE | highest | low | 2.1.2, 4.2.1 | For now, this could be a simple "ask for problem statement" prompt. The orchestrator will manage sending this prompt to UI. |
 | 4.2.3 | Orchestrator: Store initial user input from IntakeAgent into a new businessCases document in Firestore | COMPLETE | highest | low | 2.3.1, 4.2.2 | Store with status: INTAKE\_COMPLETE. |
 | 4.3 | **Product Manager Agent Stub & PRD Drafting (Backend \- ADK)** |  |  |  |  |  |
-| 4.3.1 | Create ProductManagerAgent stub (ADK agent structure) | todo | highest | low | 2.1.2 | SDD Section 5\. |
+| 4.3.1 | Create ProductManagerAgent stub (ADK agent structure) | COMPLETE | highest | low | 2.1.2 | SDD Section 5\. |
 | 4.3.2 | ProductManagerAgent: Implement logic to take user's problem statement (from Firestore) and generate a very basic PRD draft using Vertex AI | todo | high | low | 1.1.2 (Vertex AI API), 2.3.1, 4.3.1 | Prompt: "Based on this problem statement: \[input\], write a one-paragraph PRD overview." |
 | 4.3.3 | Orchestrator: After intake, invoke ProductManagerAgent and store the generated PRD draft in the businessCases Firestore document | todo | highest | low | 4.2.3, 4.3.2 | Update status to PRD\_DRAFTED. |
 | 4.4 | **Displaying PRD Draft (Frontend)** |  |  |  |  |  |

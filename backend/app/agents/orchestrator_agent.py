@@ -2,10 +2,14 @@
 Orchestrator Agent for coordinating business case generation
 """
 
-from typing import Dict, Any, List
+from typing import Dict, Any, List, Optional
 import asyncio
 from enum import Enum
-import uuid # Added for generating unique case IDs
+import uuid
+from datetime import datetime, timezone
+
+from pydantic import BaseModel, Field
+from google.cloud import firestore
 
 class BusinessCaseStatus(Enum):
     """Represents the various states of a business case lifecycle."""
@@ -18,6 +22,18 @@ class BusinessCaseStatus(Enum):
     FINAL_REVIEW = "FINAL_REVIEW"
     APPROVED = "APPROVED"
     REJECTED = "REJECTED"
+
+# Pydantic model for Firestore data
+class BusinessCaseData(BaseModel):
+    case_id: str = Field(..., description="Unique ID for the business case")
+    user_id: str = Field(..., description="ID of the user who initiated the case")
+    title: str = Field(..., description="Title of the business case")
+    problem_statement: str = Field(..., description="Problem statement for the case")
+    relevant_links: List[Dict[str, str]] = Field(default_factory=list, description="Relevant links provided by user")
+    status: BusinessCaseStatus = Field(BusinessCaseStatus.INTAKE, description="Current status of the business case")
+    history: List[Dict[str, Any]] = Field(default_factory=list, description="History of agent interactions and status changes")
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
 class EchoTool:
     """A simple tool that echoes back the input string."""
@@ -41,13 +57,21 @@ class OrchestratorAgent:
         self.description = "Coordinates the business case generation process"
         self.status = "initialized"
         self.echo_tool = EchoTool()
-        self.active_cases: Dict[str, Dict[str, Any]] = {} # To store info about active cases
+        try:
+            self.db = firestore.Client()
+            print("Firestore client initialized successfully.")
+        except Exception as e:
+            print(f"Failed to initialize Firestore client: {e}")
+            self.db = None
     
-    async def handle_request(self, request_type: str, payload: Dict[str, Any]) -> Dict[str, Any]:
+    async def handle_request(self, request_type: str, payload: Dict[str, Any], user_id: str) -> Dict[str, Any]:
         """
         Main entry point for handling various requests to the Orchestrator Agent.
         Routes requests to the appropriate tool or method based on request_type.
         """
+        if not self.db:
+            return {"status": "error", "message": "Firestore client not initialized. Cannot process request.", "result": None}
+
         if request_type == "echo":
             input_text = payload.get("input_text")
             if input_text is None:
@@ -84,36 +108,51 @@ class OrchestratorAgent:
             
             case_id = str(uuid.uuid4())
             
-            # Store basic case info (in-memory for now, Firestore in next task)
-            self.active_cases[case_id] = {
-                "title": project_title,
-                "problem_statement": problem_statement,
-                "relevant_links": relevant_links,
-                "status": BusinessCaseStatus.INTAKE.value, # Using the Enum
-                "history": [] # To store conversation history or agent steps
-            }
-            
             initial_message = f"Business case '{project_title}' initiated with ID: {case_id}. The problem stated is: '{problem_statement}'. Let's begin structuring the PRD."
             
-            # Add to history
-            self.active_cases[case_id]["history"].append({
-                "timestamp": asyncio.get_event_loop().time(), # Or use datetime
-                "source": "AGENT",
-                "type": "STATUS_UPDATE",
-                "content": f"Case initiated. Current status: {BusinessCaseStatus.INTAKE.value}"
-            })
-            self.active_cases[case_id]["history"].append({
-                "timestamp": asyncio.get_event_loop().time(),
-                "source": "AGENT",
-                "type": "MESSAGE",
-                "content": initial_message
-            })
+            case_history = [
+                {
+                    "timestamp": datetime.now(timezone.utc).isoformat(),
+                    "source": "AGENT",
+                    "type": "STATUS_UPDATE",
+                    "content": f"Case initiated. Current status: {BusinessCaseStatus.INTAKE.value}"
+                },
+                {
+                    "timestamp": datetime.now(timezone.utc).isoformat(),
+                    "source": "AGENT",
+                    "type": "MESSAGE",
+                    "content": initial_message
+                }
+            ]
+
+            case_data = BusinessCaseData(
+                case_id=case_id,
+                user_id=user_id,
+                title=project_title,
+                problem_statement=problem_statement,
+                relevant_links=relevant_links if isinstance(relevant_links, list) else [],
+                status=BusinessCaseStatus.INTAKE,
+                history=case_history,
+            )
+
+            try:
+                case_doc_ref = self.db.collection("businessCases").document(case_id)
+                await asyncio.to_thread(case_doc_ref.set, case_data.model_dump())
+                print(f"Case {case_id} for user {user_id} stored in Firestore.")
+            except Exception as e:
+                print(f"Error storing case {case_id} in Firestore: {e}")
+                # Log the exception e
+                return {
+                    "status": "error",
+                    "message": f"Failed to store business case in database: {str(e)}",
+                    "result": None
+                }
 
             return {
                 "status": "success",
-                "message": f"Case '{project_title}' initiated successfully.",
+                "message": f"Case '{project_title}' initiated successfully and stored.",
                 "caseId": case_id,
-                "initialMessage": initial_message # As per InitiateCaseResponse
+                "initialMessage": initial_message
             }
         # TODO: Add handlers for other request_types as functionality expands
         # (e.g., "generate_business_case", "get_case_status")

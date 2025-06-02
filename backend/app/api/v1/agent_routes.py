@@ -62,8 +62,14 @@ async def invoke_agent_action(
         raise HTTPException(status_code=400, detail="'payload' field is required.")
 
     try:
-        # Delegate to the OrchestratorAgent's handle_request method
-        response = await orchestrator.handle_request(request_type, payload)
+        user_id = current_user.get("uid")
+        if not user_id:
+            # This should ideally not happen if token verification is successful
+            # and token contains uid claim, but good to be defensive.
+            raise HTTPException(status_code=401, detail="User ID not found in token.")
+
+        # Delegate to the OrchestratorAgent's handle_request method, passing user_id
+        response = await orchestrator.handle_request(request_type, payload, user_id)
         
         if response.get("status") == "error":
             # You might want to map agent errors to specific HTTP status codes

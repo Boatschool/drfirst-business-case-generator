@@ -701,4 +701,25 @@ curl http://localhost:4000/api/health
 
 **Status**: Task 4.2.2 COMPLETE ✅
 
+#### ✅ Task 4.2.3: Orchestrator: Store initial user input from IntakeAgent into a new businessCases document in Firestore
+**Goal**: Persist the initial business case data to Firestore when a case is initiated.
+
+**Actions Taken**:
+- **Modified `backend/app/api/v1/agent_routes.py`**:
+  - Updated the `invoke_agent_action` endpoint to extract `user_id` from the authenticated `current_user` token.
+  - Passed this `user_id` to `orchestrator.handle_request()`.
+- **Modified `backend/app/agents/orchestrator_agent.py`**:
+  - Updated the `handle_request` method signature to accept `user_id: str`.
+  - Added imports: `datetime`, `timezone` from `datetime`; `BaseModel`, `Field` from `pydantic`; `firestore` from `google.cloud`.
+  - Initialized `self.db = firestore.Client()` in the `OrchestratorAgent.__init__` method, with basic error handling.
+  - Defined a `BusinessCaseData(BaseModel)` Pydantic model within the agent file to structure data for Firestore. This model includes `case_id`, `user_id`, `title`, `problem_statement`, `relevant_links`, `status` (using `BusinessCaseStatus`), `history`, `created_at`, and `updated_at`.
+  - In the `request_type="initiate_case"` logic:
+    - Replaced in-memory storage (`self.active_cases`) with Firestore persistence.
+    - Created an instance of `BusinessCaseData`.
+    - Used `await asyncio.to_thread(case_doc_ref.set, case_data.model_dump())` to save the Pydantic model to the `businessCases` collection in Firestore, using `case_id` as the document ID.
+    - Added basic error handling for the Firestore `set` operation.
+    - Ensured the `initialMessage` in the response remains consistent.
+
+**Status**: Task 4.2.3 COMPLETE ✅
+
 ---

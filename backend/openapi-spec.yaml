@@ -10,6 +10,14 @@ produces:
 consumes:
   - application/json
 
+# Define security schemes (JWT Bearer for Firebase)
+securityDefinitions:
+  firebaseIdToken:
+    type: apiKey
+    name: Authorization
+    in: header
+    description: "Firebase ID token (JWT). Prefix with 'Bearer '. Example: 'Bearer eyJhbGciOiJSUzI1NiIsImtpZCI6ImFiY...'"
+
 paths:
   /health:
     get:
@@ -39,6 +47,9 @@ paths:
     post:
       summary: Invoke an agent action via the Orchestrator
       operationId: invokeAgentAction
+      # Apply the security scheme to this endpoint
+      security:
+        - firebaseIdToken: []
       x-google-backend:
         address: https://drfirst-backend-api-14237270112.us-central1.run.app
         path_translation: APPEND_PATH_TO_ADDRESS # Ensures /api/v1/agents/invoke is appended

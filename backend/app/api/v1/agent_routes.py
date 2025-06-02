@@ -7,6 +7,8 @@ from typing import List, Dict, Any
 
 # Import the OrchestratorAgent
 from app.agents.orchestrator_agent import OrchestratorAgent
+# Import the authentication dependency
+from app.auth.firebase_auth import get_current_active_user
 
 router = APIRouter()
 
@@ -37,12 +39,20 @@ async def get_generation_status(job_id: str):
     return {"job_id": job_id, "status": "in_progress", "progress": 50}
 
 @router.post("/invoke", summary="Invoke an agent action")
-async def invoke_agent_action(request_data: Dict[str, Any]):
+async def invoke_agent_action(
+    request_data: Dict[str, Any],
+    current_user: dict = Depends(get_current_active_user) # Added authentication dependency
+):
     """
     Invoke a specific action on an agent, typically the Orchestrator.
+    Requires Firebase ID Token authentication.
     Expects a JSON body with 'request_type' and 'payload'.
     Example for echo: {"request_type": "echo", "payload": {"input_text": "Hello World"}}
     """
+    # current_user variable now contains the decoded Firebase user claims (e.g., current_user['uid'], current_user['email'])
+    # You can use this for logging, auditing, or further authorization checks if needed.
+    # For example: print(f"Action invoked by user: {current_user.get('email')}")
+
     request_type = request_data.get("request_type")
     payload = request_data.get("payload")
 

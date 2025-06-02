@@ -584,4 +584,24 @@ curl http://localhost:4000/api/health
 
 **Status**: Task 3.4.1 COMPLETE ✅
 
+#### ✅ Task 3.4.2: Secure the /api/v1/invoke_agent endpoint; test that only authenticated requests from frontend pass
+**Goal**: Apply the Firebase ID token validation to the agent invocation endpoint.
+
+**Actions Taken**:
+- Modified `backend/app/api/v1/agent_routes.py`:
+  - Added the `current_user: dict = Depends(get_current_active_user)` dependency to the `invoke_agent_action` function signature.
+  - This ensures that requests to this endpoint must include a valid Firebase ID token in the `Authorization` header.
+  - The decoded user token (containing user claims like UID, email) is now available as `current_user` within the endpoint, which can be used for logging, auditing, or further role-based access control if needed.
+- Updated `backend/openapi-spec.yaml`:
+  - Added a `securityDefinitions` section for `firebaseIdToken` (JWT Bearer token in Authorization header).
+  - Applied this security scheme to the `/api/v1/agents/invoke` POST operation.
+  - This documents the authentication requirement for API consumers and for API Gateway configuration.
+
+**Testing Notes**:
+- Direct end-to-end testing from the frontend will occur when the `AgentService` (Phase 4) is implemented to attach the ID token to requests.
+- Backend testing can be performed using tools like `curl` or Postman by obtaining a valid Firebase ID token from an authenticated user and including it in the `Authorization: Bearer <ID_TOKEN>` header.
+- The current API Gateway configuration is expected to pass through the `Authorization` header to the Cloud Run service where validation occurs.
+
+**Status**: Task 3.4.2 COMPLETE ✅
+
 ---

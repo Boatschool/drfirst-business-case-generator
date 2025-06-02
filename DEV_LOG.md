@@ -474,4 +474,29 @@ curl http://localhost:4000/api/health
 
 **Status**: Task 2.2.5 COMPLETE ✅
 
+### May 31, 2025 - API Gateway Setup
+
+#### ✅ Task 2.2.6: Set up API Gateway for Cloud Run Service
+**Goal**: Place Google Cloud API Gateway in front of the Cloud Run service (`drfirst-backend-api`) to manage API access.
+
+**Actions Taken**:
+1.  **Enabled GCP APIs**: Ensured `apigateway.googleapis.com` and `servicemanagement.googleapis.com` were enabled for project `df-bus-case-generator`.
+2.  **Created OpenAPI Specification**:
+    -   Defined `backend/openapi-spec.yaml` (Swagger 2.0).
+    -   Specified paths `/health` (GET) and `/api/v1/agents/invoke` (POST).
+    -   Configured `x-google-backend` for both paths to point to the Cloud Run service URL: `https://drfirst-backend-api-14237270112.us-central1.run.app`.
+    -   Included request body schema for `/api/v1/agents/invoke` and example responses.
+3.  **Created API Gateway Resources**:
+    -   **API**: `drfirst-api` created.
+    -   **API Config**: `drfirst-apiconfig-v1` created from `backend/openapi-spec.yaml` and associated with `drfirst-api`.
+        -   `gcloud api-gateway api-configs create drfirst-apiconfig-v1 --api=drfirst-api --openapi-spec=backend/openapi-spec.yaml ...`
+    -   **Gateway**: `drfirst-gateway` created in `us-central1`, deploying `drfirst-apiconfig-v1`.
+        -   `gcloud api-gateway gateways create drfirst-gateway --api=drfirst-api --api-config=drfirst-apiconfig-v1 --location=us-central1 ...`
+4.  **Retrieved Gateway URL**: The deployed gateway URL is `https://drfirst-gateway-6jgi3xc.uc.gateway.dev`.
+5.  **Testing API Gateway Endpoints**:
+    -   Health Check: `curl https://drfirst-gateway-6jgi3xc.uc.gateway.dev/health` returned `{"status":"healthy","version":"1.0.0"}` ✅.
+    -   Agent Invocation (Echo): `curl -X POST ... https://drfirst-gateway-6jgi3xc.uc.gateway.dev/api/v1/agents/invoke` with `{"request_type": "echo", "payload": {"input_text": "Hello API Gateway Echo"}}` returned `{"status":"success","message":"Echo request processed successfully.","result":"Hello API Gateway Echo"}` ✅.
+
+**Status**: Task 2.2.6 COMPLETE ✅
+
 ---

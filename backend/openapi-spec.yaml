@@ -1,0 +1,94 @@
+swagger: '2.0'
+info:
+  title: DrFirst Business Case API
+  description: API for DrFirst Business Case Generator backend, exposed via API Gateway
+  version: v1.0.0
+schemes:
+  - https
+produces:
+  - application/json
+consumes:
+  - application/json
+
+paths:
+  /health:
+    get:
+      summary: Health check for the backend service
+      operationId: healthCheck
+      x-google-backend:
+        address: https://drfirst-backend-api-14237270112.us-central1.run.app
+        path_translation: APPEND_PATH_TO_ADDRESS # Ensures /health is appended
+      responses:
+        '200':
+          description: Successful operation
+          schema:
+            type: object
+            properties:
+              status:
+                type: string
+              version:
+                type: string
+        default:
+          description: Unexpected error
+          schema:
+            type: object
+            properties:
+              message:
+                type: string
+  /api/v1/agents/invoke:
+    post:
+      summary: Invoke an agent action via the Orchestrator
+      operationId: invokeAgentAction
+      x-google-backend:
+        address: https://drfirst-backend-api-14237270112.us-central1.run.app
+        path_translation: APPEND_PATH_TO_ADDRESS # Ensures /api/v1/agents/invoke is appended
+      parameters:
+        - name: body
+          in: body
+          required: true
+          schema:
+            type: object
+            required:
+              - request_type
+              - payload
+            properties:
+              request_type:
+                type: string
+                description: "The type of request/action to perform (e.g., 'echo')."
+                example: "echo"
+              payload:
+                type: object
+                description: "The payload for the request. Structure depends on request_type."
+                example: {"input_text": "Hello World"}
+            # Example for 'echo' payload explicitly for clarity, though payload is generic object
+            # example:
+            #   request_type: "echo"
+            #   payload: {"input_text": "Hello from API Gateway"}
+      responses:
+        '200':
+          description: Successful agent invocation
+          schema:
+            type: object
+            properties:
+              status:
+                type: string
+              message:
+                type: string
+              result:
+                # For echo, this is a string. For others, it might be an object.
+                # Using a generic object type here for flexibility.
+                type: object
+        '400':
+          description: Bad Request (e.g., missing fields, agent processing error)
+          schema:
+            type: object
+            properties:
+              detail: # FastAPI uses 'detail' for HTTPException
+                type: string
+        '500':
+          description: Internal Server Error
+          schema:
+            type: object
+            properties:
+              detail:
+                type: string 

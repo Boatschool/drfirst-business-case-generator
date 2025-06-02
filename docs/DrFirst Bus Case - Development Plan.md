@@ -90,7 +90,7 @@
 | Task ID | Title | Status | Priority | Complexity | Dependencies | Notes |
 | :---- | :---- | :---- | :---- | :---- | :---- | :---- |
 | 4.1 | **AG-UI Client Setup (Frontend)** |  |  |  |  |  |
-| 4.1.1 | Define src/services/agent/AgentService.ts interface for agent communication (e.g., initiateCase, provideFeedback, onAgentUpdate) | todo | highest | low | 3.1.2 |  |
+| 4.1.1 | Define src/services/agent/AgentService.ts interface for agent communication (e.g., initiateCase, provideFeedback, onAgentUpdate) | COMPLETE | highest | low | 3.1.2 |  |
 | 4.1.2 | Implement basic HttpAgentAdapter.ts for AgentService to call the backend /api/v1/invoke\_agent endpoint | todo | highest | low | 3.4.2, 4.1.1 | This adapter will handle sending requests to the backend. onAgentUpdate might initially be polled or use a simple WebSocket stub if needed later. |
 | 4.1.3 | Create src/contexts/AgentContext.tsx to manage interaction state with the agent system (e.g., current case ID, agent messages, loading state) | todo | high | low | 3.1.2, 4.1.2 |  |
 | 4.2 | **Orchestrator & Intake Agent Logic (Backend \- ADK)** |  |  |  |  |  |

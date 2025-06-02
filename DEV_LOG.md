@@ -604,4 +604,26 @@ curl http://localhost:4000/api/health
 
 **Status**: Task 3.4.2 COMPLETE ✅
 
+## Phase 4: Agent-UI (AG-UI) Communication & Initial Business Case Flow
+
+### May 31, 2025 - Agent Service Interface Definition
+
+#### ✅ Task 4.1.1: Define src/services/agent/AgentService.ts interface for agent communication
+**Goal**: Define the TypeScript interface for the service that will handle communication between the frontend and the backend agent system.
+
+**Actions Taken**:
+- Created `frontend/src/services/agent/AgentService.ts`.
+- Defined the `AgentService` interface with the following core methods:
+  - `initiateCase(payload: InitiateCasePayload): Promise<InitiateCaseResponse>`: To start a new business case.
+  - `provideFeedback(payload: ProvideFeedbackPayload): Promise<void>`: To send user input or feedback to an ongoing case.
+  - `onAgentUpdate(caseId: string, onUpdateCallback: (update: AgentUpdate) => void): () => void`: To subscribe to real-time updates from the agent for a specific case.
+- Defined supporting interfaces:
+  - `InitiateCasePayload`: Input for starting a case (problem statement, title, links).
+  - `InitiateCaseResponse`: Response after initiating a case (caseId, initial message).
+  - `ProvideFeedbackPayload`: Input for sending feedback (caseId, message).
+  - `AgentUpdate`: Structure for messages/updates from the agent (caseId, timestamp, source, messageType, content, requiresResponse).
+- Included comments for potential future methods like `getCaseHistory`, `getCaseStatus`, and `listCases`.
+
+**Status**: Task 4.1.1 COMPLETE ✅
+
 ---

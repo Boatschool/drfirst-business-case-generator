@@ -499,4 +499,43 @@ curl http://localhost:4000/api/health
 
 **Status**: Task 2.2.6 COMPLETE ✅
 
+### May 31, 2025 - Frontend Authentication UI & Routing Setup
+
+#### ✅ Task 3.3.3: Implement SignUpPage.tsx component
+**Goal**: Create a basic sign-up page for user registration.
+
+**Actions Taken**:
+- **Created `frontend/src/pages/SignUpPage.tsx`**:
+  -   Implemented a form with fields for email, password, and confirm password using Material-UI components (`TextField`, `Button`, `Container`, `Box`, `Typography`, `Alert`, `CircularProgress`).
+  -   Uses `AuthContext` to call the `signUp` method.
+  -   Includes local form validation (password match, minimum length).
+  -   Displays loading and error states.
+  -   Navigates to `/login` on successful sign-up, passing a success message via route state.
+  -   Provides a link to the login page for existing users.
+
+- **Addressed Prerequisite Task Gaps for `SignUpPage` Functionality**:
+  -   **`frontend/src/contexts/AuthContext.tsx` (Task 3.3.1 Refinement)**:
+      - Created the file as it was missing.
+      - Implemented `AuthProvider` and `AuthContext`.
+      - Defined `AuthContextType` with `currentUser`, `loading`, `error`, `signUp`, `signIn`, `signInWithGoogle`, and `signOut`.
+      - Added `useEffect` hook to subscribe to `authService.onAuthStateChanged` for managing user state.
+      - Corrected import paths and type definitions to align with `authService.ts`.
+  -   **`frontend/src/services/auth/authService.ts` (Task 3.2.3 Refinement)**:
+      - Added email/password `signUp` and `signIn` methods using `createUserWithEmailAndPassword` and `signInWithEmailAndPassword` from Firebase Auth SDK.
+      - Renamed imported `signOut` from Firebase to `firebaseSignOut` to avoid class method name collision.
+  -   **Placeholder Pages for Routing (Task 3.1.4 Support)**:
+      - Created `frontend/src/pages/LoginPage.tsx` (basic placeholder, displays success message from sign-up).
+      - Created `frontend/src/pages/DashboardPage.tsx` (basic placeholder).
+  -   **`frontend/src/layouts/AppLayout.tsx` (Task 3.1.5)**:
+      - Created a basic layout component with a header (AppBar, Toolbar, Title) and a main content area using `Outlet` from `react-router-dom`.
+      - Header includes a "Sign In" button or "Sign Out ({email})" button based on authentication state from `AuthContext`.
+  -   **`frontend/src/App.tsx` (Task 3.1.4 Refinement)**:
+      - Replaced initial content with `react-router-dom` setup (`BrowserRouter`, `Routes`, `Route`).
+      - Wrapped the entire application with `AuthProvider`.
+      - Used `AppLayout` to wrap all page routes.
+      - Defined routes for `/` (HomePage placeholder), `/login`, `/signup`.
+      - Implemented a basic `ProtectedRoute` component that checks `authContext.currentUser` and `authContext.loading` to guard the `/dashboard` route.
+
+**Status**: Task 3.3.3 COMPLETE ✅ (and foundational routing/auth context setup significantly improved).
+
 ---

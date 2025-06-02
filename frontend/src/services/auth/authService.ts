@@ -8,10 +8,12 @@ import {
   Auth, 
   GoogleAuthProvider, 
   signInWithPopup, 
-  signOut, 
+  signOut as firebaseSignOut,
   onAuthStateChanged,
   User,
-  UserCredential 
+  UserCredential,
+  createUserWithEmailAndPassword,
+  signInWithEmailAndPassword
 } from 'firebase/auth';
 
 // Firebase configuration
@@ -75,7 +77,7 @@ class AuthService {
    */
   async signOut(): Promise<void> {
     try {
-      await signOut(this.auth);
+      await firebaseSignOut(this.auth);
       console.log('✅ Sign-out successful');
     } catch (error) {
       console.error('❌ Sign-out error:', error);
@@ -155,6 +157,35 @@ class AuthService {
     }
 
     return { isValid: true };
+  }
+
+  /**
+   * Sign up with email and password
+   */
+  async signUp(email: string, password: string): Promise<UserCredential> {
+    try {
+      const userCredential = await createUserWithEmailAndPassword(this.auth, email, password);
+      console.log('✅ Email sign-up successful:', userCredential.user.email);
+      // You might want to send a verification email here
+      return userCredential;
+    } catch (error) {
+      console.error('❌ Email sign-up error:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Sign in with email and password
+   */
+  async signIn(email: string, password: string): Promise<UserCredential> {
+    try {
+      const userCredential = await signInWithEmailAndPassword(this.auth, email, password);
+      console.log('✅ Email sign-in successful:', userCredential.user.email);
+      return userCredential;
+    } catch (error) {
+      console.error('❌ Email sign-in error:', error);
+      throw error;
+    }
   }
 }
 

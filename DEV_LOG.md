@@ -934,3 +934,101 @@ curl http://localhost:4000/api/health
 **Status**: Task 5.1.2 COMPLETE ✅
 
 ---
+
+## June 2, 2025 - Authentication & Backend Runtime Issues
+
+### ⚠️ **Current System Status: AUTHENTICATION NOT WORKING**
+
+#### **Root Cause Analysis**
+Despite previous authentication fixes, the system is experiencing persistent 401 errors. Investigation reveals multiple interconnected issues:
+
+#### **🔍 Issues Identified:**
+
+1. **Backend Runtime Problems**:
+   - ❌ `python` command not found (needs `python3`)
+   - ❌ Missing `uvicorn` module when using system Python
+   - ❌ Virtual environment activation required: `source venv/bin/activate`
+   - ❌ Port 8000 "Address already in use" error
+
+2. **Frontend-Backend Communication**:
+   - ✅ Frontend running on port 4001/4002 (auto-assigned due to conflicts)
+   - ❌ Backend not consistently running on port 8000
+   - ❌ API calls failing with 401 errors due to backend unavailability
+
+3. **Configuration Status**:
+   - ✅ Firebase authentication working in frontend
+   - ✅ ID tokens being generated successfully
+   - ✅ `HttpAgentAdapter.ts` fixed with proper API_BASE_URL
+   - ✅ Environment variables properly configured
+   - ❌ Backend not receiving/processing authentication requests
+
+#### **🔧 Attempted Solutions:**
+
+1. **Backend Startup Commands Tried**:
+   ```bash
+   # ❌ Failed: command not found
+   python -m uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
+   
+   # ❌ Failed: No module named uvicorn  
+   python3 -m uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
+   
+   # ✅ Partially successful but port conflict:
+   cd backend && source venv/bin/activate && python -m uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
+   # Result: ERROR: [Errno 48] Address already in use
+   ```
+
+2. **Configuration Updates Made**:
+   - ✅ Updated `frontend/.env` to use `VITE_API_BASE_URL=http://localhost:8000`
+   - ✅ Updated `HttpAgentAdapter.ts` to use environment variables for API URL
+   - ✅ Added debug logging to authentication flow
+   - ✅ Verified CORS settings in `backend/app/main.py`
+
+#### **🚨 Current System State:**
+
+**Frontend**:
+- ✅ **Status**: Running on http://localhost:4001 or http://localhost:4002
+- ✅ **Authentication**: Firebase working, Google sign-in successful
+- ✅ **Token Generation**: ID tokens created and logged
+- ❌ **API Calls**: Failing with 401 errors (backend not reachable)
+
+**Backend**:
+- ❌ **Status**: Not running consistently
+- ❌ **Port Conflict**: Something already using port 8000
+- ✅ **Code**: All authentication middleware implemented
+- ✅ **Dependencies**: Virtual environment contains all required packages
+
+**Authentication Flow**:
+- ✅ **Step 1**: User signs in with Google/Firebase ✅
+- ✅ **Step 2**: Frontend receives ID token ✅
+- ✅ **Step 3**: HttpAgentAdapter adds Bearer token to requests ✅
+- ❌ **Step 4**: Backend receives and validates token ❌ (Backend not running)
+- ❌ **Step 5**: API response returned ❌
+
+#### **🎯 Immediate Actions Needed:**
+
+1. **Resolve Backend Port Conflict**:
+   - Identify what's using port 8000
+   - Kill conflicting process or use alternative port
+   - Ensure backend starts successfully with virtual environment
+
+2. **Test Complete Authentication Flow**:
+   - Start backend with proper virtual environment
+   - Test `/api/v1/debug/auth-test` endpoint
+   - Verify end-to-end authentication works
+
+3. **System Verification**:
+   - Confirm frontend can successfully call authenticated endpoints
+   - Test business case creation flow
+   - Verify all previous fixes are working together
+
+#### **📋 Next Session Priorities:**
+1. **High Priority**: Get backend running consistently
+2. **High Priority**: Resolve port 8000 conflict
+3. **Medium Priority**: Complete authentication testing
+4. **Medium Priority**: Resume development work on Phase 5 tasks
+
+---
+
+**Last Updated**: 2025-06-02  
+**Status**: ❌ Authentication Issues - Backend Runtime Problems  
+**Next Milestone**: Resolve Backend Startup & Complete Authentication Testing 🔧

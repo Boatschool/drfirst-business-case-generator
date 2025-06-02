@@ -738,4 +738,27 @@ curl http://localhost:4000/api/health
 
 **Status**: Task 4.3.1 COMPLETE ✅
 
+#### ✅ Task 4.3.2: ProductManagerAgent: Implement logic to take user's problem statement and generate a basic PRD draft using Vertex AI
+**Goal**: Enable the Product Manager Agent to use Vertex AI to generate an initial PRD draft.
+
+**Actions Taken**:
+- Updated `backend/app/agents/product_manager_agent.py`:
+  - Added imports for `vertexai`, `GenerativeModel`, `Part`, `FinishReason`, and `generative_models`.
+  - Defined `PROJECT_ID`, `LOCATION`, and `MODEL_NAME` (e.g., "gemini-1.0-pro-001") as constants (with a TODO to move them to configuration/environment variables).
+  - In the `__init__` method:
+    - Initialized Vertex AI SDK: `vertexai.init(project=PROJECT_ID, location=LOCATION)`.
+    - Created an instance of `GenerativeModel`: `self.model = GenerativeModel(MODEL_NAME)`.
+    - Added error handling for Vertex AI initialization.
+  - In the `draft_prd` method:
+    - If the Vertex AI model (`self.model`) is not initialized, returns an error.
+    - Constructs a detailed prompt instructing the LLM to act as a Product Manager and generate a PRD with specific sections: Introduction, Goals, Target Audience, Key Features/User Stories, Success Metrics, and Open Questions/Considerations.
+    - The prompt includes the `case_title`, `problem_statement`, and any `relevant_links`.
+    - Sets `generation_config` (max_output_tokens, temperature, top_p) and `safety_settings` for the Vertex AI call.
+    - Calls `self.model.generate_content_async()` to get the PRD draft.
+    - Parses the response and extracts the generated text.
+    - Includes error handling for the Vertex AI call, including cases where no content is returned or if the prompt is blocked.
+    - Returns the generated PRD content (or error details) in the response dictionary.
+
+**Status**: Task 4.3.2 COMPLETE ✅
+
 ---

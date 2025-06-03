@@ -169,21 +169,21 @@ The application now provides a professional, persistent chat experience that sup
 **Phase 6: Cost & Revenue Stubs, Admin UI Basics**
 
 * **Focus:** Introduce stubs for PlannerAgent, CostAnalystAgent, SalesValueAnalystAgent. Implement basic Admin UI for managing rate cards (read-only initially).  
-* **Status:** All tasks todo.
+* **Status:** Major progress - PlannerAgent & CostAnalystAgent complete with full orchestration integration.
 
 | Task ID | Title | Status | Priority | Complexity | Dependencies | Notes |
 | :---- | :---- | :---- | :---- | :---- | :---- | :---- |
 | 6.1 | **PlannerAgent & CostAnalystAgent Stubs (Backend \- ADK)** |  |  |  |  |  |
-| 6.1.1 | Create PlannerAgent stub (ADK agent structure) | todo | high | low | 2.1.2 | SDD Section 5\. |
-| 6.1.2 | Orchestrator: After System Design drafted (or approved later), invoke PlannerAgent | todo | high | low | 5.4.3, 6.1.1 |  |
-| 6.1.3 | PlannerAgent: Implement placeholder logic (e.g., "Estimated effort: 100 hours Developer, 20 hours PM") | todo | high | low | 6.1.2 | Store in businessCases. Update status. |
-| 6.1.4 | Create CostAnalystAgent stub (ADK agent structure) | todo | high | low | 2.1.2 |  |
-| 6.1.5 | Orchestrator: Invoke CostAnalystAgent after PlannerAgent | todo | high | low | 6.1.3, 6.1.4 |  |
-| 6.1.6 | CostAnalystAgent: Placeholder logic (e.g., "Estimated cost: $10,000" \- reads a default rate from a new rateCards Firestore stub entry) | todo | high | low | 1.1.3 (rateCards), 6.1.5 | Store in businessCases. Update status. |
+| 6.1.1 | Create PlannerAgent stub (ADK agent structure) | COMPLETE | high | low | 2.1.2 | ✅ COMPLETE: PlannerAgent class implemented with estimate_effort() method. Returns structured 200-hour effort breakdown across 5 roles with 8-week duration and Medium complexity. Comprehensive error handling and status methods. |
+| 6.1.2 | Orchestrator: After System Design drafted (or approved later), invoke PlannerAgent | COMPLETE | high | low | 5.4.3, 6.1.1 | ✅ COMPLETE: OrchestratorAgent enhanced with _handle_effort_estimation() method. Modified handle_prd_approval() to invoke planning after system design. Added PLANNING_IN_PROGRESS and PLANNING_COMPLETE statuses. |
+| 6.1.3 | PlannerAgent: Implement placeholder logic (e.g., "Estimated effort: 100 hours Developer, 20 hours PM") | COMPLETE | high | low | 6.1.2 | ✅ COMPLETE: Professional effort estimation with Developer: 100h, Product Manager: 20h, QA Engineer: 40h, DevOps Engineer: 15h, UI/UX Designer: 25h. Total 200 hours with duration and complexity assessment. |
+| 6.1.4 | Create CostAnalystAgent stub (ADK agent structure) | COMPLETE | high | low | 2.1.2 | ✅ COMPLETE: CostAnalystAgent class implemented with Firestore integration for rate card access. calculate_cost() method applies rate cards to effort estimates with fallback to hardcoded rates. |
+| 6.1.5 | Orchestrator: Invoke CostAnalystAgent after PlannerAgent | COMPLETE | high | low | 6.1.3, 6.1.4 | ✅ COMPLETE: OrchestratorAgent enhanced with _handle_cost_estimation() method. Complete workflow: PRD Approval → System Design → Planning → Costing. Added COSTING_IN_PROGRESS and COSTING_COMPLETE statuses. |
+| 6.1.6 | CostAnalystAgent: Placeholder logic (e.g., "Estimated cost: $10,000" \- reads a default rate from a new rateCards Firestore stub entry) | COMPLETE | high | low | 1.1.3 (rateCards), 6.1.5 | ✅ COMPLETE: Sophisticated cost calculation using Firestore rate cards. Fetches from rateCards/default_dev_rates with role-specific rates. Professional cost breakdown: $19,825 total with detailed role analysis. setup_firestore_rate_card.py script created and executed. |
 | 6.2 | **SalesValueAnalystAgent Stub (Backend \- ADK)** |  |  |  |  |  |
-| 6.2.1 | Create SalesValueAnalystAgent stub (ADK agent structure) | todo | high | low | 2.1.2 | SDD Section 5\. |
-| 6.2.2 | Orchestrator: Invoke SalesValueAnalystAgent (e.g., after PRD approval) | todo | high | low | 5.2.3, 6.2.1 |  |
-| 6.2.3 | SalesValueAnalystAgent: Placeholder logic (e.g., "Projected value: Low $5k, Base $15k, High $30k" \- reads from pricingTemplates stub) | todo | high | low | 1.1.3 (pricingTemplates), 6.2.2 | Store in businessCases. Update status. |
+| 6.2.1 | Create SalesValueAnalystAgent stub (ADK agent structure) | COMPLETE | high | low | 2.1.2 | ✅ COMPLETE: SalesValueAnalystAgent class implemented with comprehensive structure, Firestore integration for pricing templates, and professional value projection capabilities. |
+| 6.2.2 | Orchestrator: Invoke SalesValueAnalystAgent (e.g., after PRD approval) | COMPLETE | high | low | 5.2.3, 6.2.1 | ✅ COMPLETE: Enhanced OrchestratorAgent with _handle_value_analysis() method. Complete workflow: PRD Approval → System Design → Planning → Costing → Value Analysis. Added VALUE_ANALYSIS_IN_PROGRESS and VALUE_ANALYSIS_COMPLETE statuses. |
+| 6.2.3 | SalesValueAnalystAgent: Placeholder logic (e.g., "Projected value: Low $5k, Base $15k, High $30k" \- reads from pricingTemplates stub) | COMPLETE | high | low | 1.1.3 (pricingTemplates), 6.2.2 | ✅ COMPLETE: Professional value projection with Low ($5,000), Base ($15,000), High ($30,000) scenarios. Reads from pricingTemplates/default_template_v1 in Firestore. Enhanced BusinessCaseData with value_projection_v1 field. setup_firestore_pricing_template.py script created and executed. |
 | 6.3 | **Display Financial Stubs (Frontend)** |  |  |  |  |  |
 | 6.3.1 | BusinessCaseDetailPage.tsx: Display Cost Estimate and Value Projection if available | todo | high | low | 4.4.2, 6.1.6, 6.2.3 | Read-only display. |
 | 6.4 | **Admin UI Foundation** |  |  |  |  |  |

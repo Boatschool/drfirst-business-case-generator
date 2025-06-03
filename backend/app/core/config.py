@@ -31,11 +31,11 @@ class Settings(BaseSettings):
     access_token_expire_minutes: int = 30
     
     # Google Cloud settings
-    google_cloud_project_id: Optional[str] = None
+    google_cloud_project_id: Optional[str] = "drfirst-business-case-gen"  # Correct project ID
     google_application_credentials: Optional[str] = None
     
     # Firebase settings
-    firebase_project_id: Optional[str] = None
+    firebase_project_id: Optional[str] = "drfirst-business-case-gen"  # Same as Google Cloud project
     firebase_api_key: Optional[str] = None
     
     # Firestore settings
@@ -45,7 +45,11 @@ class Settings(BaseSettings):
     
     # VertexAI settings
     vertex_ai_location: str = "us-central1"
-    vertex_ai_model_name: str = "text-bison"
+    vertex_ai_model_name: str = "gemini-2.0-flash-lite"  # Current available model, replacement for text-bison
+    vertex_ai_temperature: float = 0.6
+    vertex_ai_max_tokens: int = 4096
+    vertex_ai_top_p: float = 0.9
+    vertex_ai_top_k: int = 40
     
     # CORS settings
     backend_cors_origins: list = [

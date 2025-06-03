@@ -6,11 +6,7 @@ from typing import Dict, Any, List
 import vertexai
 from vertexai.generative_models import GenerativeModel, Part, FinishReason
 import vertexai.preview.generative_models as generative_models
-
-# Configuration for Vertex AI
-PROJECT_ID = "drfirst-genai-01"  # TODO: Consider moving to config or env variable
-LOCATION = "us-central1"    # TODO: Consider moving to config or env variable
-MODEL_NAME = "gemini-1.0-pro-001" # Or your preferred model
+from ..core.config import settings
 
 class ProductManagerAgent:
     """
@@ -23,17 +19,23 @@ class ProductManagerAgent:
         self.description = "Generates and manages Product Requirements Documents (PRDs)."
         self.status = "initialized"
         
+        # Use configuration from settings instead of hardcoded values
+        self.project_id = settings.google_cloud_project_id or "drfirst-genai-01"
+        self.location = settings.vertex_ai_location
+        self.model_name = settings.vertex_ai_model_name or "gemini-1.0-pro-001"
+        
         try:
-            vertexai.init(project=PROJECT_ID, location=LOCATION)
-            self.model = GenerativeModel(MODEL_NAME)
-            print(f"ProductManagerAgent: Vertex AI initialized successfully with model {MODEL_NAME}.")
+            vertexai.init(project=self.project_id, location=self.location)
+            self.model = GenerativeModel(self.model_name)
+            print(f"ProductManagerAgent: Vertex AI initialized successfully with model {self.model_name}.")
         except Exception as e:
             print(f"ProductManagerAgent: Failed to initialize Vertex AI: {e}")
             self.model = None
 
     async def draft_prd(self, problem_statement: str, case_title: str, relevant_links: List[Dict[str, str]] = None) -> Dict[str, Any]:
         """
-        Generates a draft PRD based on the provided problem statement and title using Vertex AI.
+        Generates a comprehensive, structured PRD based on the provided problem statement and title using Vertex AI.
+        Returns a Markdown-formatted PRD with clear sections.
         """
         print(f"[ProductManagerAgent] Received request to draft PRD for: {case_title}")
         print(f"[ProductManagerAgent] Problem Statement: {problem_statement}")
@@ -45,36 +47,69 @@ class ProductManagerAgent:
                 "prd_draft": None
             }
 
-        links_text = ""
+        # Format relevant links for the prompt
+        links_context = ""
         if relevant_links:
-            links_text += "\n\nConsider these relevant links:\n"
+            links_context += "\n\nAdditional Context from Relevant Links:\n"
             for link_item in relevant_links:
-                links_text += f"- {link_item.get('name', 'Unnamed Link')}: {link_item.get('url', 'No URL provided')}\n"
+                link_name = link_item.get('name', 'Unnamed Link')
+                link_url = link_item.get('url', 'No URL provided')
+                links_context += f"- **{link_name}**: {link_url}\n"
+            links_context += "\nNote: Consider the context and information from these links when generating the PRD sections.\n"
 
-        prompt = f"""
-        Role: You are a Product Manager tasked with creating an initial Product Requirements Document (PRD).
-        Business Case Title: {case_title}
-        Problem Statement: {problem_statement}
-        {links_text}
+        # Enhanced prompt for structured PRD generation
+        prompt = f"""You are an experienced Product Manager at DrFirst, a healthcare technology company. You are tasked with creating a comprehensive Product Requirements Document (PRD) based on the information provided below.
 
-        Instructions:
-        Generate a concise, well-structured PRD draft. The PRD should include the following sections:
-        1.  **Introduction**: Briefly describe the product/feature and the problem it solves.
-        2.  **Goals**: List 2-3 high-level goals for this product/feature.
-        3.  **Target Audience**: Briefly describe the primary users.
-        4.  **Key Features/User Stories**: List 3-5 key features or user stories (e.g., As a [user type], I want [action] so that [benefit]).
-        5.  **Success Metrics**: Suggest 1-2 key metrics to measure success.
-        6.  **Open Questions/Considerations**: List 1-2 open questions or items for further discussion.
+**Business Case Information:**
+- **Title**: {case_title}
+- **Problem Statement**: {problem_statement}{links_context}
 
-        Keep the content for each section brief and to the point, suitable for an initial draft. The overall PRD should be around 300-500 words.
-        Format the output in Markdown.
-        """
+**Instructions:**
+Generate a well-structured PRD document in Markdown format. The PRD should be comprehensive yet concise, suitable as a starting point for development teams and stakeholders. Use the following structure with these exact headings:
+
+# PRD: {case_title}
+
+## 1. Introduction / Problem Statement
+Provide a clear overview of the problem this product/feature addresses, the business context, and why this solution is needed now. Include the impact of not solving this problem.
+
+## 2. Goals / Objectives
+List 3-4 SMART (Specific, Measurable, Achievable, Relevant, Time-bound) goals that this product/feature aims to achieve. Focus on business outcomes and user value.
+
+## 3. Target Audience / Users
+Clearly define the primary and secondary user personas who will benefit from this solution. Include their key characteristics, needs, and pain points relevant to this product.
+
+## 4. Proposed Solution / Scope
+Describe the high-level solution approach. Clearly define what is IN SCOPE and OUT OF SCOPE for this product/feature. Include key assumptions and constraints.
+
+## 5. Key Features / User Stories
+List 5-8 specific features or user stories using the format: "As a [user type], I want [action/feature] so that [benefit/outcome]." Prioritize the most critical features.
+
+## 6. Success Metrics / KPIs
+Define 3-5 measurable success criteria that will indicate the product is achieving its goals. Include both quantitative metrics and qualitative indicators.
+
+## 7. Technical Considerations / Dependencies
+Identify any known technical requirements, constraints, integration needs, or dependencies that could impact the solution design or implementation.
+
+## 8. Open Questions / Risks
+List 3-5 open questions that need to be resolved and potential risks that should be monitored or mitigated during development.
+
+**Writing Guidelines:**
+- Be specific and actionable while maintaining appropriate level of detail for a PRD
+- Use healthcare/DrFirst context when relevant
+- If specific details cannot be inferred from the problem statement, use placeholders like "[To be determined]" or "[Needs stakeholder input]"
+- Ensure each section provides value and isn't just placeholder text
+- Keep the overall document between 800-1200 words
+- Use professional, clear language appropriate for technical and business stakeholders
+
+Generate the PRD now:"""
 
         generation_config = {
-            "max_output_tokens": 2048,
-            "temperature": 0.7, # Adjusted for more creative but still structured output
-            "top_p": 0.95,
+            "max_output_tokens": settings.vertex_ai_max_tokens,
+            "temperature": settings.vertex_ai_temperature,
+            "top_p": settings.vertex_ai_top_p,
+            "top_k": settings.vertex_ai_top_k,
         }
+        
         safety_settings = {
             generative_models.HarmCategory.HARM_CATEGORY_HATE_SPEECH: generative_models.HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE,
             generative_models.HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT: generative_models.HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE,
@@ -83,7 +118,7 @@ class ProductManagerAgent:
         }
 
         try:
-            print(f"[ProductManagerAgent] Sending prompt to Vertex AI model: {MODEL_NAME}")
+            print(f"[ProductManagerAgent] Sending enhanced prompt to Vertex AI model: {self.model_name}")
             response = await self.model.generate_content_async(
                 [prompt],
                 generation_config=generation_config,
@@ -93,14 +128,27 @@ class ProductManagerAgent:
             
             if response.candidates and response.candidates[0].content.parts:
                 prd_draft_content = response.candidates[0].content.parts[0].text
-                print(f"[ProductManagerAgent] Successfully received PRD draft from Vertex AI.")
+                print(f"[ProductManagerAgent] Successfully received structured PRD draft from Vertex AI.")
+                print(f"[ProductManagerAgent] PRD draft length: {len(prd_draft_content)} characters")
+                
                 return {
                     "status": "success",
-                    "message": "PRD draft generated successfully by Vertex AI.",
+                    "message": "Structured PRD draft generated successfully by Vertex AI.",
                     "prd_draft": {
                         "title": case_title,
                         "content_markdown": prd_draft_content,
-                        "version": "0.1.0_vertex_ai"
+                        "version": "1.0.0_structured",
+                        "generated_with": f"Vertex AI {self.model_name}",
+                        "sections": [
+                            "Introduction / Problem Statement",
+                            "Goals / Objectives", 
+                            "Target Audience / Users",
+                            "Proposed Solution / Scope",
+                            "Key Features / User Stories",
+                            "Success Metrics / KPIs",
+                            "Technical Considerations / Dependencies",
+                            "Open Questions / Risks"
+                        ]
                     }
                 }
             else:
@@ -131,5 +179,8 @@ class ProductManagerAgent:
         return {
             "name": self.name,
             "status": self.status,
-            "description": self.description
+            "description": self.description,
+            "model": self.model_name,
+            "project": self.project_id,
+            "location": self.location
         } 

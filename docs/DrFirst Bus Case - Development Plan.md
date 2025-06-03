@@ -112,7 +112,37 @@
 **Phase 5: HITL for PRD & Core Agent Enhancements**
 
 * **Focus:** Implement basic HITL for PRD review (editing/approving), enhance ProductManagerAgent with more structured PRD generation, and introduce ArchitectAgent stub.  
-* **Status:** PRD Management Workflow COMPLETE - editing, saving, submission for review, and approval/rejection fully implemented with enhanced navigation and V1 self-approval mechanism.
+* **Status:** PRD Management Workflow COMPLETE - editing, saving, submission for review, and approval/rejection fully implemented with enhanced navigation and V1 self-approval mechanism. **UX ENHANCEMENTS COMPLETE** - Floating chat widget enhanced with persistence and improved user experience.
+
+---
+
+**✨ UX ENHANCEMENT MILESTONE (January 2025): Enhanced Floating Chat Widget**
+
+**Completed UX Improvements:**
+- ✅ **Enhanced Floating Chat Widget**: Expanded from 400px to 500px width for better conversation experience
+- ✅ **Global Persistence**: Moved chat from individual pages to AppLayout for availability across all authenticated pages
+- ✅ **Smart Context Display**: Chat header dynamically shows current business case title when active
+- ✅ **Professional UX**: Context-aware messaging, helpful guidance, and improved visual design
+- ✅ **Cross-Page Continuity**: Chat state persists during navigation between pages
+- ✅ **Accessibility Improvements**: Better keyboard navigation and responsive design
+
+**Technical Implementation:**
+- ✅ **AppLayout Integration**: FloatingChat component integrated at application level
+- ✅ **Enhanced Props**: Added currentCaseTitle prop for dynamic header display
+- ✅ **Conditional Rendering**: Smart display logic based on authentication state and route context
+- ✅ **State Management**: Proper error handling and loading states across navigation
+
+**User Experience Impact:**
+- ✅ **Improved Accessibility**: No scrolling required to access chat from any page
+- ✅ **Better Context Awareness**: Users always know which business case they're discussing
+- ✅ **Professional Interface**: Enhanced visual design with proper spacing and typography
+- ✅ **Seamless Workflow**: Continuous conversation experience across application navigation
+
+**System Status: ENHANCED & READY FOR ADDITIONAL AGENT DEVELOPMENT** 🚀
+
+The application now provides a professional, persistent chat experience that supports efficient user workflows. With the core PRD management system complete and UX significantly enhanced, the system is ready for expansion to additional agents (ArchitectAgent, PlannerAgent, CostAnalystAgent, etc.).
+
+---
 
 | Task ID | Title | Status | Priority | Complexity | Dependencies | Notes |
 | :---- | :---- | :---- | :---- | :---- | :---- | :---- |
@@ -126,11 +156,11 @@
 | 5.2.3 | Implement "Approve PRD" / "Reject PRD" functionality to update case status and log approval action (via backend API) | COMPLETE | medium | low | 5.2.2 | ✅ COMPLETE: POST /cases/{case_id}/prd/approve and POST /cases/{case_id}/prd/reject endpoints implemented. Updates status to PRD_APPROVED or PRD_REJECTED with full history logging. |
 | 5.3 | **ProductManagerAgent Enhancement (Backend \- ADK)** |  |  |  |  |  |
 | 5.3.1 | ProductManagerAgent: Refine PRD generation prompt to create a more structured PRD (e.g., sections for Overview, Goals, User Stories stubs) | COMPLETE | high | low | 4.3.2 | ✅ COMPLETE: Enhanced ProductManagerAgent with comprehensive 8-section PRD structure. Resolved model retirement issue (text-bison → gemini-2.0-flash-lite). Configuration management improved. Testing shows 9,000+ character professional PRDs with healthcare context. |
-| 5.3.2 | ProductManagerAgent: Incorporate context from linked Confluence/Jira (if URLs provided during intake) \- basic "summarize this page" capability | todo | medium | low | 4.3.2 | Requires ability to fetch web page content (simple GET request for now, no complex parsing). Update prompt to use this context. document\_retrieval\_agent concept. |
+| 5.3.2 | ProductManagerAgent: Incorporate context from linked Confluence/Jira (if URLs provided during intake) \- basic "summarize this page" capability | todo | medium | low | 4.3.2 | Requires ability to fetch web page content (simple GET request for now, no complex parsing). Update prompt to use this context. document_retrieval_agent concept. |
 | 5.4 | **ArchitectAgent Stub (Backend \- ADK)** |  |  |  |  |  |
 | 5.4.1 | Create ArchitectAgent stub (ADK agent structure) | todo | high | low | 2.1.2 | SDD Section 5\. |
 | 5.4.2 | Orchestrator: If PRD is approved, invoke ArchitectAgent with the approved PRD content | todo | high | low | 5.2.3, 5.4.1 |  |
-| 5.4.3 | ArchitectAgent: Implement basic logic to generate a placeholder system design (e.g., "System will use a microservices architecture on GCP.") | todo | high | low | 5.4.2 | Store this in businessCases document. Update status to SYSTEM\_DESIGN\_DRAFTED. |
+| 5.4.3 | ArchitectAgent: Implement basic logic to generate a placeholder system design (e.g., "System will use a microservices architecture on GCP.") | todo | high | low | 5.4.2 | Store this in businessCases document. Update status to SYSTEM_DESIGN_DRAFTED. |
 | 5.5 | **Display System Design (Frontend)** |  |  |  |  |  |
 | 5.5.1 | BusinessCaseDetailPage.tsx: Display System Design draft if available | todo | high | low | 4.4.2, 5.4.3 | Similar to displaying PRD draft. |
 
@@ -181,7 +211,7 @@
 | 7.2.3 | AdminPage.tsx: Add "Edit" and "Delete" functionality for existing pricing templates | todo | medium | low | 6.4.3 |  |
 | 7.2.4 | Backend API: Implement /api/v1/admin/pricing-templates/{templateId} (PUT, DELETE) to update/delete pricing templates | todo | medium | low | 7.2.3 |  |
 | 7.3 | **Role-Based Access Control (RBAC) Implementation** |  |  |  |  |  |
-| 7.3.1 | users Firestore Collection: Add systemRole field (e.g., "ADMIN", "BUSINESS\_USER", "DEVELOPER", "SALES\_MANAGER\_APPROVER") | todo | high | low | 2.3.2 | Define initial roles based on PRD User Roles. |
+| 7.3.1 | users Firestore Collection: Add systemRole field (e.g., "ADMIN", "BUSINESS_USER", "DEVELOPER", "SALES_MANAGER_APPROVER") | todo | high | low | 2.3.2 | Define initial roles based on PRD User Roles. |
 | 7.3.2 | GCIP Custom Claims: On user creation/update (e.g., via an admin function), set a custom claim for systemRole based on Firestore users data | todo | high | low | 1.1.5, 3.4.1, 7.3.1 | This allows roles to be easily accessible from the ID token. Requires a backend Cloud Function for managing custom claims. |
 | 7.3.3 | Frontend: Update AuthContext to parse and store systemRole from GCIP ID token's custom claims | todo | high | low | 3.3.1, 7.3.2 |  |
 | 7.3.4 | Frontend: Protect AdminPage.tsx route so only users with "ADMIN" role can access it | todo | high | low | 6.4.1, 7.3.3 | Update ProtectedRoute logic. |
@@ -198,16 +228,16 @@
 | Task ID | Title | Status | Priority | Complexity | Dependencies | Notes |
 | :---- | :---- | :---- | :---- | :---- | :---- | :---- |
 | 8.1 | **HITL for System Design** |  |  |  |  |  |
-| 8.1.1 | Orchestrator: Update status to SYSTEM\_DESIGN\_PENDING\_REVIEW after ArchitectAgent runs. Define who can review (e.g., "DEVELOPER" role). | todo | high | low | 5.4.3, 7.3.1 |  |
+| 8.1.1 | Orchestrator: Update status to SYSTEM_DESIGN_PENDING_REVIEW after ArchitectAgent runs. Define who can review (e.g., "DEVELOPER" role). | todo | high | low | 5.4.3, 7.3.1 |  |
 | 8.1.2 | BusinessCaseDetailPage.tsx: Allow editing of System Design draft. Add "Submit System Design for Approval" button. | todo | high | low | 5.5.1 | Similar to PRD editing/submission. Backend API: /api/v1/cases/{caseId}/system-design (PUT). |
-| 8.1.3 | Frontend: Show "Approve/Reject System Design" buttons for users with appropriate role (e.g., "DEVELOPER" or a designated tech lead). | todo | high | low | 7.3.3, 8.1.1, 8.1.2 | Update status to SYSTEM\_DESIGN\_APPROVED or SYSTEM\_DESIGN\_REJECTED. |
+| 8.1.3 | Frontend: Show "Approve/Reject System Design" buttons for users with appropriate role (e.g., "DEVELOPER" or a designated tech lead). | todo | high | low | 7.3.3, 8.1.1, 8.1.2 | Update status to SYSTEM_DESIGN_APPROVED or SYSTEM_DESIGN_REJECTED. |
 | 8.2 | **ArchitectAgent Enhancement** |  |  |  |  |  |
 | 8.2.1 | ArchitectAgent: Refine system design generation prompt (e.g., suggest key components, data stores, APIs based on PRD). | todo | high | low | 5.4.3 | Aim for a more structured output. |
 | 8.3 | **HITL for Cost & Revenue Estimates** |  |  |  |  |  |
-| 8.3.1 | Orchestrator: Update status flows for PLANNING\_COMPLETE\_PENDING\_REVIEW, COSTING\_COMPLETE\_PENDING\_REVIEW, REVENUE\_PENDING\_REVIEW. | todo | high | low | 6.1.3, 6.1.6, 6.2.3 | Define reviewers (e.g., initiator, sales manager). |
+| 8.3.1 | Orchestrator: Update status flows for PLANNING_COMPLETE_PENDING_REVIEW, COSTING_COMPLETE_PENDING_REVIEW, REVENUE_PENDING_REVIEW. | todo | high | low | 6.1.3, 6.1.6, 6.2.3 | Define reviewers (e.g., initiator, sales manager). |
 | 8.3.2 | BusinessCaseDetailPage.tsx: Allow editing of Effort Breakdown, Cost Estimate inputs (e.g., override rates, hours), Revenue Projection inputs. | todo | high | low | 6.3.1 | This might involve more complex forms. Backend APIs needed to save these overrides. |
 | 8.3.3 | BusinessCaseDetailPage.tsx: Add "Submit for Approval" buttons for Cost & Revenue sections. | todo | high | low | 8.3.2 |  |
-| 8.3.4 | Frontend: Show "Approve/Reject" buttons for Cost & Revenue for designated approvers. | todo | high | low | 7.3.3, 8.3.1, 8.3.3 | Update status for COSTING\_APPROVED, REVENUE\_APPROVED, etc. |
+| 8.3.4 | Frontend: Show "Approve/Reject" buttons for Cost & Revenue for designated approvers. | todo | high | low | 7.3.3, 8.3.1, 8.3.3 | Update status for COSTING_APPROVED, REVENUE_APPROVED, etc. |
 | 8.4 | **PlannerAgent, CostAnalystAgent, SalesValueAnalystAgent Enhancements** |  |  |  |  |  |
 | 8.4.1 | PlannerAgent: More detailed effort estimation logic based on PRD/System Design features (e.g., simple keyword matching or complexity scoring). | todo | high | low | 6.1.3 |  |
 | 8.4.2 | CostAnalystAgent: Use actual rates from selected/default rateCards in Firestore to calculate cost. | todo | high | low | 6.1.6, 7.1 (CRUD for Rate Cards) |  |

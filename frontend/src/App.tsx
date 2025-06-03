@@ -11,6 +11,7 @@ import { AuthProvider, AuthContext } from './contexts/AuthContext';
 import { AgentProvider } from './contexts/AgentContext';
 import LoginPage from './pages/LoginPage';
 import SignUpPage from './pages/SignUpPage';
+import MainPage from './pages/MainPage';
 import DashboardPage from './pages/DashboardPage';
 import NewCasePage from './pages/NewCasePage';
 import BusinessCaseDetailPage from './pages/BusinessCaseDetailPage';
@@ -34,9 +35,9 @@ const HomePage: React.FC = () => {
     );
   }
 
-  // If user is authenticated, redirect to dashboard
+  // If user is authenticated, redirect to main page
   if (authContext.currentUser) {
-    return <Navigate to="/dashboard" replace />;
+    return <Navigate to="/main" replace />;
   }
 
   // If not authenticated, show welcome screen
@@ -117,6 +118,7 @@ function App() {
               
               {/* Protected Routes */}
               <Route element={<ProtectedRoute />}>
+                <Route path="/main" element={<MainPage />} />
                 <Route path="/dashboard" element={<DashboardPage />} />
                 <Route path="/new-case" element={<NewCasePage />} />
                 <Route path="/cases/:caseId" element={<BusinessCaseDetailPage />} />

@@ -38,7 +38,11 @@ class BusinessCaseDetailsModel(BaseModel):
     status: str # Ideally, this would use an Enum shared with the agent
     history: List[Dict[str, Any]] = Field(default_factory=list)
     prd_draft: Optional[Dict[str, Any]] = None
-    # Add other fields as necessary, e.g., system_design_draft, financial_model
+    system_design_v1_draft: Optional[Dict[str, Any]] = None
+    effort_estimate_v1: Optional[Dict[str, Any]] = None     # New: Effort estimate from PlannerAgent
+    cost_estimate_v1: Optional[Dict[str, Any]] = None       # New: Cost estimate from CostAnalystAgent
+    value_projection_v1: Optional[Dict[str, Any]] = None    # New: Value projection from SalesValueAnalystAgent
+    # Add other fields as necessary, e.g., financial_model
     created_at: datetime
     updated_at: datetime
 
@@ -144,6 +148,10 @@ async def get_case_details(
             status=status_str,
             history=data.get("history", []),
             prd_draft=data.get("prd_draft"),
+            system_design_v1_draft=data.get("system_design_v1_draft"),
+            effort_estimate_v1=data.get("effort_estimate_v1"),
+            cost_estimate_v1=data.get("cost_estimate_v1"),
+            value_projection_v1=data.get("value_projection_v1"),
             created_at=data.get("created_at"),
             updated_at=data.get("updated_at")
         )
@@ -375,11 +383,40 @@ async def approve_prd(
 
         await asyncio.to_thread(case_doc_ref.update, update_data)
         
-        return {
-            "message": "PRD approved successfully",
-            "new_status": BusinessCaseStatus.PRD_APPROVED.value,
-            "case_id": case_id
-        }
+        # After successful PRD approval, initiate system design generation
+        try:
+            from app.agents.orchestrator_agent import OrchestratorAgent
+            orchestrator = OrchestratorAgent()
+            
+            print(f"Triggering system design generation for approved PRD in case {case_id}")
+            design_result = await orchestrator.handle_prd_approval(case_id)
+            
+            if design_result.get("status") == "success":
+                print(f"System design generation initiated successfully for case {case_id}")
+                return {
+                    "message": "PRD approved successfully and system design generation initiated",
+                    "new_status": design_result.get("new_status", BusinessCaseStatus.PRD_APPROVED.value),
+                    "case_id": case_id,
+                    "system_design_initiated": True
+                }
+            else:
+                print(f"System design generation failed for case {case_id}: {design_result.get('message')}")
+                return {
+                    "message": "PRD approved successfully but system design generation encountered an issue",
+                    "new_status": BusinessCaseStatus.PRD_APPROVED.value,
+                    "case_id": case_id,
+                    "system_design_initiated": False,
+                    "system_design_error": design_result.get('message')
+                }
+        except Exception as design_error:
+            print(f"Error initiating system design for case {case_id}: {str(design_error)}")
+            return {
+                "message": "PRD approved successfully but system design generation could not be initiated",
+                "new_status": BusinessCaseStatus.PRD_APPROVED.value,
+                "case_id": case_id,
+                "system_design_initiated": False,
+                "system_design_error": str(design_error)
+            }
 
     except HTTPException as http_exc:
         raise http_exc

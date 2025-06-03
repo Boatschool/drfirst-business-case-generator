@@ -52,6 +52,59 @@ export interface BusinessCaseSummary {
 }
 
 /**
+ * Effort Estimate structure from PlannerAgent
+ */
+export interface EffortEstimate {
+  roles: Array<{
+    role: string;
+    hours: number;
+  }>;
+  total_hours: number;
+  estimated_duration_weeks: number;
+  complexity_assessment: string;
+  notes?: string;
+}
+
+/**
+ * Cost Estimate structure from CostAnalystAgent
+ */
+export interface CostEstimate {
+  estimated_cost: number;
+  currency: string;
+  rate_card_used?: string;
+  role_breakdown: Array<{
+    role: string;
+    hours: number;
+    hourly_rate: number;
+    total_cost: number;
+    currency: string;
+  }>;
+  calculation_method?: string;
+  notes?: string;
+}
+
+/**
+ * Value Projection Scenario from SalesValueAnalystAgent
+ */
+export interface ValueProjectionScenario {
+  case: string; // e.g., "Low", "Base", "High"
+  value: number;
+  description?: string;
+}
+
+/**
+ * Value Projection structure from SalesValueAnalystAgent
+ */
+export interface ValueProjection {
+  scenarios: ValueProjectionScenario[];
+  currency: string;
+  template_used?: string;
+  methodology?: string;
+  assumptions?: string[];
+  notes?: string;
+}
+
+/**
  * Represents the full details of a business case.
  */
 export interface BusinessCaseDetails extends BusinessCaseSummary {
@@ -63,7 +116,16 @@ export interface BusinessCaseDetails extends BusinessCaseSummary {
     content_markdown: string;
     version: string;
   } | null;
-  // Add other fields as they are defined, e.g., system_design_draft, financial_model
+  system_design_v1_draft?: { // System design structure from ArchitectAgent
+    content_markdown: string;
+    generated_by: string;
+    version: string;
+    generated_at?: string;
+  } | null;
+  effort_estimate_v1?: EffortEstimate | null;       // New: Effort estimate from PlannerAgent
+  cost_estimate_v1?: CostEstimate | null;           // New: Cost estimate from CostAnalystAgent
+  value_projection_v1?: ValueProjection | null;     // New: Value projection from SalesValueAnalystAgent
+  // Add other fields as they are defined, e.g., financial_model
 }
 
 /**

@@ -14,6 +14,14 @@ from app.core.config import settings
 
 # Import ProductManagerAgent
 from .product_manager_agent import ProductManagerAgent 
+# Import ArchitectAgent
+from .architect_agent import ArchitectAgent
+# Import PlannerAgent
+from .planner_agent import PlannerAgent
+# Import CostAnalystAgent
+from .cost_analyst_agent import CostAnalystAgent
+# Import SalesValueAnalystAgent  
+from .sales_value_analyst_agent import SalesValueAnalystAgent
 
 class BusinessCaseStatus(Enum):
     """Represents the various states of a business case lifecycle."""
@@ -23,7 +31,14 @@ class BusinessCaseStatus(Enum):
     PRD_APPROVED = "PRD_APPROVED"
     PRD_REJECTED = "PRD_REJECTED"
     SYSTEM_DESIGN_DRAFTING = "SYSTEM_DESIGN_DRAFTING"
+    SYSTEM_DESIGN_DRAFTED = "SYSTEM_DESIGN_DRAFTED"
     SYSTEM_DESIGN_REVIEW = "SYSTEM_DESIGN_REVIEW"
+    PLANNING_IN_PROGRESS = "PLANNING_IN_PROGRESS"
+    PLANNING_COMPLETE = "PLANNING_COMPLETE"
+    COSTING_IN_PROGRESS = "COSTING_IN_PROGRESS"
+    COSTING_COMPLETE = "COSTING_COMPLETE"
+    VALUE_ANALYSIS_IN_PROGRESS = "VALUE_ANALYSIS_IN_PROGRESS"
+    VALUE_ANALYSIS_COMPLETE = "VALUE_ANALYSIS_COMPLETE"
     FINANCIAL_ANALYSIS = "FINANCIAL_ANALYSIS"
     FINAL_REVIEW = "FINAL_REVIEW"
     APPROVED = "APPROVED"
@@ -39,6 +54,10 @@ class BusinessCaseData(BaseModel):
     status: BusinessCaseStatus = Field(BusinessCaseStatus.INTAKE, description="Current status of the business case")
     history: List[Dict[str, Any]] = Field(default_factory=list, description="History of agent interactions and status changes")
     prd_draft: Optional[Dict[str, Any]] = Field(None, description="Generated PRD draft content")
+    system_design_v1_draft: Optional[Dict[str, Any]] = Field(None, description="Generated system design draft content")
+    effort_estimate_v1: Optional[Dict[str, Any]] = Field(None, description="Generated effort estimate from PlannerAgent")
+    cost_estimate_v1: Optional[Dict[str, Any]] = Field(None, description="Generated cost estimate from CostAnalystAgent")
+    value_projection_v1: Optional[Dict[str, Any]] = Field(None, description="Generated value projection from SalesValueAnalystAgent")
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
@@ -72,6 +91,10 @@ class OrchestratorAgent:
         self.status = "initialized"
         self.echo_tool = EchoTool()
         self.product_manager_agent = ProductManagerAgent()
+        self.architect_agent = ArchitectAgent()
+        self.planner_agent = PlannerAgent()
+        self.cost_analyst_agent = CostAnalystAgent()
+        self.sales_value_analyst_agent = SalesValueAnalystAgent()
         try:
             self.db = firestore.Client(project=settings.firebase_project_id)
             print("OrchestratorAgent: Firestore client initialized successfully.")
@@ -247,6 +270,458 @@ class OrchestratorAgent:
         # TODO: Implement agent coordination logic
         return []
     
+    async def handle_prd_approval(self, case_id: str) -> Dict[str, Any]:
+        """
+        Handle the system design generation process after PRD approval.
+        This method is called when a PRD is approved to initiate the next phase.
+        
+        Args:
+            case_id (str): The ID of the business case with approved PRD
+            
+        Returns:
+            Dict[str, Any]: Response indicating success/failure of system design generation
+        """
+        print(f"[OrchestratorAgent] Handling PRD approval for case {case_id}")
+        
+        if not self.db:
+            return {"status": "error", "message": "Firestore client not initialized"}
+        
+        try:
+            # Retrieve case data from Firestore
+            case_doc_ref = self.db.collection("businessCases").document(case_id)
+            doc_snapshot = await asyncio.to_thread(case_doc_ref.get)
+            
+            if not doc_snapshot.exists:
+                return {"status": "error", "message": f"Business case {case_id} not found"}
+            
+            case_data = doc_snapshot.to_dict()
+            if not case_data:
+                return {"status": "error", "message": f"Business case {case_id} data is empty"}
+            
+            # Verify PRD is approved
+            current_status = case_data.get("status")
+            if current_status != BusinessCaseStatus.PRD_APPROVED.value:
+                return {"status": "error", "message": f"Case status is {current_status}, not PRD_APPROVED"}
+            
+            # Extract PRD content and case title
+            prd_draft = case_data.get("prd_draft")
+            if not prd_draft or not prd_draft.get("content_markdown"):
+                return {"status": "error", "message": "No PRD content found for system design generation"}
+            
+            approved_prd_content = prd_draft["content_markdown"]
+            case_title = case_data.get("title", "Untitled Business Case")
+            
+            print(f"[OrchestratorAgent] Invoking ArchitectAgent for case {case_id}...")
+            
+            # Update status to SYSTEM_DESIGN_DRAFTING first
+            current_time = datetime.now(timezone.utc)
+            update_data = {
+                "status": BusinessCaseStatus.SYSTEM_DESIGN_DRAFTING.value,
+                "updated_at": current_time,
+                "history": firestore.ArrayUnion([{
+                    "timestamp": current_time.isoformat(),
+                    "source": "ORCHESTRATOR_AGENT",
+                    "type": "STATUS_UPDATE", 
+                    "content": f"Status updated to {BusinessCaseStatus.SYSTEM_DESIGN_DRAFTING.value}. Architect Agent initiated for system design generation."
+                }])
+            }
+            await asyncio.to_thread(case_doc_ref.update, update_data)
+            
+            # Invoke ArchitectAgent to generate system design
+            design_response = await self.architect_agent.generate_system_design(
+                prd_content=approved_prd_content,
+                case_title=case_title
+            )
+            
+            updated_at_time = datetime.now(timezone.utc)
+            
+            if design_response.get("status") == "success" and design_response.get("system_design_draft"):
+                # System design generated successfully
+                system_design_draft = design_response["system_design_draft"]
+                
+                # Update case with system design and change status to SYSTEM_DESIGN_DRAFTED
+                update_data = {
+                    "system_design_v1_draft": system_design_draft,
+                    "status": BusinessCaseStatus.SYSTEM_DESIGN_DRAFTED.value,
+                    "updated_at": updated_at_time,
+                    "history": firestore.ArrayUnion([
+                        {
+                            "timestamp": updated_at_time.isoformat(),
+                            "source": "ARCHITECT_AGENT",
+                            "type": "SYSTEM_DESIGN_DRAFT",
+                            "content": f"System design draft generated. Length: {len(system_design_draft.get('content_markdown', ''))} characters"
+                        },
+                        {
+                            "timestamp": updated_at_time.isoformat(),
+                            "source": "ORCHESTRATOR_AGENT",
+                            "type": "STATUS_UPDATE",
+                            "content": f"Status updated to {BusinessCaseStatus.SYSTEM_DESIGN_DRAFTED.value}. System design draft completed."
+                        }
+                    ])
+                }
+                
+                await asyncio.to_thread(case_doc_ref.update, update_data)
+                
+                print(f"[OrchestratorAgent] System design generated successfully for case {case_id}")
+                
+                # Continue to effort estimation phase
+                effort_result = await self._handle_effort_estimation(case_id, case_doc_ref, approved_prd_content, system_design_draft["content_markdown"], case_title)
+                if effort_result["status"] == "success":
+                    # Continue to cost estimation phase
+                    cost_result = await self._handle_cost_estimation(case_id, case_doc_ref, effort_result["effort_breakdown"], case_title)
+                    if cost_result["status"] == "success":
+                        # Continue to value analysis phase
+                        value_result = await self._handle_value_analysis(case_id, case_doc_ref, approved_prd_content, case_title)
+                        return value_result
+                    else:
+                        return cost_result
+                else:
+                    return effort_result
+                
+            else:
+                # System design generation failed
+                error_message = design_response.get("message", "Failed to generate system design")
+                print(f"[OrchestratorAgent] ArchitectAgent failed for case {case_id}: {error_message}")
+                
+                # Update with error information and revert status
+                update_data = {
+                    "status": BusinessCaseStatus.PRD_APPROVED.value,  # Revert to PRD_APPROVED
+                    "updated_at": updated_at_time,
+                    "history": firestore.ArrayUnion([{
+                        "timestamp": updated_at_time.isoformat(),
+                        "source": "ORCHESTRATOR_AGENT",
+                        "type": "ERROR",
+                        "content": f"System design generation failed: {error_message}"
+                    }])
+                }
+                
+                await asyncio.to_thread(case_doc_ref.update, update_data)
+                
+                return {
+                    "status": "error",
+                    "message": f"System design generation failed: {error_message}",
+                    "case_id": case_id
+                }
+                
+        except Exception as e:
+            error_msg = f"Error in handle_prd_approval for case {case_id}: {str(e)}"
+            print(f"[OrchestratorAgent] {error_msg}")
+            return {"status": "error", "message": error_msg}
+
+    async def _handle_effort_estimation(self, case_id: str, case_doc_ref, prd_content: str, system_design_content: str, case_title: str) -> Dict[str, Any]:
+        """
+        Handle effort estimation using PlannerAgent after system design is complete.
+        
+        Args:
+            case_id (str): The business case ID
+            case_doc_ref: Firestore document reference
+            prd_content (str): PRD content
+            system_design_content (str): System design content
+            case_title (str): Case title
+            
+        Returns:
+            Dict[str, Any]: Result of effort estimation
+        """
+        print(f"[OrchestratorAgent] Starting effort estimation for case {case_id}")
+        
+        try:
+            # Update status to PLANNING_IN_PROGRESS
+            current_time = datetime.now(timezone.utc)
+            update_data = {
+                "status": BusinessCaseStatus.PLANNING_IN_PROGRESS.value,
+                "updated_at": current_time,
+                "history": firestore.ArrayUnion([{
+                    "timestamp": current_time.isoformat(),
+                    "source": "ORCHESTRATOR_AGENT",
+                    "type": "STATUS_UPDATE",
+                    "content": f"Status updated to {BusinessCaseStatus.PLANNING_IN_PROGRESS.value}. PlannerAgent initiated for effort estimation."
+                }])
+            }
+            await asyncio.to_thread(case_doc_ref.update, update_data)
+            
+            # Invoke PlannerAgent
+            effort_response = await self.planner_agent.estimate_effort(
+                prd_content=prd_content,
+                system_design_content=system_design_content,
+                case_title=case_title
+            )
+            
+            updated_at_time = datetime.now(timezone.utc)
+            
+            if effort_response.get("status") == "success" and effort_response.get("effort_breakdown"):
+                # Effort estimation successful
+                effort_breakdown = effort_response["effort_breakdown"]
+                
+                # Update case with effort estimate and change status to PLANNING_COMPLETE
+                update_data = {
+                    "effort_estimate_v1": effort_breakdown,
+                    "status": BusinessCaseStatus.PLANNING_COMPLETE.value,
+                    "updated_at": updated_at_time,
+                    "history": firestore.ArrayUnion([
+                        {
+                            "timestamp": updated_at_time.isoformat(),
+                            "source": "PLANNER_AGENT",
+                            "type": "EFFORT_ESTIMATE",
+                            "content": f"Effort estimation completed. Total hours: {effort_breakdown.get('total_hours', 'Unknown')}"
+                        },
+                        {
+                            "timestamp": updated_at_time.isoformat(),
+                            "source": "ORCHESTRATOR_AGENT",
+                            "type": "STATUS_UPDATE",
+                            "content": f"Status updated to {BusinessCaseStatus.PLANNING_COMPLETE.value}. Effort estimation completed."
+                        }
+                    ])
+                }
+                
+                await asyncio.to_thread(case_doc_ref.update, update_data)
+                
+                print(f"[OrchestratorAgent] Effort estimation completed successfully for case {case_id}")
+                return {
+                    "status": "success",
+                    "message": "Effort estimation completed successfully",
+                    "case_id": case_id,
+                    "effort_breakdown": effort_breakdown,
+                    "new_status": BusinessCaseStatus.PLANNING_COMPLETE.value
+                }
+                
+            else:
+                # Effort estimation failed
+                error_message = effort_response.get("message", "Failed to estimate effort")
+                print(f"[OrchestratorAgent] PlannerAgent failed for case {case_id}: {error_message}")
+                
+                # Update with error information
+                update_data = {
+                    "status": BusinessCaseStatus.SYSTEM_DESIGN_DRAFTED.value,  # Revert to previous status
+                    "updated_at": updated_at_time,
+                    "history": firestore.ArrayUnion([{
+                        "timestamp": updated_at_time.isoformat(),
+                        "source": "ORCHESTRATOR_AGENT",
+                        "type": "ERROR",
+                        "content": f"Effort estimation failed: {error_message}"
+                    }])
+                }
+                
+                await asyncio.to_thread(case_doc_ref.update, update_data)
+                
+                return {
+                    "status": "error",
+                    "message": f"Effort estimation failed: {error_message}",
+                    "case_id": case_id
+                }
+                
+        except Exception as e:
+            error_msg = f"Error in effort estimation for case {case_id}: {str(e)}"
+            print(f"[OrchestratorAgent] {error_msg}")
+            return {"status": "error", "message": error_msg}
+
+    async def _handle_cost_estimation(self, case_id: str, case_doc_ref, effort_breakdown: Dict[str, Any], case_title: str) -> Dict[str, Any]:
+        """
+        Handle cost estimation using CostAnalystAgent after effort estimation is complete.
+        
+        Args:
+            case_id (str): The business case ID
+            case_doc_ref: Firestore document reference
+            effort_breakdown (Dict[str, Any]): Effort breakdown from PlannerAgent
+            case_title (str): Case title
+            
+        Returns:
+            Dict[str, Any]: Result of cost estimation
+        """
+        print(f"[OrchestratorAgent] Starting cost estimation for case {case_id}")
+        
+        try:
+            # Update status to COSTING_IN_PROGRESS
+            current_time = datetime.now(timezone.utc)
+            update_data = {
+                "status": BusinessCaseStatus.COSTING_IN_PROGRESS.value,
+                "updated_at": current_time,
+                "history": firestore.ArrayUnion([{
+                    "timestamp": current_time.isoformat(),
+                    "source": "ORCHESTRATOR_AGENT",
+                    "type": "STATUS_UPDATE",
+                    "content": f"Status updated to {BusinessCaseStatus.COSTING_IN_PROGRESS.value}. CostAnalystAgent initiated for cost estimation."
+                }])
+            }
+            await asyncio.to_thread(case_doc_ref.update, update_data)
+            
+            # Invoke CostAnalystAgent
+            cost_response = await self.cost_analyst_agent.calculate_cost(
+                effort_breakdown=effort_breakdown,
+                case_title=case_title
+            )
+            
+            updated_at_time = datetime.now(timezone.utc)
+            
+            if cost_response.get("status") == "success" and cost_response.get("cost_estimate"):
+                # Cost estimation successful
+                cost_estimate = cost_response["cost_estimate"]
+                
+                # Update case with cost estimate and change status to COSTING_COMPLETE
+                update_data = {
+                    "cost_estimate_v1": cost_estimate,
+                    "status": BusinessCaseStatus.COSTING_COMPLETE.value,
+                    "updated_at": updated_at_time,
+                    "history": firestore.ArrayUnion([
+                        {
+                            "timestamp": updated_at_time.isoformat(),
+                            "source": "COST_ANALYST_AGENT",
+                            "type": "COST_ESTIMATE",
+                            "content": f"Cost estimation completed. Total cost: ${cost_estimate.get('estimated_cost', 'Unknown'):,.2f} {cost_estimate.get('currency', 'USD')}"
+                        },
+                        {
+                            "timestamp": updated_at_time.isoformat(),
+                            "source": "ORCHESTRATOR_AGENT",
+                            "type": "STATUS_UPDATE",
+                            "content": f"Status updated to {BusinessCaseStatus.COSTING_COMPLETE.value}. Cost estimation completed."
+                        }
+                    ])
+                }
+                
+                await asyncio.to_thread(case_doc_ref.update, update_data)
+                
+                print(f"[OrchestratorAgent] Cost estimation completed successfully for case {case_id}")
+                return {
+                    "status": "success",
+                    "message": "Complete business case financial analysis generated successfully",
+                    "case_id": case_id,
+                    "cost_estimate": cost_estimate,
+                    "new_status": BusinessCaseStatus.COSTING_COMPLETE.value
+                }
+                
+            else:
+                # Cost estimation failed
+                error_message = cost_response.get("message", "Failed to estimate cost")
+                print(f"[OrchestratorAgent] CostAnalystAgent failed for case {case_id}: {error_message}")
+                
+                # Update with error information
+                update_data = {
+                    "status": BusinessCaseStatus.PLANNING_COMPLETE.value,  # Revert to previous status
+                    "updated_at": updated_at_time,
+                    "history": firestore.ArrayUnion([{
+                        "timestamp": updated_at_time.isoformat(),
+                        "source": "ORCHESTRATOR_AGENT",
+                        "type": "ERROR",
+                        "content": f"Cost estimation failed: {error_message}"
+                    }])
+                }
+                
+                await asyncio.to_thread(case_doc_ref.update, update_data)
+                
+                return {
+                    "status": "error",
+                    "message": f"Cost estimation failed: {error_message}",
+                    "case_id": case_id
+                }
+                
+        except Exception as e:
+            error_msg = f"Error in cost estimation for case {case_id}: {str(e)}"
+            print(f"[OrchestratorAgent] {error_msg}")
+            return {"status": "error", "message": error_msg}
+
+    async def _handle_value_analysis(self, case_id: str, case_doc_ref, prd_content: str, case_title: str) -> Dict[str, Any]:
+        """
+        Handle value analysis using SalesValueAnalystAgent after cost estimation is complete.
+        
+        Args:
+            case_id (str): The business case ID
+            case_doc_ref: Firestore document reference
+            prd_content (str): PRD content for value analysis
+            case_title (str): Case title
+            
+        Returns:
+            Dict[str, Any]: Result of value analysis
+        """
+        print(f"[OrchestratorAgent] Starting value analysis for case {case_id}")
+        
+        try:
+            # Update status to VALUE_ANALYSIS_IN_PROGRESS
+            current_time = datetime.now(timezone.utc)
+            update_data = {
+                "status": BusinessCaseStatus.VALUE_ANALYSIS_IN_PROGRESS.value,
+                "updated_at": current_time,
+                "history": firestore.ArrayUnion([{
+                    "timestamp": current_time.isoformat(),
+                    "source": "ORCHESTRATOR_AGENT",
+                    "type": "STATUS_UPDATE",
+                    "content": f"Status updated to {BusinessCaseStatus.VALUE_ANALYSIS_IN_PROGRESS.value}. SalesValueAnalystAgent initiated for value projection."
+                }])
+            }
+            await asyncio.to_thread(case_doc_ref.update, update_data)
+            
+            # Invoke SalesValueAnalystAgent
+            value_response = await self.sales_value_analyst_agent.project_value(
+                prd_content=prd_content,
+                case_title=case_title
+            )
+            
+            updated_at_time = datetime.now(timezone.utc)
+            
+            if value_response.get("status") == "success" and value_response.get("value_projection"):
+                # Value analysis successful
+                value_projection = value_response["value_projection"]
+                
+                # Update case with value projection and change status to VALUE_ANALYSIS_COMPLETE
+                update_data = {
+                    "value_projection_v1": value_projection,
+                    "status": BusinessCaseStatus.VALUE_ANALYSIS_COMPLETE.value,
+                    "updated_at": updated_at_time,
+                    "history": firestore.ArrayUnion([
+                        {
+                            "timestamp": updated_at_time.isoformat(),
+                            "source": "SALES_VALUE_ANALYST_AGENT",
+                            "type": "VALUE_PROJECTION",
+                            "content": f"Value analysis completed. Base scenario: ${value_projection.get('scenarios', [{}])[1].get('value', 'Unknown'):,.0f} {value_projection.get('currency', 'USD')}" if len(value_projection.get('scenarios', [])) > 1 else f"Value projection completed using {value_projection.get('template_used', 'unknown template')}"
+                        },
+                        {
+                            "timestamp": updated_at_time.isoformat(),
+                            "source": "ORCHESTRATOR_AGENT",
+                            "type": "STATUS_UPDATE",
+                            "content": f"Status updated to {BusinessCaseStatus.VALUE_ANALYSIS_COMPLETE.value}. Complete financial analysis generated (effort, cost, and value)."
+                        }
+                    ])
+                }
+                
+                await asyncio.to_thread(case_doc_ref.update, update_data)
+                
+                print(f"[OrchestratorAgent] Value analysis completed successfully for case {case_id}")
+                return {
+                    "status": "success",
+                    "message": "Complete business case financial analysis generated successfully (effort, cost, and value)",
+                    "case_id": case_id,
+                    "value_projection": value_projection,
+                    "new_status": BusinessCaseStatus.VALUE_ANALYSIS_COMPLETE.value
+                }
+                
+            else:
+                # Value analysis failed
+                error_message = value_response.get("message", "Failed to project value")
+                print(f"[OrchestratorAgent] SalesValueAnalystAgent failed for case {case_id}: {error_message}")
+                
+                # Update with error information
+                update_data = {
+                    "status": BusinessCaseStatus.COSTING_COMPLETE.value,  # Revert to previous status
+                    "updated_at": updated_at_time,
+                    "history": firestore.ArrayUnion([{
+                        "timestamp": updated_at_time.isoformat(),
+                        "source": "ORCHESTRATOR_AGENT",
+                        "type": "ERROR",
+                        "content": f"Value analysis failed: {error_message}"
+                    }])
+                }
+                
+                await asyncio.to_thread(case_doc_ref.update, update_data)
+                
+                return {
+                    "status": "error",
+                    "message": f"Value analysis failed: {error_message}",
+                    "case_id": case_id
+                }
+                
+        except Exception as e:
+            error_msg = f"Error in value analysis for case {case_id}: {str(e)}"
+            print(f"[OrchestratorAgent] {error_msg}")
+            return {"status": "error", "message": error_msg}
+
     def get_status(self) -> Dict[str, str]:
         """Get the current status of the orchestrator agent"""
         return {

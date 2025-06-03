@@ -112,7 +112,7 @@
 **Phase 5: HITL for PRD & Core Agent Enhancements**
 
 * **Focus:** Implement basic HITL for PRD review (editing/approving), enhance ProductManagerAgent with more structured PRD generation, and introduce ArchitectAgent stub.  
-* **Status:** All tasks todo.
+* **Status:** Partially complete - PRD editing and saving functionality implemented.
 
 | Task ID | Title | Status | Priority | Complexity | Dependencies | Notes |
 | :---- | :---- | :---- | :---- | :---- | :---- | :---- |

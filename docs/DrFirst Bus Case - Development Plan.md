@@ -118,7 +118,7 @@
 | :---- | :---- | :---- | :---- | :---- | :---- | :---- |
 | 5.1 | **PRD Review & Editing (Frontend)** |  |  |  |  |  |
 | 5.1.1 | Enhance BusinessCaseDetailPage.tsx: Allow editing of the PRD draft (e.g., using a simple textarea or a basic rich text editor) | COMPLETE | high | low | 4.4.4 | Frontend UI for editing PRD draft is implemented. Save via API is next. |
-| 5.1.2 | Implement "Save PRD Draft" button on BusinessCaseDetailPage.tsx to update the PRD in Firestore (via backend API endpoint) | todo | high | low | 5.1.1 | New backend endpoint: /api/v1/cases/{caseId}/prd (PUT). |
+| 5.1.2 | Implement "Save PRD Draft" button on BusinessCaseDetailPage.tsx to update the PRD in Firestore (via backend API endpoint) | COMPLETE | high | low | 5.1.1 | Backend endpoint /api/v1/cases/{caseId}/prd (PUT) implemented and working. Frontend integration complete with success notifications. |
 | 5.1.3 | Implement "Submit PRD for Review" button, updating case status in Firestore (via backend API) | todo | high | low | 5.1.2 | Updates status to PRD\_PENDING\_APPROVAL. Backend API: /api/v1/cases/{caseId}/status (PUT). |
 | 5.2 | **PRD Approval Logic (Simplified)** |  |  |  |  |  |
 | 5.2.1 | Orchestrator/ApprovalAgent Stub: Logic to identify next approver (for V1, can be fixed or self-approval by initiator) | todo | medium | low | 4.3.3 | SDD Section 5 (ApprovalAgent). |

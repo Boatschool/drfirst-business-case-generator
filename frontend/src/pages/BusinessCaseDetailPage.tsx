@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useCallback } from 'react';
-import { useParams, Link as RouterLink, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate } from 'react-router-dom';
 import {
   Container,
   Typography,
@@ -23,7 +23,7 @@ import {
 } from '@mui/icons-material';
 import ReactMarkdown from 'react-markdown';
 import { useAgentContext } from '../contexts/AgentContext';
-import { AgentUpdate, ProvideFeedbackPayload } from '../services/agent/AgentService';
+import { AgentUpdate } from '../services/agent/AgentService';
 import { useAuth } from '../contexts/AuthContext';
 
 const BusinessCaseDetailPage: React.FC = () => {
@@ -49,6 +49,7 @@ const BusinessCaseDetailPage: React.FC = () => {
   const [isSendingFeedback, setIsSendingFeedback] = useState(false);
   const [feedbackSendError, setFeedbackSendError] = useState<string | null>(null);
   const [prdUpdateError, setPrdUpdateError] = useState<string | null>(null);
+  const [prdUpdateSuccess, setPrdUpdateSuccess] = useState<string | null>(null);
 
   const loadDetails = useCallback(() => {
     if (caseId) {
@@ -73,17 +74,20 @@ const BusinessCaseDetailPage: React.FC = () => {
     setEditablePrdContent(currentCaseDetails?.prd_draft?.content_markdown || '');
     setIsEditingPrd(true);
     setPrdUpdateError(null);
+    setPrdUpdateSuccess(null);
   };
 
   const handleCancelEditPrd = () => {
     setEditablePrdContent(currentCaseDetails?.prd_draft?.content_markdown || '');
     setIsEditingPrd(false);
     setPrdUpdateError(null);
+    setPrdUpdateSuccess(null);
   };
 
   const handleSavePrd = async () => {
     if (!caseId || !currentCaseDetails) return;
     setPrdUpdateError(null);
+    setPrdUpdateSuccess(null);
 
     const success = await updatePrdDraft({
       caseId,
@@ -92,6 +96,9 @@ const BusinessCaseDetailPage: React.FC = () => {
 
     if (success) {
       setIsEditingPrd(false);
+      setPrdUpdateSuccess('PRD updated successfully!');
+      // Clear success message after 5 seconds
+      setTimeout(() => setPrdUpdateSuccess(null), 5000);
     } else {
       setPrdUpdateError(agentContextError?.message || 'Failed to save PRD. Please try again.');
     }
@@ -234,6 +241,11 @@ const BusinessCaseDetailPage: React.FC = () => {
           {prdUpdateError && (
             <Alert severity="error" sx={{ mt: 2 }}>
               {prdUpdateError}
+            </Alert>
+          )}
+          {prdUpdateSuccess && (
+            <Alert severity="success" sx={{ mt: 2 }}>
+              {prdUpdateSuccess}
             </Alert>
           )}
         </Box>

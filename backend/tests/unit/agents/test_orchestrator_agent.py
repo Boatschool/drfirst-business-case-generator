@@ -1,6 +1,6 @@
 import pytest
 import asyncio
-from backend.app.agents.orchestrator_agent import OrchestratorAgent, EchoTool
+from app.agents.orchestrator_agent import OrchestratorAgent, EchoTool
 
 @pytest.fixture
 def orchestrator_agent():

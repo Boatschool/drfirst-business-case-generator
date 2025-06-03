@@ -179,10 +179,11 @@ async def update_prd_draft(
 
         # Construct the PRD draft object to be stored
         # This assumes a similar structure to how ProductManagerAgent might store it initially
+        existing_prd_draft = case_data.get("prd_draft") or {}
         updated_prd_draft = {
             "title": case_data.get("title", "PRD") + " - Draft", # Or derive title differently
             "content_markdown": prd_update_request.content_markdown,
-            "version": case_data.get("prd_draft", {}).get("version", "1.0.0") # Basic versioning, could be incremented
+            "version": existing_prd_draft.get("version", "1.0.0") # Basic versioning, could be incremented
             # Potentially add last_edited_by, last_edited_at fields here
         }
 
@@ -209,5 +210,8 @@ async def update_prd_draft(
     except HTTPException as http_exc:
         raise http_exc
     except Exception as e:
+        import traceback
+        error_details = traceback.format_exc()
         print(f"Error updating PRD for case {case_id}, user {user_id}: {e}")
+        print(f"Full traceback: {error_details}")
         raise HTTPException(status_code=500, detail=f"Failed to update PRD draft: {str(e)}") 

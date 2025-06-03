@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PRD Update Test</title>
+    <style>
+        body { font-family: Arial, sans-serif; max-width: 600px; margin: 50px auto; padding: 20px; }
+        button { padding: 10px 20px; margin: 10px; background: #007bff; color: white; border: none; border-radius: 5px; cursor: pointer; }
+        button:hover { background: #0056b3; }
+        .info { background: #f8f9fa; padding: 15px; border-radius: 5px; margin: 10px 0; }
+        .error { background: #f8d7da; color: #721c24; padding: 15px; border-radius: 5px; margin: 10px 0; }
+        .success { background: #d4edda; color: #155724; padding: 15px; border-radius: 5px; margin: 10px 0; }
+        textarea { width: 100%; margin: 10px 0; }
+    </style>
+</head>
+<body>
+    <h1>PRD Update Test</h1>
+    
+    <div id="status" class="info">Not authenticated</div>
+    
+    <div id="user-info" style="display: none;">
+        <h3>User Details</h3>
+        <div id="user-details"></div>
+        <button onclick="signOut()">Sign Out</button>
+    </div>
+    
+    <button onclick="signInWithGoogle()">Sign In with Google</button>
+    
+    <div>
+        <h3>Test PRD Update</h3>
+        <p>Case ID: <input type="text" id="case-id" placeholder="Enter case ID" /></p>
+        <p>PRD Content:</p>
+        <textarea id="prd-content" rows="5" placeholder="Enter PRD content in markdown"></textarea>
+        <br>
+        <button onclick="testPrdUpdate()">Test PRD Update</button>
+        <div id="prd-result"></div>
+    </div>
+
+    <script type="module">
+        import { initializeApp } from 'https://www.gstatic.com/firebasejs/9.17.2/firebase-app.js';
+        import { 
+            getAuth, 
+            signInWithPopup, 
+            GoogleAuthProvider, 
+            signOut as firebaseSignOut, 
+            onAuthStateChanged 
+        } from 'https://www.gstatic.com/firebasejs/9.17.2/firebase-auth.js';
+
+        // Firebase configuration
+        const firebaseConfig = {
+            apiKey: "AIzaSyCcvVkujY2V6IYD4V7QvZ_XYbJXtRYO1K4",
+            authDomain: "drfirst-business-case-gen.firebaseapp.com",
+            projectId: "drfirst-business-case-gen",
+            storageBucket: "drfirst-business-case-gen.appspot.com",
+            messagingSenderId: "123456789",
+            appId: "1:123456789:web:abcdef123456789"
+        };
+
+        // Initialize Firebase
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const provider = new GoogleAuthProvider();
+
+        let currentToken = null;
+
+        // Listen for auth state changes
+        onAuthStateChanged(auth, async (user) => {
+            updateUI(user);
+            if (user) {
+                try {
+                    currentToken = await user.getIdToken();
+                    console.log('ID Token received:', currentToken ? 'Yes' : 'No');
+                } catch (error) {
+                    console.error('Error getting ID token:', error);
+                }
+            } else {
+                currentToken = null;
+            }
+        });
+
+        function updateUI(user) {
+            const status = document.getElementById('status');
+            const userInfo = document.getElementById('user-info');
+            const userDetails = document.getElementById('user-details');
+            
+            if (user) {
+                status.innerHTML = '<span class="success">✅ User signed in successfully</span>';
+                userInfo.style.display = 'block';
+                userDetails.innerHTML = `
+                    <p><strong>Email:</strong> ${user.email}</p>
+                    <p><strong>UID:</strong> ${user.uid}</p>
+                    <p><strong>Email Verified:</strong> ${user.emailVerified ? '✅' : '❌'}</p>
+                `;
+            } else {
+                status.innerHTML = '<span class="info">No user signed in</span>';
+                userInfo.style.display = 'none';
+            }
+        }
+        
+        window.signInWithGoogle = async () => {
+            try {
+                await signInWithPopup(auth, provider);
+            } catch (error) {
+                document.getElementById('status').innerHTML = `<span class="error">❌ Sign-in failed: ${error.message}</span>`;
+            }
+        };
+        
+        window.signOut = async () => {
+            try {
+                await firebaseSignOut(auth);
+            } catch (error) {
+                console.error('Sign-out error:', error);
+            }
+        };
+        
+        window.testPrdUpdate = async () => {
+            const caseId = document.getElementById('case-id').value.trim();
+            const prdContent = document.getElementById('prd-content').value.trim();
+            const results = document.getElementById('prd-result');
+            
+            if (!caseId) {
+                results.innerHTML = '<div class="error">❌ Please enter a case ID</div>';
+                return;
+            }
+            
+            if (!prdContent) {
+                results.innerHTML = '<div class="error">❌ Please enter PRD content</div>';
+                return;
+            }
+            
+            if (!currentToken) {
+                results.innerHTML = '<div class="error">❌ Please sign in first</div>';
+                return;
+            }
+            
+            results.innerHTML = '<div class="info">Testing PRD update...</div>';
+            
+            try {
+                const response = await fetch(`http://localhost:8000/api/v1/cases/${caseId}/prd`, {
+                    method: 'PUT',
+                    headers: {
+                        'Authorization': `Bearer ${currentToken}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        content_markdown: prdContent
+                    })
+                });
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    results.innerHTML = `<div class="success">✅ PRD update successful: ${JSON.stringify(data, null, 2)}</div>`;
+                } else {
+                    const errorData = await response.text();
+                    results.innerHTML = `<div class="error">❌ PRD update failed (${response.status}): ${errorData}</div>`;
+                }
+            } catch (error) {
+                results.innerHTML = `<div class="error">❌ Request failed: ${error.message}</div>`;
+            }
+        };
+    </script>
+</body>
+</html> 

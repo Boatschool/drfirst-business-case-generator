@@ -33,6 +33,8 @@ interface AgentContextType extends AgentContextState {
   updatePrdDraft: (payload: UpdatePrdPayload) => Promise<boolean>;
   updateStatus: (payload: UpdateStatusPayload) => Promise<boolean>;
   submitPrdForReview: (caseId: string) => Promise<boolean>;
+  approvePrd: (caseId: string) => Promise<boolean>;
+  rejectPrd: (caseId: string, reason?: string) => Promise<boolean>;
   clearAgentState: () => void;
   clearCurrentCaseDetails: () => void;
   // TODO: Add a way to subscribe to agent updates via onAgentUpdate from AgentService
@@ -162,6 +164,36 @@ export const AgentProvider: React.FC<AgentProviderProps> = ({ children }) => {
     }
   }, [state.currentCaseId, fetchCaseDetails]);
 
+  const approvePrd = useCallback(async (caseId: string): Promise<boolean> => {
+    setState(prevState => ({ ...prevState, isLoading: true, error: null }));
+    try {
+      await agentService.approvePrd(caseId);
+      setState(prevState => ({ ...prevState, isLoading: false }));
+      if (caseId === state.currentCaseId) {
+        await fetchCaseDetails(caseId);
+      }
+      return true;
+    } catch (err: any) {
+      setState(prevState => ({ ...prevState, isLoading: false, error: err }));
+      return false;
+    }
+  }, [state.currentCaseId, fetchCaseDetails]);
+
+  const rejectPrd = useCallback(async (caseId: string, reason?: string): Promise<boolean> => {
+    setState(prevState => ({ ...prevState, isLoading: true, error: null }));
+    try {
+      await agentService.rejectPrd(caseId, reason);
+      setState(prevState => ({ ...prevState, isLoading: false }));
+      if (caseId === state.currentCaseId) {
+        await fetchCaseDetails(caseId);
+      }
+      return true;
+    } catch (err: any) {
+      setState(prevState => ({ ...prevState, isLoading: false, error: err }));
+      return false;
+    }
+  }, [state.currentCaseId, fetchCaseDetails]);
+
   const clearCurrentCaseDetails = useCallback(() => {
     setState(prevState => ({
       ...prevState,
@@ -222,6 +254,8 @@ export const AgentProvider: React.FC<AgentProviderProps> = ({ children }) => {
     updatePrdDraft,
     updateStatus,
     submitPrdForReview,
+    approvePrd,
+    rejectPrd,
     clearAgentState,
     clearCurrentCaseDetails,
   };

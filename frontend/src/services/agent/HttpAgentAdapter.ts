@@ -147,6 +147,20 @@ export class HttpAgentAdapter implements AgentService {
       method: 'POST',
     });
   }
+
+  async approvePrd(caseId: string): Promise<{ message: string; new_status: string; case_id: string }> {
+    return this.fetchWithAuth<{ message: string; new_status: string; case_id: string }>(`/cases/${caseId}/prd/approve`, {
+      method: 'POST',
+    });
+  }
+
+  async rejectPrd(caseId: string, reason?: string): Promise<{ message: string; new_status: string; case_id: string }> {
+    const requestBody = reason ? { reason } : {};
+    return this.fetchWithAuth<{ message: string; new_status: string; case_id: string }>(`/cases/${caseId}/prd/reject`, {
+      method: 'POST',
+      body: JSON.stringify(requestBody),
+    });
+  }
 }
 
 // Export an instance if you prefer a singleton pattern for services

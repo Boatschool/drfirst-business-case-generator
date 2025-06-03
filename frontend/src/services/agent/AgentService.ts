@@ -165,6 +165,21 @@ export interface AgentService {
    */
   submitPrdForReview(caseId: string): Promise<{ message: string; new_status: string; case_id: string }>;
 
+  /**
+   * Approves the PRD for a business case.
+   * @param caseId - The ID of the business case to approve.
+   * @returns A promise that resolves with a confirmation message and the new status.
+   */
+  approvePrd(caseId: string): Promise<{ message: string; new_status: string; case_id: string }>;
+
+  /**
+   * Rejects the PRD for a business case with an optional reason.
+   * @param caseId - The ID of the business case to reject.
+   * @param reason - Optional rejection reason.
+   * @returns A promise that resolves with a confirmation message and the new status.
+   */
+  rejectPrd(caseId: string, reason?: string): Promise<{ message: string; new_status: string; case_id: string }>;
+
   // Potential future methods:
   // getCaseHistory(caseId: string): Promise<AgentUpdate[]>;
   // getCaseStatus(caseId: string): Promise<string>; // More detailed status object

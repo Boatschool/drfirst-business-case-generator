@@ -308,6 +308,173 @@ async def submit_prd_for_review(
         print(f"Full traceback: {error_details}")
         raise HTTPException(status_code=500, detail=f"Failed to submit PRD for review: {str(e)}")
 
+class PrdRejectRequest(BaseModel):
+    reason: Optional[str] = None
+
+@router.post("/cases/{case_id}/prd/approve", status_code=200, summary="Approve PRD for a specific business case")
+async def approve_prd(
+    case_id: str,
+    current_user: dict = Depends(get_current_active_user)
+):
+    """
+    Approves the PRD for a business case, updating the case status to PRD_APPROVED.
+    Ensures the authenticated user is the owner/initiator of the case and case is in PRD_REVIEW status.
+    """
+    user_id = current_user.get("uid")
+    user_email = current_user.get("email", f"User {user_id}")
+    
+    if not user_id:
+        raise HTTPException(status_code=401, detail="User ID not found in token.")
+
+    try:
+        # Import BusinessCaseStatus from orchestrator_agent
+        from app.agents.orchestrator_agent import BusinessCaseStatus
+        
+        db = firestore.Client(project=settings.firebase_project_id)
+        case_doc_ref = db.collection("businessCases").document(case_id)
+
+        doc_snapshot = await asyncio.to_thread(case_doc_ref.get)
+        if not doc_snapshot.exists:
+            raise HTTPException(status_code=404, detail=f"Business case {case_id} not found.")
+
+        case_data = doc_snapshot.to_dict()
+        if not case_data:
+            raise HTTPException(status_code=404, detail=f"Business case {case_id} data is empty.")
+
+        # Authorization check: verify user is the owner/initiator (V1 - self-approval)
+        if case_data.get("user_id") != user_id:
+            raise HTTPException(status_code=403, detail="You do not have permission to approve this PRD.")
+
+        # Status check: ensure case is in PRD_REVIEW status
+        current_status = case_data.get("status")
+        if hasattr(current_status, 'value'):
+            current_status_str = current_status.value
+        else:
+            current_status_str = str(current_status)
+
+        if current_status_str != BusinessCaseStatus.PRD_REVIEW.value:
+            raise HTTPException(
+                status_code=400, 
+                detail=f"Cannot approve PRD from current status: {current_status_str}. PRD must be in review status."
+            )
+
+        # Prepare history entry
+        history_entry = {
+            "timestamp": datetime.now(timezone.utc),
+            "source": "USER",
+            "messageType": "PRD_APPROVAL",
+            "content": f"PRD approved by {user_email}"
+        }
+
+        # Update case status to PRD_APPROVED and add history entry
+        update_data = {
+            "status": BusinessCaseStatus.PRD_APPROVED.value,
+            "updated_at": datetime.now(timezone.utc),
+            "history": firestore.ArrayUnion([history_entry])
+        }
+
+        await asyncio.to_thread(case_doc_ref.update, update_data)
+        
+        return {
+            "message": "PRD approved successfully",
+            "new_status": BusinessCaseStatus.PRD_APPROVED.value,
+            "case_id": case_id
+        }
+
+    except HTTPException as http_exc:
+        raise http_exc
+    except Exception as e:
+        import traceback
+        error_details = traceback.format_exc()
+        print(f"Error approving PRD for case {case_id}, user {user_id}: {e}")
+        print(f"Full traceback: {error_details}")
+        raise HTTPException(status_code=500, detail=f"Failed to approve PRD: {str(e)}")
+
+@router.post("/cases/{case_id}/prd/reject", status_code=200, summary="Reject PRD for a specific business case")
+async def reject_prd(
+    case_id: str,
+    reject_request: PrdRejectRequest = PrdRejectRequest(),
+    current_user: dict = Depends(get_current_active_user)
+):
+    """
+    Rejects the PRD for a business case, updating the case status to PRD_REJECTED.
+    Ensures the authenticated user is the owner/initiator of the case and case is in PRD_REVIEW status.
+    Optionally accepts a rejection reason.
+    """
+    user_id = current_user.get("uid")
+    user_email = current_user.get("email", f"User {user_id}")
+    
+    if not user_id:
+        raise HTTPException(status_code=401, detail="User ID not found in token.")
+
+    try:
+        # Import BusinessCaseStatus from orchestrator_agent
+        from app.agents.orchestrator_agent import BusinessCaseStatus
+        
+        db = firestore.Client(project=settings.firebase_project_id)
+        case_doc_ref = db.collection("businessCases").document(case_id)
+
+        doc_snapshot = await asyncio.to_thread(case_doc_ref.get)
+        if not doc_snapshot.exists:
+            raise HTTPException(status_code=404, detail=f"Business case {case_id} not found.")
+
+        case_data = doc_snapshot.to_dict()
+        if not case_data:
+            raise HTTPException(status_code=404, detail=f"Business case {case_id} data is empty.")
+
+        # Authorization check: verify user is the owner/initiator (V1 - self-approval)
+        if case_data.get("user_id") != user_id:
+            raise HTTPException(status_code=403, detail="You do not have permission to reject this PRD.")
+
+        # Status check: ensure case is in PRD_REVIEW status
+        current_status = case_data.get("status")
+        if hasattr(current_status, 'value'):
+            current_status_str = current_status.value
+        else:
+            current_status_str = str(current_status)
+
+        if current_status_str != BusinessCaseStatus.PRD_REVIEW.value:
+            raise HTTPException(
+                status_code=400, 
+                detail=f"Cannot reject PRD from current status: {current_status_str}. PRD must be in review status."
+            )
+
+        # Prepare history entry with optional reason
+        rejection_content = f"PRD rejected by {user_email}"
+        if reject_request.reason:
+            rejection_content += f". Reason: {reject_request.reason}"
+
+        history_entry = {
+            "timestamp": datetime.now(timezone.utc),
+            "source": "USER",
+            "messageType": "PRD_REJECTION",
+            "content": rejection_content
+        }
+
+        # Update case status to PRD_REJECTED and add history entry
+        update_data = {
+            "status": BusinessCaseStatus.PRD_REJECTED.value,
+            "updated_at": datetime.now(timezone.utc),
+            "history": firestore.ArrayUnion([history_entry])
+        }
+
+        await asyncio.to_thread(case_doc_ref.update, update_data)
+        
+        return {
+            "message": "PRD rejected successfully",
+            "new_status": BusinessCaseStatus.PRD_REJECTED.value,
+            "case_id": case_id
+        }
+
+    except HTTPException as http_exc:
+        raise http_exc
+    except Exception as e:
+        import traceback
+        error_details = traceback.format_exc()
+        print(f"Error rejecting PRD for case {case_id}, user {user_id}: {e}")
+        print(f"Full traceback: {error_details}")
+        raise HTTPException(status_code=500, detail=f"Failed to reject PRD: {str(e)}")
+
 @router.put("/cases/{case_id}/status", status_code=200, summary="Update status for a specific business case")
 async def update_case_status(
     case_id: str,

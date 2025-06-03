@@ -13,6 +13,10 @@ import {
   TextField,
   IconButton,
   Tooltip,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
 } from '@mui/material';
 import {
   Edit as EditIcon,
@@ -21,6 +25,8 @@ import {
   Send as SendIcon,
   Refresh as RefreshIcon,
   ArrowBack as ArrowBackIcon,
+  CheckCircle as CheckCircleIcon,
+  Cancel as RejectIcon,
 } from '@mui/icons-material';
 import ReactMarkdown from 'react-markdown';
 import { useAgentContext } from '../contexts/AgentContext';
@@ -38,6 +44,8 @@ const BusinessCaseDetailPage: React.FC = () => {
     sendFeedbackToAgent,
     updatePrdDraft,
     submitPrdForReview,
+    approvePrd,
+    rejectPrd,
     isLoading,
     error: agentContextError,
     clearCurrentCaseDetails,
@@ -54,6 +62,10 @@ const BusinessCaseDetailPage: React.FC = () => {
   const [prdUpdateSuccess, setPrdUpdateSuccess] = useState<string | null>(null);
   const [statusUpdateSuccess, setStatusUpdateSuccess] = useState<string | null>(null);
   const [statusUpdateError, setStatusUpdateError] = useState<string | null>(null);
+  const [approvalSuccess, setApprovalSuccess] = useState<string | null>(null);
+  const [approvalError, setApprovalError] = useState<string | null>(null);
+  const [isRejectDialogOpen, setIsRejectDialogOpen] = useState(false);
+  const [rejectionReason, setRejectionReason] = useState('');
 
   const loadDetails = useCallback(() => {
     if (caseId) {
@@ -139,6 +151,52 @@ const BusinessCaseDetailPage: React.FC = () => {
     } else {
       setStatusUpdateError(agentContextError?.message || 'Failed to submit PRD for review. Please try again.');
     }
+  };
+
+  const handleApprovePrd = async () => {
+    if (!caseId || !currentCaseDetails) return;
+    setApprovalError(null);
+    setApprovalSuccess(null);
+
+    const success = await approvePrd(caseId);
+
+    if (success) {
+      setApprovalSuccess('PRD approved successfully!');
+      // Clear success message after 5 seconds
+      setTimeout(() => setApprovalSuccess(null), 5000);
+    } else {
+      setApprovalError(agentContextError?.message || 'Failed to approve PRD. Please try again.');
+    }
+  };
+
+  const handleRejectPrd = async () => {
+    if (!caseId || !currentCaseDetails) return;
+    setApprovalError(null);
+    setApprovalSuccess(null);
+
+    const success = await rejectPrd(caseId, rejectionReason.trim() || undefined);
+
+    if (success) {
+      setApprovalSuccess('PRD rejected successfully.');
+      setIsRejectDialogOpen(false);
+      setRejectionReason('');
+      // Clear success message after 5 seconds
+      setTimeout(() => setApprovalSuccess(null), 5000);
+    } else {
+      setApprovalError(agentContextError?.message || 'Failed to reject PRD. Please try again.');
+    }
+  };
+
+  const handleOpenRejectDialog = () => {
+    setIsRejectDialogOpen(true);
+    setRejectionReason('');
+    setApprovalError(null);
+    setApprovalSuccess(null);
+  };
+
+  const handleCloseRejectDialog = () => {
+    setIsRejectDialogOpen(false);
+    setRejectionReason('');
   };
 
   if (isLoadingCaseDetails && !currentCaseDetails) {
@@ -312,6 +370,48 @@ const BusinessCaseDetailPage: React.FC = () => {
               )}
             </Box>
           )}
+
+          {/* PRD Approval/Rejection Section */}
+          {!isEditingPrd && status === 'PRD_REVIEW' && currentUser?.uid === currentCaseDetails.user_id && (
+            <Box sx={{ mt: 3, pt: 2, borderTop: '1px solid #eee' }}>
+              <Typography variant="h6" gutterBottom>
+                PRD Review Actions
+              </Typography>
+              <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                As the case initiator, you can approve or reject this PRD.
+              </Typography>
+              <Stack direction="row" spacing={2} alignItems="center">
+                <Button 
+                  variant="contained" 
+                  color="success"
+                  onClick={handleApprovePrd} 
+                  disabled={isLoading}
+                  startIcon={<CheckCircleIcon />}
+                >
+                  Approve PRD
+                </Button>
+                <Button 
+                  variant="outlined" 
+                  color="error"
+                  onClick={handleOpenRejectDialog} 
+                  disabled={isLoading}
+                  startIcon={<RejectIcon />}
+                >
+                  Reject PRD
+                </Button>
+              </Stack>
+              {approvalError && (
+                <Alert severity="error" sx={{ mt: 2 }}>
+                  {approvalError}
+                </Alert>
+              )}
+              {approvalSuccess && (
+                <Alert severity="success" sx={{ mt: 2 }}>
+                  {approvalSuccess}
+                </Alert>
+              )}
+            </Box>
+          )}
         </Box>
         
         {(isLoading && !isSendingFeedback && !isLoadingCaseDetails && !isEditingPrd) && 
@@ -378,6 +478,38 @@ const BusinessCaseDetailPage: React.FC = () => {
         </Box>
 
       </Paper>
+
+      {/* Rejection Dialog */}
+      <Dialog open={isRejectDialogOpen} onClose={handleCloseRejectDialog} maxWidth="sm" fullWidth>
+        <DialogTitle>Reject PRD</DialogTitle>
+        <DialogContent>
+          <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+            Please provide a reason for rejecting this PRD (optional):
+          </Typography>
+          <TextField
+            fullWidth
+            multiline
+            rows={3}
+            value={rejectionReason}
+            onChange={(e) => setRejectionReason(e.target.value)}
+            placeholder="Enter reason for rejection..."
+            variant="outlined"
+          />
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={handleCloseRejectDialog} disabled={isLoading}>
+            Cancel
+          </Button>
+          <Button 
+            onClick={handleRejectPrd} 
+            color="error" 
+            variant="contained"
+            disabled={isLoading}
+          >
+            {isLoading ? 'Rejecting...' : 'Reject PRD'}
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Container>
   );
 };

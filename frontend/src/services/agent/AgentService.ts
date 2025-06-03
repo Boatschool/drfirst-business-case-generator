@@ -88,6 +88,24 @@ export interface UpdatePrdResponse {
 }
 
 /**
+ * Represents the payload for updating a business case status.
+ */
+export interface UpdateStatusPayload {
+  caseId: string;
+  status: string;
+  comment?: string;
+}
+
+/**
+ * Represents the response from updating a business case status.
+ */
+export interface UpdateStatusResponse {
+  message: string;
+  new_status: string;
+  case_id: string;
+}
+
+/**
  * Defines the contract for agent communication services.
  */
 export interface AgentService {
@@ -132,6 +150,20 @@ export interface AgentService {
    * @returns A promise that resolves with a confirmation message and the updated PRD draft.
    */
   updatePrd(payload: UpdatePrdPayload): Promise<UpdatePrdResponse>;
+
+  /**
+   * Updates the status of a specific business case.
+   * @param payload - The case ID, new status, and optional comment.
+   * @returns A promise that resolves with a confirmation message and the new status.
+   */
+  updateStatus(payload: UpdateStatusPayload): Promise<UpdateStatusResponse>;
+
+  /**
+   * Submits the PRD for review, updating the case status to PRD_REVIEW.
+   * @param caseId - The ID of the business case to submit for review.
+   * @returns A promise that resolves with a confirmation message and the new status.
+   */
+  submitPrdForReview(caseId: string): Promise<{ message: string; new_status: string; case_id: string }>;
 
   // Potential future methods:
   // getCaseHistory(caseId: string): Promise<AgentUpdate[]>;

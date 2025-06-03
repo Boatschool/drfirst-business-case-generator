@@ -20,6 +20,7 @@ import {
   Cancel as CancelIcon,
   Send as SendIcon,
   Refresh as RefreshIcon,
+  ArrowBack as ArrowBackIcon,
 } from '@mui/icons-material';
 import ReactMarkdown from 'react-markdown';
 import { useAgentContext } from '../contexts/AgentContext';
@@ -36,6 +37,7 @@ const BusinessCaseDetailPage: React.FC = () => {
     fetchCaseDetails,
     sendFeedbackToAgent,
     updatePrdDraft,
+    submitPrdForReview,
     isLoading,
     error: agentContextError,
     clearCurrentCaseDetails,
@@ -50,6 +52,8 @@ const BusinessCaseDetailPage: React.FC = () => {
   const [feedbackSendError, setFeedbackSendError] = useState<string | null>(null);
   const [prdUpdateError, setPrdUpdateError] = useState<string | null>(null);
   const [prdUpdateSuccess, setPrdUpdateSuccess] = useState<string | null>(null);
+  const [statusUpdateSuccess, setStatusUpdateSuccess] = useState<string | null>(null);
+  const [statusUpdateError, setStatusUpdateError] = useState<string | null>(null);
 
   const loadDetails = useCallback(() => {
     if (caseId) {
@@ -121,6 +125,22 @@ const BusinessCaseDetailPage: React.FC = () => {
     }
   };
 
+  const handleSubmitPrdForReview = async () => {
+    if (!caseId || !currentCaseDetails) return;
+    setStatusUpdateError(null);
+    setStatusUpdateSuccess(null);
+
+    const success = await submitPrdForReview(caseId);
+
+    if (success) {
+      setStatusUpdateSuccess('PRD submitted for review successfully!');
+      // Clear success message after 5 seconds
+      setTimeout(() => setStatusUpdateSuccess(null), 5000);
+    } else {
+      setStatusUpdateError(agentContextError?.message || 'Failed to submit PRD for review. Please try again.');
+    }
+  };
+
   if (isLoadingCaseDetails && !currentCaseDetails) {
     return <CircularProgress sx={{ display: 'block', margin: 'auto', mt: 5 }} />;
   }
@@ -153,14 +173,23 @@ const BusinessCaseDetailPage: React.FC = () => {
     <Container maxWidth="lg" sx={{ py: 4 }}>
       <Paper elevation={3} sx={{ p: { xs: 2, md: 4 } }}>
         <Stack direction="row" justifyContent="space-between" alignItems="center" mb={3}>
-          <Typography variant="h4" component="h1" gutterBottom>
-            {title || 'Business Case Details'}
-          </Typography>
-          <Tooltip title="Refresh Case Details">
-            <IconButton onClick={loadDetails} disabled={isLoading || isLoadingCaseDetails}>
-              <RefreshIcon />
-            </IconButton>
-          </Tooltip>
+          <Stack direction="row" alignItems="center" spacing={2}>
+            <Tooltip title="Back to Dashboard">
+              <IconButton onClick={() => navigate('/dashboard')} disabled={isLoading}>
+                <ArrowBackIcon />
+              </IconButton>
+            </Tooltip>
+            <Typography variant="h4" component="h1" gutterBottom sx={{ mb: 0 }}>
+              {title || 'Business Case Details'}
+            </Typography>
+          </Stack>
+          <Stack direction="row" spacing={1}>
+            <Tooltip title="Refresh Case Details">
+              <IconButton onClick={loadDetails} disabled={isLoading || isLoadingCaseDetails}>
+                <RefreshIcon />
+              </IconButton>
+            </Tooltip>
+          </Stack>
         </Stack>
 
         <Typography variant="overline" display="block" gutterBottom>Status: {status}</Typography>
@@ -247,6 +276,41 @@ const BusinessCaseDetailPage: React.FC = () => {
             <Alert severity="success" sx={{ mt: 2 }}>
               {prdUpdateSuccess}
             </Alert>
+          )}
+
+          {/* Submit PRD for Review Section */}
+          {!isEditingPrd && prd_draft?.content_markdown && (status === 'INTAKE' || status === 'PRD_DRAFTING' || status === 'PRD_REVIEW') && (
+            <Box sx={{ mt: 3, pt: 2, borderTop: '1px solid #eee' }}>
+              <Stack direction="row" spacing={2} alignItems="center">
+                <Button 
+                  variant="contained" 
+                  color="primary"
+                  onClick={handleSubmitPrdForReview} 
+                  disabled={isLoading}
+                  startIcon={<SendIcon />}
+                                  >
+                    {status === 'PRD_REVIEW' ? 'Resubmit PRD for Review' : 'Submit PRD for Review'}
+                  </Button>
+                  <Typography variant="body2" color="text.secondary">
+                    {status === 'PRD_REVIEW' 
+                      ? 'PRD is currently under review. You can resubmit if changes were made.'
+                      : status === 'INTAKE' 
+                        ? 'Submit your PRD content for review by stakeholders.'
+                        : 'Submit your PRD draft for review by stakeholders.'
+                    }
+                </Typography>
+              </Stack>
+              {statusUpdateError && (
+                <Alert severity="error" sx={{ mt: 2 }}>
+                  {statusUpdateError}
+                </Alert>
+              )}
+              {statusUpdateSuccess && (
+                <Alert severity="success" sx={{ mt: 2 }}>
+                  {statusUpdateSuccess}
+                </Alert>
+              )}
+            </Box>
           )}
         </Box>
         

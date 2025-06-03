@@ -10,6 +10,7 @@ from datetime import datetime, timezone
 
 from pydantic import BaseModel, Field
 from google.cloud import firestore
+from app.core.config import settings
 
 # Import ProductManagerAgent
 from .product_manager_agent import ProductManagerAgent 
@@ -70,7 +71,7 @@ class OrchestratorAgent:
         self.echo_tool = EchoTool()
         self.product_manager_agent = ProductManagerAgent()
         try:
-            self.db = firestore.Client()
+            self.db = firestore.Client(project=settings.firebase_project_id)
             print("OrchestratorAgent: Firestore client initialized successfully.")
         except Exception as e:
             print(f"OrchestratorAgent: Failed to initialize Firestore client: {e}")

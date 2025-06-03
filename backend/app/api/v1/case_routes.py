@@ -9,6 +9,7 @@ import asyncio
 
 from app.auth.firebase_auth import get_current_active_user
 from google.cloud import firestore
+from app.core.config import settings
 
 # Assuming BusinessCaseStatus is defined in orchestrator_agent or a shared models location
 # If it's in orchestrator_agent, the import might be: from app.agents.orchestrator_agent import BusinessCaseStatus
@@ -45,6 +46,10 @@ class PrdUpdateRequest(BaseModel):
     content_markdown: str
     # version: Optional[str] = None # Could add versioning later
 
+class StatusUpdateRequest(BaseModel):
+    status: str
+    comment: Optional[str] = None
+
 @router.get("/cases", response_model=List[BusinessCaseSummary], summary="List business cases for the authenticated user")
 async def list_user_cases(
     current_user: dict = Depends(get_current_active_user)
@@ -58,7 +63,7 @@ async def list_user_cases(
         raise HTTPException(status_code=401, detail="User ID not found in token.")
 
     try:
-        db = firestore.Client()
+        db = firestore.Client(project=settings.firebase_project_id)
         cases_query = db.collection("businessCases").where("user_id", "==", user_id)
         docs_snapshot = await asyncio.to_thread(cases_query.stream)
         
@@ -106,7 +111,7 @@ async def get_case_details(
         raise HTTPException(status_code=401, detail="User ID not found in token.")
 
     try:
-        db = firestore.Client()
+        db = firestore.Client(project=settings.firebase_project_id)
         case_doc_ref = db.collection("businessCases").document(case_id)
         # Use asyncio.to_thread for the blocking Firestore call
         doc = await asyncio.to_thread(case_doc_ref.get)
@@ -163,7 +168,7 @@ async def update_prd_draft(
         raise HTTPException(status_code=401, detail="User ID not found in token.")
 
     try:
-        db = firestore.Client()
+        db = firestore.Client(project=settings.firebase_project_id)
         case_doc_ref = db.collection("businessCases").document(case_id)
 
         doc_snapshot = await asyncio.to_thread(case_doc_ref.get)
@@ -214,4 +219,178 @@ async def update_prd_draft(
         error_details = traceback.format_exc()
         print(f"Error updating PRD for case {case_id}, user {user_id}: {e}")
         print(f"Full traceback: {error_details}")
-        raise HTTPException(status_code=500, detail=f"Failed to update PRD draft: {str(e)}") 
+        raise HTTPException(status_code=500, detail=f"Failed to update PRD draft: {str(e)}")
+
+@router.post("/cases/{case_id}/submit-prd", status_code=200, summary="Submit PRD for review")
+async def submit_prd_for_review(
+    case_id: str,
+    current_user: dict = Depends(get_current_active_user)
+):
+    """
+    Submits the PRD for review, updating the case status to PRD_REVIEW.
+    Ensures the authenticated user is the owner of the case and case is in appropriate state.
+    """
+    user_id = current_user.get("uid")
+    if not user_id:
+        raise HTTPException(status_code=401, detail="User ID not found in token.")
+
+    try:
+        # Import BusinessCaseStatus from orchestrator_agent
+        from app.agents.orchestrator_agent import BusinessCaseStatus
+        
+        db = firestore.Client(project=settings.firebase_project_id)
+        case_doc_ref = db.collection("businessCases").document(case_id)
+
+        doc_snapshot = await asyncio.to_thread(case_doc_ref.get)
+        if not doc_snapshot.exists:
+            raise HTTPException(status_code=404, detail=f"Business case {case_id} not found.")
+
+        case_data = doc_snapshot.to_dict()
+        if not case_data:
+            raise HTTPException(status_code=404, detail=f"Business case {case_id} data is empty.")
+
+        # Authorization check: verify user is the owner/initiator
+        if case_data.get("user_id") != user_id:
+            raise HTTPException(status_code=403, detail="You do not have permission to submit this business case.")
+
+        # Status check: ensure case is in appropriate state for PRD submission
+        current_status = case_data.get("status")
+        if hasattr(current_status, 'value'):
+            current_status_str = current_status.value
+        else:
+            current_status_str = str(current_status)
+
+        # Allow submission from INTAKE (if PRD content exists), PRD_DRAFTING, or PRD_REVIEW (resubmission)
+        valid_submission_statuses = [BusinessCaseStatus.INTAKE.value, BusinessCaseStatus.PRD_DRAFTING.value, BusinessCaseStatus.PRD_REVIEW.value]
+        if current_status_str not in valid_submission_statuses:
+            raise HTTPException(
+                status_code=400, 
+                detail=f"Cannot submit PRD for review from current status: {current_status_str}. Must be in INTAKE, PRD_DRAFTING, or PRD_REVIEW state."
+            )
+
+        # Verify PRD draft exists and has content
+        prd_draft = case_data.get("prd_draft")
+        if not prd_draft or not prd_draft.get("content_markdown"):
+            raise HTTPException(status_code=400, detail="Cannot submit PRD for review: PRD draft is empty or missing.")
+
+        # Get user email for history entry
+        user_email = current_user.get("email", f"User {user_id}")
+
+        # Prepare history entry
+        history_entry = {
+            "timestamp": datetime.now(timezone.utc),
+            "source": "USER",
+            "messageType": "STATUS_UPDATE",
+            "content": f"PRD submitted for review by {user_email}"
+        }
+
+        # Update case status and add history entry
+        update_data = {
+            "status": BusinessCaseStatus.PRD_REVIEW.value,
+            "updated_at": datetime.now(timezone.utc),
+            "history": firestore.ArrayUnion([history_entry])
+        }
+
+        await asyncio.to_thread(case_doc_ref.update, update_data)
+        
+        return {
+            "message": "PRD submitted for review successfully",
+            "new_status": BusinessCaseStatus.PRD_REVIEW.value,
+            "case_id": case_id
+        }
+
+    except HTTPException as http_exc:
+        raise http_exc
+    except Exception as e:
+        import traceback
+        error_details = traceback.format_exc()
+        print(f"Error submitting PRD for review for case {case_id}, user {user_id}: {e}")
+        print(f"Full traceback: {error_details}")
+        raise HTTPException(status_code=500, detail=f"Failed to submit PRD for review: {str(e)}")
+
+@router.put("/cases/{case_id}/status", status_code=200, summary="Update status for a specific business case")
+async def update_case_status(
+    case_id: str,
+    status_update_request: StatusUpdateRequest,
+    current_user: dict = Depends(get_current_active_user)
+):
+    """
+    Updates the status of a specific business case.
+    Used for workflow transitions like submitting PRD for review, approval, etc.
+    Ensures the authenticated user has permission to change the status.
+    """
+    user_id = current_user.get("uid")
+    if not user_id:
+        raise HTTPException(status_code=401, detail="User ID not found in token.")
+
+    # Define valid status transitions
+    VALID_STATUSES = [
+        "INTAKE_COMPLETE",
+        "PRD_DRAFTED", 
+        "PRD_PENDING_APPROVAL",
+        "PRD_APPROVED",
+        "PRD_REJECTED",
+        "SYSTEM_DESIGN_DRAFTED",
+        "SYSTEM_DESIGN_PENDING_APPROVAL",
+        "SYSTEM_DESIGN_APPROVED",
+        "PLANNING_COMPLETE",
+        "COSTING_COMPLETE",
+        "REVENUE_COMPLETE",
+        "PENDING_FINAL_APPROVAL",
+        "APPROVED",
+        "REJECTED_FINAL"
+    ]
+
+    if status_update_request.status not in VALID_STATUSES:
+        raise HTTPException(status_code=400, detail=f"Invalid status: {status_update_request.status}")
+
+    try:
+        db = firestore.Client(project=settings.firebase_project_id)
+        case_doc_ref = db.collection("businessCases").document(case_id)
+
+        doc_snapshot = await asyncio.to_thread(case_doc_ref.get)
+        if not doc_snapshot.exists:
+            raise HTTPException(status_code=404, detail=f"Business case {case_id} not found.")
+
+        case_data = doc_snapshot.to_dict()
+        if not case_data:
+            raise HTTPException(status_code=404, detail=f"Business case {case_id} data is empty.")
+
+        # Basic authorization: check if the current user is the owner of the case
+        # TODO: Implement more granular permissions for different status updates
+        if case_data.get("user_id") != user_id:
+            raise HTTPException(status_code=403, detail="You do not have permission to update this business case status.")
+
+        # Prepare history entry
+        history_entry = {
+            "timestamp": datetime.now(timezone.utc),
+            "source": "USER",
+            "messageType": "STATUS_UPDATE",
+            "content": f"Status changed to {status_update_request.status}"
+        }
+        
+        if status_update_request.comment:
+            history_entry["content"] += f". Comment: {status_update_request.comment}"
+
+        update_data = {
+            "status": status_update_request.status,
+            "updated_at": datetime.now(timezone.utc),
+            "history": firestore.ArrayUnion([history_entry])
+        }
+
+        await asyncio.to_thread(case_doc_ref.update, update_data)
+        
+        return {
+            "message": f"Status updated to {status_update_request.status} successfully",
+            "new_status": status_update_request.status,
+            "case_id": case_id
+        }
+
+    except HTTPException as http_exc:
+        raise http_exc
+    except Exception as e:
+        import traceback
+        error_details = traceback.format_exc()
+        print(f"Error updating status for case {case_id}, user {user_id}: {e}")
+        print(f"Full traceback: {error_details}")
+        raise HTTPException(status_code=500, detail=f"Failed to update case status: {str(e)}") 

@@ -9,6 +9,8 @@ import {
   BusinessCaseDetails,
   UpdatePrdPayload,
   UpdatePrdResponse,
+  UpdateStatusPayload,
+  UpdateStatusResponse,
 } from './AgentService';
 
 // Use environment variable for API base URL
@@ -88,7 +90,7 @@ export class HttpAgentAdapter implements AgentService {
 
   onAgentUpdate(
     caseId: string,
-    onUpdateCallback: (update: AgentUpdate) => void
+    _onUpdateCallback: (update: AgentUpdate) => void
   ): () => void {
     console.warn(
       `HttpAgentAdapter.onAgentUpdate for case ${caseId} is not implemented for real-time updates. Polling or WebSocket would be needed.`
@@ -129,6 +131,20 @@ export class HttpAgentAdapter implements AgentService {
     return this.fetchWithAuth<UpdatePrdResponse>(`/cases/${caseId}/prd`, {
       method: 'PUT',
       body: JSON.stringify(requestBody),
+    });
+  }
+
+  async updateStatus(payload: UpdateStatusPayload): Promise<UpdateStatusResponse> {
+    const { caseId, ...requestBody } = payload;
+    return this.fetchWithAuth<UpdateStatusResponse>(`/cases/${caseId}/status`, {
+      method: 'PUT',
+      body: JSON.stringify(requestBody),
+    });
+  }
+
+  async submitPrdForReview(caseId: string): Promise<{ message: string; new_status: string; case_id: string }> {
+    return this.fetchWithAuth<{ message: string; new_status: string; case_id: string }>(`/cases/${caseId}/submit-prd`, {
+      method: 'POST',
     });
   }
 }

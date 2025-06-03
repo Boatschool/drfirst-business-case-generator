@@ -112,14 +112,14 @@
 **Phase 5: HITL for PRD & Core Agent Enhancements**
 
 * **Focus:** Implement basic HITL for PRD review (editing/approving), enhance ProductManagerAgent with more structured PRD generation, and introduce ArchitectAgent stub.  
-* **Status:** Partially complete - PRD editing and saving functionality implemented.
+* **Status:** PRD Management Features COMPLETE - editing, saving, and submission for review fully implemented with enhanced navigation.
 
 | Task ID | Title | Status | Priority | Complexity | Dependencies | Notes |
 | :---- | :---- | :---- | :---- | :---- | :---- | :---- |
 | 5.1 | **PRD Review & Editing (Frontend)** |  |  |  |  |  |
 | 5.1.1 | Enhance BusinessCaseDetailPage.tsx: Allow editing of the PRD draft (e.g., using a simple textarea or a basic rich text editor) | COMPLETE | high | low | 4.4.4 | Frontend UI for editing PRD draft is implemented. Save via API is next. |
 | 5.1.2 | Implement "Save PRD Draft" button on BusinessCaseDetailPage.tsx to update the PRD in Firestore (via backend API endpoint) | COMPLETE | high | low | 5.1.1 | Backend endpoint /api/v1/cases/{caseId}/prd (PUT) implemented and working. Frontend integration complete with success notifications. |
-| 5.1.3 | Implement "Submit PRD for Review" button, updating case status in Firestore (via backend API) | todo | high | low | 5.1.2 | Updates status to PRD\_PENDING\_APPROVAL. Backend API: /api/v1/cases/{caseId}/status (PUT). |
+| 5.1.3 | Implement "Submit PRD for Review" button, updating case status in Firestore (via backend API) | COMPLETE | high | low | 5.1.2 | ✅ COMPLETE: Dedicated endpoint POST /api/v1/cases/{case_id}/submit-prd implemented. Updates status to PRD_REVIEW. Full frontend integration with smart conditional display. |
 | 5.2 | **PRD Approval Logic (Simplified)** |  |  |  |  |  |
 | 5.2.1 | Orchestrator/ApprovalAgent Stub: Logic to identify next approver (for V1, can be fixed or self-approval by initiator) | todo | medium | low | 4.3.3 | SDD Section 5 (ApprovalAgent). |
 | 5.2.2 | Frontend: If user is designated approver for PRD, show "Approve PRD" / "Reject PRD" buttons on BusinessCaseDetailPage.tsx | todo | medium | low | 5.1.3, 5.2.1 | This requires fetching case details that include who can approve the current stage. |

@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, ReactNode, useCallback, useEffect } from 'react';
+import React, { createContext, useContext, useState, ReactNode, useCallback } from 'react';
 import {
   AgentService,
   InitiateCasePayload,
@@ -8,7 +8,7 @@ import {
   BusinessCaseSummary,
   BusinessCaseDetails,
   UpdatePrdPayload,
-  UpdatePrdResponse,
+  UpdateStatusPayload,
 } from '../services/agent/AgentService';
 import { HttpAgentAdapter } from '../services/agent/HttpAgentAdapter'; // Concrete implementation
 
@@ -31,6 +31,8 @@ interface AgentContextType extends AgentContextState {
   fetchUserCases: () => Promise<void>;
   fetchCaseDetails: (caseId: string) => Promise<void>;
   updatePrdDraft: (payload: UpdatePrdPayload) => Promise<boolean>;
+  updateStatus: (payload: UpdateStatusPayload) => Promise<boolean>;
+  submitPrdForReview: (caseId: string) => Promise<boolean>;
   clearAgentState: () => void;
   clearCurrentCaseDetails: () => void;
   // TODO: Add a way to subscribe to agent updates via onAgentUpdate from AgentService
@@ -130,6 +132,36 @@ export const AgentProvider: React.FC<AgentProviderProps> = ({ children }) => {
     }
   }, [state.currentCaseId, fetchCaseDetails]);
 
+  const updateStatus = useCallback(async (payload: UpdateStatusPayload): Promise<boolean> => {
+    setState(prevState => ({ ...prevState, isLoading: true, error: null }));
+    try {
+      await agentService.updateStatus(payload);
+      setState(prevState => ({ ...prevState, isLoading: false }));
+      if (payload.caseId === state.currentCaseId) {
+        await fetchCaseDetails(payload.caseId);
+      }
+      return true;
+    } catch (err: any) {
+      setState(prevState => ({ ...prevState, isLoading: false, error: err }));
+      return false;
+    }
+  }, [state.currentCaseId, fetchCaseDetails]);
+
+  const submitPrdForReview = useCallback(async (caseId: string): Promise<boolean> => {
+    setState(prevState => ({ ...prevState, isLoading: true, error: null }));
+    try {
+      await agentService.submitPrdForReview(caseId);
+      setState(prevState => ({ ...prevState, isLoading: false }));
+      if (caseId === state.currentCaseId) {
+        await fetchCaseDetails(caseId);
+      }
+      return true;
+    } catch (err: any) {
+      setState(prevState => ({ ...prevState, isLoading: false, error: err }));
+      return false;
+    }
+  }, [state.currentCaseId, fetchCaseDetails]);
+
   const clearCurrentCaseDetails = useCallback(() => {
     setState(prevState => ({
       ...prevState,
@@ -188,6 +220,8 @@ export const AgentProvider: React.FC<AgentProviderProps> = ({ children }) => {
     fetchUserCases,
     fetchCaseDetails,
     updatePrdDraft,
+    updateStatus,
+    submitPrdForReview,
     clearAgentState,
     clearCurrentCaseDetails,
   };

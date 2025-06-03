@@ -1,11 +1,24 @@
-import React, { useContext } from 'react';
-import { AppBar, Toolbar, Typography, Button, Box } from '@mui/material';
-import { Link as RouterLink, Outlet, useNavigate } from 'react-router-dom';
+import React, { useContext, useState, useCallback } from 'react';
+import { AppBar, Toolbar, Typography, Button, Box, Alert } from '@mui/material';
+import { Link as RouterLink, Outlet, useNavigate, useLocation } from 'react-router-dom';
 import { AuthContext } from '../contexts/AuthContext';
+import { useAgentContext } from '../contexts/AgentContext';
+import FloatingChat from '../components/common/FloatingChat';
 
 const AppLayout: React.FC = () => {
   const authContext = useContext(AuthContext);
   const navigate = useNavigate();
+  const location = useLocation();
+  const {
+    messages,
+    sendFeedbackToAgent,
+    currentCaseDetails,
+    isLoading,
+    error: agentContextError,
+  } = useAgentContext();
+
+  const [feedbackError, setFeedbackError] = useState<string | null>(null);
+  const [isSendingFeedback, setIsSendingFeedback] = useState(false);
 
   const handleSignOut = async () => {
     if (authContext) {
@@ -19,6 +32,34 @@ const AppLayout: React.FC = () => {
     }
   };
 
+  const handleSendMessage = useCallback(async (message: string) => {
+    if (!currentCaseDetails?.case_id) {
+      setFeedbackError('No active case selected. Please navigate to a specific business case or create a new one to use the chat.');
+      return;
+    }
+
+    setIsSendingFeedback(true);
+    setFeedbackError(null);
+    
+    try {
+      await sendFeedbackToAgent({
+        caseId: currentCaseDetails.case_id,
+        message: message,
+      });
+    } catch (err: any) {
+      setFeedbackError(err.message || 'Failed to send message. Please try again.');
+    } finally {
+      setIsSendingFeedback(false);
+    }
+  }, [currentCaseDetails, sendFeedbackToAgent]);
+
+  // Only show chat on protected pages where user is authenticated
+  const showChat = authContext?.currentUser && 
+                   !['/login', '/signup', '/'].includes(location.pathname);
+
+  // Filter out PRD_DRAFT messages for the chat display
+  const displayMessages = (messages || []).filter(msg => msg.messageType !== 'PRD_DRAFT');
+
   return (
     <Box sx={{ display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
       <AppBar position="static">
@@ -27,9 +68,17 @@ const AppLayout: React.FC = () => {
             DrFirst Business Case Gen
           </Typography>
           {authContext?.currentUser ? (
-            <Button color="inherit" onClick={handleSignOut}>
-              Sign Out ({authContext.currentUser.email})
-            </Button>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+              <Button color="inherit" component={RouterLink} to="/main">
+                Home
+              </Button>
+              <Button color="inherit" component={RouterLink} to="/dashboard">
+                Dashboard
+              </Button>
+              <Button color="inherit" onClick={handleSignOut}>
+                Sign Out ({authContext.currentUser.email})
+              </Button>
+            </Box>
           ) : (
             <Button color="inherit" component={RouterLink} to="/login">
               Sign In
@@ -45,6 +94,19 @@ const AppLayout: React.FC = () => {
           © {new Date().getFullYear()} DrFirst
         </Typography>
       </Box>
+
+      {/* Persistent Floating Chat */}
+      {showChat && (
+        <FloatingChat
+          messages={displayMessages}
+          onSendMessage={handleSendMessage}
+          isSending={isSendingFeedback}
+          isLoading={isLoading}
+          error={feedbackError || agentContextError?.message || undefined}
+          disabled={!currentCaseDetails}
+          currentCaseTitle={currentCaseDetails?.title}
+        />
+      )}
     </Box>
   );
 };

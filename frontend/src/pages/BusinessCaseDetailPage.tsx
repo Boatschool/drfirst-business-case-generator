@@ -33,6 +33,97 @@ import { useAgentContext } from '../contexts/AgentContext';
 import { AgentUpdate } from '../services/agent/AgentService';
 import { useAuth } from '../contexts/AuthContext';
 
+
+// Helper function to improve text formatting for better readability
+const formatPrdContent = (content: string): string => {
+  if (!content) return content;
+  
+  // Ensure proper line breaks after headings and before new sections
+  let formatted = content
+    // Add line breaks after markdown headings
+    .replace(/^(#{1,6}\s.+)$/gm, '$1\n')
+    // Add line breaks before new headings if not already present
+    .replace(/([^\n])\n(#{1,6}\s)/g, '$1\n\n$2')
+    // Ensure bullet points have proper spacing
+    .replace(/^(\s*[-*+]\s.+)$/gm, '$1')
+    // Add spacing after bullet point groups
+    .replace(/^(\s*[-*+]\s.+)(\n(?!\s*[-*+]))/gm, '$1\n$2')
+    // Clean up multiple consecutive line breaks (max 2)
+    .replace(/\n{3,}/g, '\n\n');
+    
+  return formatted;
+};
+
+// Enhanced markdown styles for better PRD formatting
+const markdownStyles = {
+  '& h1': {
+    fontSize: '1.8rem',
+    fontWeight: 600,
+    color: '#1976d2',
+    marginTop: '2rem',
+    marginBottom: '1rem',
+    borderBottom: '2px solid #e3f2fd',
+    paddingBottom: '0.5rem',
+  },
+  '& h2': {
+    fontSize: '1.5rem',
+    fontWeight: 600,
+    color: '#333',
+    marginTop: '1.5rem',
+    marginBottom: '0.8rem',
+  },
+  '& h3': {
+    fontSize: '1.3rem',
+    fontWeight: 500,
+    color: '#444',
+    marginTop: '1.2rem',
+    marginBottom: '0.6rem',
+  },
+  '& p': {
+    marginBottom: '1rem',
+    lineHeight: 1.6,
+    color: '#333',
+  },
+  '& ul, & ol': {
+    marginBottom: '1rem',
+    paddingLeft: '1.5rem',
+  },
+  '& li': {
+    marginBottom: '0.5rem',
+    lineHeight: 1.5,
+  },
+  '& strong': {
+    fontWeight: 600,
+    color: '#1976d2',
+  },
+  '& em': {
+    fontStyle: 'italic',
+    color: '#666',
+  },
+  '& blockquote': {
+    borderLeft: '4px solid #1976d2',
+    paddingLeft: '1rem',
+    margin: '1rem 0',
+    fontStyle: 'italic',
+    backgroundColor: '#f8f9fa',
+    padding: '0.5rem 1rem',
+  },
+  '& code': {
+    backgroundColor: '#f5f5f5',
+    padding: '0.2rem 0.4rem',
+    borderRadius: '3px',
+    fontSize: '0.9em',
+    fontFamily: 'monospace',
+  },
+  '& pre': {
+    backgroundColor: '#f5f5f5',
+    padding: '1rem',
+    borderRadius: '5px',
+    overflow: 'auto',
+    margin: '1rem 0',
+  },
+};
+
 const BusinessCaseDetailPage: React.FC = () => {
   const { caseId } = useParams<{ caseId: string }>();
   const navigate = useNavigate();
@@ -318,8 +409,14 @@ const BusinessCaseDetailPage: React.FC = () => {
             </Box>
           ) : (
             prd_draft?.content_markdown ? (
-              <Paper elevation={0} sx={{ p: 2, mt: 1, border: '1px solid #eee', backgroundColor: '#f9f9f9' }}>
-                <ReactMarkdown>{prd_draft.content_markdown}</ReactMarkdown>
+              <Paper elevation={0} sx={{ 
+                p: 3, 
+                mt: 1, 
+                border: '1px solid #eee', 
+                backgroundColor: '#ffffff',
+                ...markdownStyles
+              }}>
+                <ReactMarkdown>{formatPrdContent(prd_draft.content_markdown)}</ReactMarkdown>
               </Paper>
             ) : (
               <Typography color="textSecondary" sx={{mt:1}}>PRD content not yet generated or available.</Typography>
@@ -418,64 +515,7 @@ const BusinessCaseDetailPage: React.FC = () => {
           <CircularProgress sx={{display: 'block', margin: '20px auto'}} />
         }
 
-        <Divider sx={{ my: 3 }} />
 
-        <Box>
-          <Typography variant="h5" gutterBottom>Interaction History / Messages</Typography>
-          <Stack spacing={2} sx={{ maxHeight: '400px', overflowY: 'auto', p: 1, border: '1px solid #ddd', borderRadius: 1}}>
-            {displayMessages.length > 0 ? (
-              displayMessages.map((msg: AgentUpdate, index: number) => (
-                <Paper 
-                  key={`${msg.timestamp}-${index}`} 
-                  elevation={1} 
-                  sx={{
-                    p: 1.5, 
-                    alignSelf: msg.source === 'USER' ? 'flex-end' : 'flex-start',
-                    backgroundColor: msg.source === 'USER' ? 'primary.light' : 'grey.200',
-                    color: msg.source === 'USER' ? 'primary.contrastText' : 'inherit',
-                    maxWidth: '75%',
-                    minWidth: '20%',
-                    wordBreak: 'break-word'
-                  }}
-                >
-                  <Typography variant="caption" display="block" sx={{ mb: 0.5, opacity: 0.8}}>
-                    {msg.source} - {new Date(msg.timestamp).toLocaleString()}
-                  </Typography>
-                  <Typography variant="body2" sx={{ whiteSpace: 'pre-wrap' }}>{msg.content}</Typography>
-                </Paper>
-              ))
-            ) : (
-              <Typography color="textSecondary" sx={{p:1}}>No messages yet.</Typography>
-            )}
-          </Stack>
-
-          <Box component="form" noValidate autoComplete="off" sx={{ mt: 2 }}>
-            <TextField
-              fullWidth
-              label="Send a message to the agent"
-              variant="outlined"
-              value={feedbackMessage}
-              onChange={(e) => setFeedbackMessage(e.target.value)}
-              multiline
-              rows={3}
-              disabled={isSendingFeedback || isLoading}
-              sx={{mb:1}}
-            />
-            <Button 
-              variant="contained" 
-              onClick={handleSendFeedback} 
-              startIcon={<SendIcon />} 
-              disabled={!feedbackMessage.trim() || isSendingFeedback || isLoading}
-            >
-              {isSendingFeedback ? 'Sending...' : 'Send Message'}
-            </Button>
-            {feedbackSendError && (
-              <Alert severity="error" sx={{ mt: 2 }}>
-                {feedbackSendError}
-              </Alert>
-            )}
-          </Box>
-        </Box>
 
       </Paper>
 
@@ -510,6 +550,8 @@ const BusinessCaseDetailPage: React.FC = () => {
           </Button>
         </DialogActions>
       </Dialog>
+
+
     </Container>
   );
 };

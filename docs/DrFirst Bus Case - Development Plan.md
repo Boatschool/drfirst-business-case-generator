@@ -112,7 +112,7 @@
 **Phase 5: HITL for PRD & Core Agent Enhancements**
 
 * **Focus:** Implement basic HITL for PRD review (editing/approving), enhance ProductManagerAgent with more structured PRD generation, and introduce ArchitectAgent stub.  
-* **Status:** PRD Management Features COMPLETE - editing, saving, and submission for review fully implemented with enhanced navigation.
+* **Status:** PRD Management Workflow COMPLETE - editing, saving, submission for review, and approval/rejection fully implemented with enhanced navigation and V1 self-approval mechanism.
 
 | Task ID | Title | Status | Priority | Complexity | Dependencies | Notes |
 | :---- | :---- | :---- | :---- | :---- | :---- | :---- |
@@ -121,9 +121,9 @@
 | 5.1.2 | Implement "Save PRD Draft" button on BusinessCaseDetailPage.tsx to update the PRD in Firestore (via backend API endpoint) | COMPLETE | high | low | 5.1.1 | Backend endpoint /api/v1/cases/{caseId}/prd (PUT) implemented and working. Frontend integration complete with success notifications. |
 | 5.1.3 | Implement "Submit PRD for Review" button, updating case status in Firestore (via backend API) | COMPLETE | high | low | 5.1.2 | ✅ COMPLETE: Dedicated endpoint POST /api/v1/cases/{case_id}/submit-prd implemented. Updates status to PRD_REVIEW. Full frontend integration with smart conditional display. |
 | 5.2 | **PRD Approval Logic (Simplified)** |  |  |  |  |  |
-| 5.2.1 | Orchestrator/ApprovalAgent Stub: Logic to identify next approver (for V1, can be fixed or self-approval by initiator) | todo | medium | low | 4.3.3 | SDD Section 5 (ApprovalAgent). |
-| 5.2.2 | Frontend: If user is designated approver for PRD, show "Approve PRD" / "Reject PRD" buttons on BusinessCaseDetailPage.tsx | todo | medium | low | 5.1.3, 5.2.1 | This requires fetching case details that include who can approve the current stage. |
-| 5.2.3 | Implement "Approve PRD" / "Reject PRD" functionality to update case status and log approval action (via backend API) | todo | medium | low | 5.2.2 | Updates status to PRD\_APPROVED or PRD\_REJECTED. Log to auditLogs. |
+| 5.2.1 | Orchestrator/ApprovalAgent Stub: Logic to identify next approver (for V1, can be fixed or self-approval by initiator) | COMPLETE | medium | low | 4.3.3 | ✅ COMPLETE: V1 self-approval mechanism implemented. Case initiator can approve/reject their own PRD when in PRD_REVIEW status. |
+| 5.2.2 | Frontend: If user is designated approver for PRD, show "Approve PRD" / "Reject PRD" buttons on BusinessCaseDetailPage.tsx | COMPLETE | medium | low | 5.1.3, 5.2.1 | ✅ COMPLETE: Conditional buttons show for case initiator when status is PRD_REVIEW. Smart authorization checks implemented. |
+| 5.2.3 | Implement "Approve PRD" / "Reject PRD" functionality to update case status and log approval action (via backend API) | COMPLETE | medium | low | 5.2.2 | ✅ COMPLETE: POST /cases/{case_id}/prd/approve and POST /cases/{case_id}/prd/reject endpoints implemented. Updates status to PRD_APPROVED or PRD_REJECTED with full history logging. |
 | 5.3 | **ProductManagerAgent Enhancement (Backend \- ADK)** |  |  |  |  |  |
 | 5.3.1 | ProductManagerAgent: Refine PRD generation prompt to create a more structured PRD (e.g., sections for Overview, Goals, User Stories stubs) | todo | high | low | 4.3.2 | Output should ideally be structured (e.g., JSON or Markdown with clear sections). |
 | 5.3.2 | ProductManagerAgent: Incorporate context from linked Confluence/Jira (if URLs provided during intake) \- basic "summarize this page" capability | todo | medium | low | 4.3.2 | Requires ability to fetch web page content (simple GET request for now, no complex parsing). Update prompt to use this context. document\_retrieval\_agent concept. |

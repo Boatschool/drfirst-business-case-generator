@@ -9,7 +9,7 @@ import asyncio
 import uuid
 from datetime import datetime, timezone
 from google.cloud import firestore
-from app.auth.firebase_auth import get_current_active_user
+from app.auth.firebase_auth import require_admin_role
 from app.core.config import settings
 from pydantic import BaseModel, Field
 
@@ -86,7 +86,7 @@ except Exception as e:
 # Rate Cards CRUD Operations
 
 @router.get("/rate-cards", response_model=List[Dict[str, Any]], summary="List all rate cards")
-async def list_rate_cards(current_user: dict = Depends(get_current_active_user)):
+async def list_rate_cards(current_user: dict = Depends(require_admin_role)):
     """Get a list of all rate cards (admin only)"""
     if not db:
         raise HTTPException(
@@ -118,7 +118,7 @@ async def list_rate_cards(current_user: dict = Depends(get_current_active_user))
 @router.post("/rate-cards", response_model=Dict[str, Any], summary="Create a new rate card")
 async def create_rate_card(
     rate_card_data: CreateRateCardRequest,
-    current_user: dict = Depends(get_current_active_user)
+    current_user: dict = Depends(require_admin_role)
 ):
     """Create a new rate card (admin only)"""
     if not db:
@@ -169,7 +169,7 @@ async def create_rate_card(
 async def update_rate_card(
     card_id: str,
     rate_card_data: UpdateRateCardRequest,
-    current_user: dict = Depends(get_current_active_user)
+    current_user: dict = Depends(require_admin_role)
 ):
     """Update an existing rate card (admin only)"""
     if not db:
@@ -230,7 +230,7 @@ async def update_rate_card(
 @router.delete("/rate-cards/{card_id}", response_model=Dict[str, str], summary="Delete a rate card")
 async def delete_rate_card(
     card_id: str,
-    current_user: dict = Depends(get_current_active_user)
+    current_user: dict = Depends(require_admin_role)
 ):
     """Delete a rate card (admin only)"""
     if not db:
@@ -274,7 +274,7 @@ async def delete_rate_card(
         )
 
 @router.get("/pricing-templates", response_model=List[Dict[str, Any]], summary="List all pricing templates")
-async def list_pricing_templates(current_user: dict = Depends(get_current_active_user)):
+async def list_pricing_templates(current_user: dict = Depends(require_admin_role)):
     """Get a list of all pricing templates (admin only)"""
     if not db:
         raise HTTPException(
@@ -306,7 +306,7 @@ async def list_pricing_templates(current_user: dict = Depends(get_current_active
 @router.post("/pricing-templates", response_model=Dict[str, Any], summary="Create a new pricing template")
 async def create_pricing_template(
     template_data: CreatePricingTemplateRequest,
-    current_user: dict = Depends(get_current_active_user)
+    current_user: dict = Depends(require_admin_role)
 ):
     """Create a new pricing template (admin only)"""
     if not db:
@@ -353,7 +353,7 @@ async def create_pricing_template(
 async def update_pricing_template(
     template_id: str,
     template_data: UpdatePricingTemplateRequest,
-    current_user: dict = Depends(get_current_active_user)
+    current_user: dict = Depends(require_admin_role)
 ):
     """Update an existing pricing template (admin only)"""
     if not db:
@@ -412,7 +412,7 @@ async def update_pricing_template(
 @router.delete("/pricing-templates/{template_id}", response_model=Dict[str, str], summary="Delete a pricing template")
 async def delete_pricing_template(
     template_id: str,
-    current_user: dict = Depends(get_current_active_user)
+    current_user: dict = Depends(require_admin_role)
 ):
     """Delete a pricing template (admin only)"""
     if not db:
@@ -457,19 +457,19 @@ async def delete_pricing_template(
 
 # Legacy endpoints (kept for backwards compatibility)
 @router.get("/users", summary="List all users")
-async def list_users(current_user: dict = Depends(get_current_active_user)):
+async def list_users(current_user: dict = Depends(require_admin_role)):
     """Get a list of all users (admin only)"""
     # TODO: Implement admin user listing
     return {"message": "Admin users endpoint - implementation pending"}
 
 @router.get("/analytics", summary="Get system analytics")
-async def get_analytics(current_user: dict = Depends(get_current_active_user)):
+async def get_analytics(current_user: dict = Depends(require_admin_role)):
     """Get system usage analytics (admin only)"""
     # TODO: Implement analytics retrieval
     return {"message": "Admin analytics endpoint - implementation pending"}
 
 @router.post("/agent/deploy", summary="Deploy agent updates")
-async def deploy_agent_updates(current_user: dict = Depends(get_current_active_user)):
+async def deploy_agent_updates(current_user: dict = Depends(require_admin_role)):
     """Deploy updates to the agent system (admin only)"""
     # TODO: Implement agent deployment logic
     return {"message": "Agent deployment endpoint - implementation pending"} 

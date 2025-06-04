@@ -12,8 +12,12 @@ interface AuthContextType {
   signInWithGoogle: typeof authService.signInWithGoogle;
   signOut: typeof authService.signOut;
   getIdToken: typeof authService.getIdToken;
+  getIdTokenResult: typeof authService.getIdTokenResult;
+  refreshIdToken: typeof authService.refreshIdToken;
   isDrFirstUser: boolean;
   isValidUser: boolean;
+  systemRole: string | null;
+  isAdmin: boolean;
 }
 
 // Create the context with a default undefined value to catch consumers not wrapped in a provider
@@ -49,6 +53,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const isDrFirstUser = authService.isDrFirstUser(currentUser);
   const validationResult = authService.validateUserAccess(currentUser);
   const isValidUser = validationResult.isValid;
+  const systemRole = currentUser?.systemRole || null;
+  const isAdmin = systemRole === 'ADMIN';
 
   // If validation fails and we have a user, set the error
   useEffect(() => {
@@ -68,8 +74,12 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     signInWithGoogle: authService.signInWithGoogle,
     signOut: authService.signOut,
     getIdToken: authService.getIdToken,
+    getIdTokenResult: authService.getIdTokenResult,
+    refreshIdToken: authService.refreshIdToken,
     isDrFirstUser,
     isValidUser,
+    systemRole,
+    isAdmin,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

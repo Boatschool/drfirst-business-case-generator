@@ -4,6 +4,7 @@ from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from typing import Optional
 from app.services.auth_service import auth_service
+from app.services.user_service import user_service
 
 # HTTP Bearer token security scheme
 security = HTTPBearer(auto_error=False)
@@ -11,6 +12,7 @@ security = HTTPBearer(auto_error=False)
 async def get_current_user(credentials: Optional[HTTPAuthorizationCredentials] = Depends(security)) -> dict:
     """
     Dependency to verify Firebase ID token and get user data.
+    Also ensures user document exists in Firestore and syncs role claims.
     
     Args:
         credentials: The Bearer token credentials extracted by HTTPBearer
@@ -53,6 +55,15 @@ async def get_current_user(credentials: Optional[HTTPAuthorizationCredentials] =
             )
         
         print(f"✅ [AUTH] Token verified successfully for user: {decoded_token.get('email', 'unknown')}")
+        
+        # Check and sync user claims with Firestore
+        print("🔄 [AUTH] Checking and syncing user claims...")
+        user_data = await user_service.check_and_sync_user_claims(decoded_token)
+        if user_data:
+            # Add user data to the token for downstream use
+            decoded_token['user_data'] = user_data
+            print(f"👤 [AUTH] User data synced for: {user_data.get('email', 'unknown')}")
+        
         return decoded_token
         
     except HTTPException:
@@ -95,6 +106,33 @@ async def get_current_active_user(decoded_token: dict = Depends(get_current_user
     
     return decoded_token
 
+async def require_admin_role(decoded_token: dict = Depends(get_current_active_user)) -> dict:
+    """
+    Dependency to require ADMIN role for access.
+    
+    Args:
+        decoded_token: Decoded Firebase token from get_current_active_user
+        
+    Returns:
+        Decoded token if user has ADMIN role
+        
+    Raises:
+        HTTPException: If user does not have ADMIN role
+    """
+    # Check for ADMIN role in custom claims
+    system_role = decoded_token.get('systemRole')
+    
+    if system_role != 'ADMIN':
+        user_email = decoded_token.get('email', 'unknown')
+        print(f"🚫 [AUTH] Access denied for {user_email} - requires ADMIN role, has: {system_role}")
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Access denied. ADMIN role required.",
+        )
+    
+    print(f"👑 [AUTH] ADMIN access granted for: {decoded_token.get('email', 'unknown')}")
+    return decoded_token
+
 async def get_optional_current_user(
     credentials: Optional[HTTPAuthorizationCredentials] = Depends(security)
 ) -> Optional[dict]:
@@ -131,8 +169,8 @@ def require_role(required_role: str):
         A dependency function that checks for the required role
     """
     async def role_checker(current_user: dict = Depends(get_current_active_user)) -> dict:
-        user_role = current_user.get('role', '')
-        if user_role != required_role and 'admin' not in user_role.lower():
+        user_role = current_user.get('systemRole', '')
+        if user_role != required_role and user_role != 'ADMIN':
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail=f"Access denied. Required role: {required_role}",

@@ -106,6 +106,64 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = () => {
   return <Outlet />; // Renders the child route's element (e.g., DashboardPage)
 };
 
+// AdminProtectedRoute component - requires ADMIN role
+interface AdminProtectedRouteProps {
+  // children?: React.ReactNode; // Outlet handles children now
+}
+
+const AdminProtectedRoute: React.FC<AdminProtectedRouteProps> = () => {
+  const authContext = useContext(AuthContext);
+  const location = useLocation();
+
+  if (!authContext) {
+    return <Alert severity="error">Auth context not available in AdminProtectedRoute.</Alert>;
+  }
+
+  if (authContext.loading) {
+    return (
+      <Container sx={{display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh'}}>
+        <Typography>Loading authentication status...</Typography>
+      </Container>
+    );
+  }
+
+  if (!authContext.currentUser) {
+    // Redirect to login if not authenticated
+    return <Navigate to="/login" state={{ from: location }} replace />;
+  }
+
+  if (!authContext.isAdmin) {
+    // Show access denied for non-admin users
+    return (
+      <Container sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh' }}>
+        <Box sx={{ textAlign: 'center' }}>
+          <Alert severity="error" sx={{ mb: 2 }}>
+            <Typography variant="h6" gutterBottom>
+              Access Denied
+            </Typography>
+            <Typography variant="body1" sx={{ mb: 2 }}>
+              You do not have administrator privileges to access this page.
+            </Typography>
+            <Typography variant="body2" color="text.secondary">
+              Current role: {authContext.systemRole || 'USER'}
+            </Typography>
+          </Alert>
+          <Button 
+            component={RouterLink} 
+            to="/dashboard" 
+            variant="contained"
+            sx={{ mt: 2 }}
+          >
+            Return to Dashboard
+          </Button>
+        </Box>
+      </Container>
+    );
+  }
+
+  return <Outlet />; // Renders the child route's element (e.g., AdminPage)
+};
+
 function App() {
   return (
     <AuthProvider>
@@ -123,7 +181,10 @@ function App() {
                 <Route path="/dashboard" element={<DashboardPage />} />
                 <Route path="/new-case" element={<NewCasePage />} />
                 <Route path="/cases/:caseId" element={<BusinessCaseDetailPage />} />
-                <Route path="/admin" element={<AdminPage />} />
+                <Route path="/admin" element={<AdminProtectedRoute />}>
+                  <Route index element={<AdminPage />} />
+                  <Route path=":adminAction" element={<AdminPage />} />
+                </Route>
                 {/* Add other protected routes here */}
               </Route>
               

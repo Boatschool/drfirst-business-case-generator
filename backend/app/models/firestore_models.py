@@ -9,9 +9,9 @@ from enum import Enum
 
 class UserRole(str, Enum):
     """User roles in the system"""
-    ADMIN = "admin"
-    USER = "user"
-    VIEWER = "viewer"
+    ADMIN = "ADMIN"
+    USER = "USER"
+    VIEWER = "VIEWER"
 
 class JobStatus(str, Enum):
     """Job status enumeration"""
@@ -26,7 +26,7 @@ class User(BaseModel):
     uid: str = Field(..., description="Firebase UID")
     email: str = Field(..., description="User email address")
     display_name: Optional[str] = Field(None, description="User display name")
-    role: UserRole = Field(UserRole.USER, description="User role")
+    systemRole: UserRole = Field(UserRole.USER, description="User system role")
     created_at: datetime = Field(default_factory=datetime.utcnow)
     updated_at: datetime = Field(default_factory=datetime.utcnow)
     last_login: Optional[datetime] = None

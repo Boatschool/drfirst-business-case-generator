@@ -162,6 +162,17 @@ const AdminPage: React.FC = () => {
     return <Navigate to="/login" replace />;
   }
 
+  // Show admin role information and access status
+  const userRole = authContext.systemRole || 'USER';
+  const isAdminUser = authContext.isAdmin;
+  
+  console.log('AdminPage - User role info:', {
+    email: authContext.currentUser?.email,
+    systemRole: authContext.systemRole,
+    isAdmin: authContext.isAdmin,
+    hasAdminAccess: isAdminUser
+  });
+
   // Fetch rate cards
   const fetchRateCards = useCallback(async () => {
     setIsLoadingRateCards(true);
@@ -601,6 +612,25 @@ const AdminPage: React.FC = () => {
             Admin Dashboard
           </Typography>
         </Box>
+
+        {/* Admin Role Status */}
+        <Alert 
+          severity={isAdminUser ? "success" : "warning"} 
+          sx={{ mb: 3 }}
+        >
+          <Typography variant="body2">
+            <strong>Access Status:</strong> {isAdminUser ? "✅ Admin Access Granted" : "⚠️ Limited Access"} 
+            &nbsp;|&nbsp; 
+            <strong>Role:</strong> {userRole}
+            &nbsp;|&nbsp; 
+            <strong>User:</strong> {authContext.currentUser?.email}
+          </Typography>
+          {!isAdminUser && (
+            <Typography variant="body2" sx={{ mt: 1 }}>
+              Note: Some admin features may be restricted. Contact an administrator to request ADMIN role assignment.
+            </Typography>
+          )}
+        </Alert>
 
         <Typography variant="body1" color="text.secondary" sx={{ mb: 4 }}>
           Manage rate cards and pricing templates for business case financial calculations.

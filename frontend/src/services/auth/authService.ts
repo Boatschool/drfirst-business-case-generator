@@ -8,6 +8,7 @@ import {
   onAuthStateChanged,
   signOut,
   getIdToken,
+  getIdTokenResult,
 } from 'firebase/auth';
 import { auth } from '../../config/firebase';
 
@@ -18,6 +19,7 @@ export interface AuthUser {
   displayName: string | null;
   photoURL: string | null;
   emailVerified: boolean;
+  systemRole?: string | null;
 }
 
 // Auth state type
@@ -128,6 +130,27 @@ class AuthService {
   }
 
   /**
+   * Get ID token result with custom claims for authenticated requests
+   */
+  getIdTokenResult = async (): Promise<any | null> => {
+    try {
+      const user = auth.currentUser;
+      if (!user) {
+        console.log('No authenticated user for token result');
+        return null;
+      }
+      
+      console.log('🎫 Getting ID token result with custom claims for user:', user.email);
+      const tokenResult = await getIdTokenResult(user);
+      console.log('✅ ID token result retrieved successfully');
+      return tokenResult;
+    } catch (error) {
+      console.error('❌ Error getting ID token result:', error);
+      throw error;
+    }
+  }
+
+  /**
    * Force refresh ID token to get a new token with current project configuration
    */
   refreshIdToken = async (): Promise<string | null> => {
@@ -153,10 +176,46 @@ class AuthService {
    */
   onAuthStateChanged = (callback: (user: AuthUser | null) => void): (() => void) => {
     console.log('👂 Setting up auth state listener');
-    return onAuthStateChanged(auth, (user: User | null) => {
+    return onAuthStateChanged(auth, async (user: User | null) => {
       console.log('🔄 Auth state changed:', user ? `${user.email} (${user.uid})` : 'null');
-      callback(user ? this.convertFirebaseUser(user) : null);
+      
+      if (user) {
+        // Get user with custom claims
+        const authUser = await this.convertFirebaseUserWithClaims(user);
+        callback(authUser);
+      } else {
+        callback(null);
+      }
     });
+  }
+
+  /**
+   * Convert Firebase User to AuthUser with custom claims
+   */
+  private async convertFirebaseUserWithClaims(user: User): Promise<AuthUser> {
+    try {
+      const tokenResult = await getIdTokenResult(user);
+      const systemRole = tokenResult.claims.systemRole || null;
+      
+      console.log('👤 User claims:', { 
+        email: user.email, 
+        systemRole,
+        hasCustomClaims: Object.keys(tokenResult.claims).length > 0 
+      });
+      
+      return {
+        uid: user.uid,
+        email: user.email,
+        displayName: user.displayName,
+        photoURL: user.photoURL,
+        emailVerified: user.emailVerified,
+        systemRole: systemRole,
+      };
+    } catch (error) {
+      console.error('❌ Error getting custom claims:', error);
+      // Fallback to user without custom claims
+      return this.convertFirebaseUser(user);
+    }
   }
 
   /**
@@ -169,6 +228,7 @@ class AuthService {
       displayName: user.displayName,
       photoURL: user.photoURL,
       emailVerified: user.emailVerified,
+      systemRole: null,
     };
   }
 

@@ -3,7 +3,16 @@
  * Handles authenticated requests to the backend admin endpoints
  */
 
-import { AdminService, RateCard, PricingTemplate, CreateRateCardRequest, UpdateRateCardRequest, CreatePricingTemplateRequest, UpdatePricingTemplateRequest, User } from './AdminService';
+import {
+  AdminService,
+  RateCard,
+  PricingTemplate,
+  CreateRateCardRequest,
+  UpdateRateCardRequest,
+  CreatePricingTemplateRequest,
+  UpdatePricingTemplateRequest,
+  User,
+} from './AdminService';
 import { authService } from '../auth/authService';
 
 export class HttpAdminAdapter implements AdminService {
@@ -21,7 +30,7 @@ export class HttpAdminAdapter implements AdminService {
     try {
       const idToken = await authService.getIdToken();
       return {
-        'Authorization': `Bearer ${idToken}`,
+        Authorization: `Bearer ${idToken}`,
         'Content-Type': 'application/json',
       };
     } catch (error) {
@@ -33,9 +42,12 @@ export class HttpAdminAdapter implements AdminService {
   /**
    * Generic method to make authenticated requests
    */
-  private async fetchWithAuth<T>(url: string, options: RequestInit = {}): Promise<T> {
+  private async fetchWithAuth<T>(
+    url: string,
+    options: RequestInit = {}
+  ): Promise<T> {
     const headers = await this.getAuthHeaders();
-    
+
     const response = await fetch(url, {
       ...options,
       headers: {
@@ -53,7 +65,10 @@ export class HttpAdminAdapter implements AdminService {
         }
       } catch (parseError) {
         // If we can't parse the error response, use the status text
-        console.warn('[HttpAdminAdapter] Could not parse error response:', parseError);
+        console.warn(
+          '[HttpAdminAdapter] Could not parse error response:',
+          parseError
+        );
       }
       throw new Error(errorMessage);
     }
@@ -67,8 +82,12 @@ export class HttpAdminAdapter implements AdminService {
   async listRateCards(): Promise<RateCard[]> {
     try {
       console.log('[HttpAdminAdapter] Fetching rate cards...');
-      const rateCards = await this.fetchWithAuth<RateCard[]>(`${this.apiBaseUrl}/admin/rate-cards`);
-      console.log(`[HttpAdminAdapter] Successfully fetched ${rateCards.length} rate cards`);
+      const rateCards = await this.fetchWithAuth<RateCard[]>(
+        `${this.apiBaseUrl}/admin/rate-cards`
+      );
+      console.log(
+        `[HttpAdminAdapter] Successfully fetched ${rateCards.length} rate cards`
+      );
       return rateCards;
     } catch (error) {
       console.error('[HttpAdminAdapter] Error fetching rate cards:', error);
@@ -82,11 +101,16 @@ export class HttpAdminAdapter implements AdminService {
   async createRateCard(data: CreateRateCardRequest): Promise<RateCard> {
     try {
       console.log('[HttpAdminAdapter] Creating rate card:', data.name);
-      const createdRateCard = await this.fetchWithAuth<RateCard>(`${this.apiBaseUrl}/admin/rate-cards`, {
-        method: 'POST',
-        body: JSON.stringify(data),
-      });
-      console.log(`[HttpAdminAdapter] Successfully created rate card: ${createdRateCard.id}`);
+      const createdRateCard = await this.fetchWithAuth<RateCard>(
+        `${this.apiBaseUrl}/admin/rate-cards`,
+        {
+          method: 'POST',
+          body: JSON.stringify(data),
+        }
+      );
+      console.log(
+        `[HttpAdminAdapter] Successfully created rate card: ${createdRateCard.id}`
+      );
       return createdRateCard;
     } catch (error) {
       console.error('[HttpAdminAdapter] Error creating rate card:', error);
@@ -97,14 +121,22 @@ export class HttpAdminAdapter implements AdminService {
   /**
    * Update an existing rate card
    */
-  async updateRateCard(cardId: string, data: UpdateRateCardRequest): Promise<RateCard> {
+  async updateRateCard(
+    cardId: string,
+    data: UpdateRateCardRequest
+  ): Promise<RateCard> {
     try {
       console.log('[HttpAdminAdapter] Updating rate card:', cardId);
-      const updatedRateCard = await this.fetchWithAuth<RateCard>(`${this.apiBaseUrl}/admin/rate-cards/${cardId}`, {
-        method: 'PUT',
-        body: JSON.stringify(data),
-      });
-      console.log(`[HttpAdminAdapter] Successfully updated rate card: ${cardId}`);
+      const updatedRateCard = await this.fetchWithAuth<RateCard>(
+        `${this.apiBaseUrl}/admin/rate-cards/${cardId}`,
+        {
+          method: 'PUT',
+          body: JSON.stringify(data),
+        }
+      );
+      console.log(
+        `[HttpAdminAdapter] Successfully updated rate card: ${cardId}`
+      );
       return updatedRateCard;
     } catch (error) {
       console.error('[HttpAdminAdapter] Error updating rate card:', error);
@@ -118,10 +150,15 @@ export class HttpAdminAdapter implements AdminService {
   async deleteRateCard(cardId: string): Promise<void> {
     try {
       console.log('[HttpAdminAdapter] Deleting rate card:', cardId);
-      await this.fetchWithAuth<{ message: string; deleted_id: string }>(`${this.apiBaseUrl}/admin/rate-cards/${cardId}`, {
-        method: 'DELETE',
-      });
-      console.log(`[HttpAdminAdapter] Successfully deleted rate card: ${cardId}`);
+      await this.fetchWithAuth<{ message: string; deleted_id: string }>(
+        `${this.apiBaseUrl}/admin/rate-cards/${cardId}`,
+        {
+          method: 'DELETE',
+        }
+      );
+      console.log(
+        `[HttpAdminAdapter] Successfully deleted rate card: ${cardId}`
+      );
     } catch (error) {
       console.error('[HttpAdminAdapter] Error deleting rate card:', error);
       throw error;
@@ -134,11 +171,18 @@ export class HttpAdminAdapter implements AdminService {
   async listPricingTemplates(): Promise<PricingTemplate[]> {
     try {
       console.log('[HttpAdminAdapter] Fetching pricing templates...');
-      const pricingTemplates = await this.fetchWithAuth<PricingTemplate[]>(`${this.apiBaseUrl}/admin/pricing-templates`);
-      console.log(`[HttpAdminAdapter] Successfully fetched ${pricingTemplates.length} pricing templates`);
+      const pricingTemplates = await this.fetchWithAuth<PricingTemplate[]>(
+        `${this.apiBaseUrl}/admin/pricing-templates`
+      );
+      console.log(
+        `[HttpAdminAdapter] Successfully fetched ${pricingTemplates.length} pricing templates`
+      );
       return pricingTemplates;
     } catch (error) {
-      console.error('[HttpAdminAdapter] Error fetching pricing templates:', error);
+      console.error(
+        '[HttpAdminAdapter] Error fetching pricing templates:',
+        error
+      );
       throw error;
     }
   }
@@ -146,17 +190,27 @@ export class HttpAdminAdapter implements AdminService {
   /**
    * Create a new pricing template
    */
-  async createPricingTemplate(data: CreatePricingTemplateRequest): Promise<PricingTemplate> {
+  async createPricingTemplate(
+    data: CreatePricingTemplateRequest
+  ): Promise<PricingTemplate> {
     try {
       console.log('[HttpAdminAdapter] Creating pricing template:', data.name);
-      const createdTemplate = await this.fetchWithAuth<PricingTemplate>(`${this.apiBaseUrl}/admin/pricing-templates`, {
-        method: 'POST',
-        body: JSON.stringify(data),
-      });
-      console.log(`[HttpAdminAdapter] Successfully created pricing template: ${createdTemplate.id}`);
+      const createdTemplate = await this.fetchWithAuth<PricingTemplate>(
+        `${this.apiBaseUrl}/admin/pricing-templates`,
+        {
+          method: 'POST',
+          body: JSON.stringify(data),
+        }
+      );
+      console.log(
+        `[HttpAdminAdapter] Successfully created pricing template: ${createdTemplate.id}`
+      );
       return createdTemplate;
     } catch (error) {
-      console.error('[HttpAdminAdapter] Error creating pricing template:', error);
+      console.error(
+        '[HttpAdminAdapter] Error creating pricing template:',
+        error
+      );
       throw error;
     }
   }
@@ -164,17 +218,28 @@ export class HttpAdminAdapter implements AdminService {
   /**
    * Update an existing pricing template
    */
-  async updatePricingTemplate(templateId: string, data: UpdatePricingTemplateRequest): Promise<PricingTemplate> {
+  async updatePricingTemplate(
+    templateId: string,
+    data: UpdatePricingTemplateRequest
+  ): Promise<PricingTemplate> {
     try {
       console.log('[HttpAdminAdapter] Updating pricing template:', templateId);
-      const updatedTemplate = await this.fetchWithAuth<PricingTemplate>(`${this.apiBaseUrl}/admin/pricing-templates/${templateId}`, {
-        method: 'PUT',
-        body: JSON.stringify(data),
-      });
-      console.log(`[HttpAdminAdapter] Successfully updated pricing template: ${templateId}`);
+      const updatedTemplate = await this.fetchWithAuth<PricingTemplate>(
+        `${this.apiBaseUrl}/admin/pricing-templates/${templateId}`,
+        {
+          method: 'PUT',
+          body: JSON.stringify(data),
+        }
+      );
+      console.log(
+        `[HttpAdminAdapter] Successfully updated pricing template: ${templateId}`
+      );
       return updatedTemplate;
     } catch (error) {
-      console.error('[HttpAdminAdapter] Error updating pricing template:', error);
+      console.error(
+        '[HttpAdminAdapter] Error updating pricing template:',
+        error
+      );
       throw error;
     }
   }
@@ -185,12 +250,20 @@ export class HttpAdminAdapter implements AdminService {
   async deletePricingTemplate(templateId: string): Promise<void> {
     try {
       console.log('[HttpAdminAdapter] Deleting pricing template:', templateId);
-      await this.fetchWithAuth<{ message: string; deleted_id: string }>(`${this.apiBaseUrl}/admin/pricing-templates/${templateId}`, {
-        method: 'DELETE',
-      });
-      console.log(`[HttpAdminAdapter] Successfully deleted pricing template: ${templateId}`);
+      await this.fetchWithAuth<{ message: string; deleted_id: string }>(
+        `${this.apiBaseUrl}/admin/pricing-templates/${templateId}`,
+        {
+          method: 'DELETE',
+        }
+      );
+      console.log(
+        `[HttpAdminAdapter] Successfully deleted pricing template: ${templateId}`
+      );
     } catch (error) {
-      console.error('[HttpAdminAdapter] Error deleting pricing template:', error);
+      console.error(
+        '[HttpAdminAdapter] Error deleting pricing template:',
+        error
+      );
       throw error;
     }
   }
@@ -201,12 +274,16 @@ export class HttpAdminAdapter implements AdminService {
   async listUsers(): Promise<User[]> {
     try {
       console.log('[HttpAdminAdapter] Fetching users...');
-      const users = await this.fetchWithAuth<User[]>(`${this.apiBaseUrl}/admin/users`);
-      console.log(`[HttpAdminAdapter] Successfully fetched ${users.length} users`);
+      const users = await this.fetchWithAuth<User[]>(
+        `${this.apiBaseUrl}/admin/users`
+      );
+      console.log(
+        `[HttpAdminAdapter] Successfully fetched ${users.length} users`
+      );
       return users;
     } catch (error) {
       console.error('[HttpAdminAdapter] Error fetching users:', error);
       throw error;
     }
   }
-} 
+}

@@ -65,16 +65,16 @@ fi
 
 cd ..
 
-# Setup browser extension (optional)
-echo "🌐 Setting up browser extension..."
-cd browser-extension
-
-if [ -f "package.json" ]; then
-    echo "Installing browser extension dependencies..."
-    npm install
-fi
-
-cd ..
+# Setup browser extension (optional) - DEPRECATED: Moved to web application focus
+# echo "🌐 Setting up browser extension..."
+# cd browser-extension
+# 
+# if [ -f "package.json" ]; then
+#     echo "Installing browser extension dependencies..."
+#     npm install
+# fi
+# 
+# cd ..
 
 echo "✅ Development environment setup complete!"
 echo ""

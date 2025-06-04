@@ -1,7 +1,18 @@
-import React, { createContext, useState, useEffect, ReactNode, useContext } from 'react';
+import React, {
+  createContext,
+  useState,
+  useEffect,
+  ReactNode,
+  useContext,
+  useMemo,
+} from 'react';
 // FirebaseUser is used by Firebase SDK, AuthUser is our simplified version from authService
-import { User as FirebaseUser } from 'firebase/auth'; 
+
 import { authService, AuthUser } from '../services/auth/authService'; // Corrected import
+
+// Generate unique provider ID for debugging
+const AUTH_PROVIDER_ID = Math.random().toString(36).substring(2, 15);
+console.log(`🆔 AuthProvider Instance Created: ${AUTH_PROVIDER_ID}`);
 
 interface AuthContextType {
   currentUser: AuthUser | null;
@@ -33,23 +44,40 @@ interface AuthProviderProps {
 }
 
 export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
+  console.log(
+    `🟢 [${AUTH_PROVIDER_ID}] AuthProvider: Component mounted/rendering`
+  );
+
   const [currentUser, setCurrentUser] = useState<AuthUser | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  // Debug: Log component mount/unmount
   useEffect(() => {
-    console.log('🔄 Setting up auth state listener...');
+    console.log(`🟢 [${AUTH_PROVIDER_ID}] AuthProvider: Mounted`);
+    return () => {
+      console.log(`🔴 [${AUTH_PROVIDER_ID}] AuthProvider: Unmounted`);
+    };
+  }, []);
+
+  useEffect(() => {
+    console.log(`🔄 [${AUTH_PROVIDER_ID}] Setting up auth state listener...`);
     setLoading(true);
-    
-    const unsubscribe = authService.onAuthStateChanged((user: AuthUser | null) => {
-      console.log('📱 Auth state changed in context:', user ? user.email : 'null');
-      setCurrentUser(user);
-      setLoading(false);
-      setError(null);
-    });
+
+    const unsubscribe = authService.onAuthStateChanged(
+      (user: AuthUser | null) => {
+        console.log(
+          '📱 Auth state changed in context:',
+          user ? user.email : 'null'
+        );
+        setCurrentUser(user);
+        setLoading(false);
+        setError(null);
+      }
+    );
 
     return () => {
-      console.log('🧹 Cleaning up auth state listener');
+      console.log(`🧹 [${AUTH_PROVIDER_ID}] Cleaning up auth state listener`);
       unsubscribe();
     };
   }, []);
@@ -60,7 +88,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const isValidUser = validationResult.isValid;
   const systemRole = currentUser?.systemRole || null;
   const isAdmin = systemRole === 'ADMIN';
-  
+
   // Additional role checks for commonly used roles
   const isDeveloper = systemRole === 'DEVELOPER';
   const isSalesManager = systemRole === 'SALES_MANAGER';
@@ -77,30 +105,46 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     }
   }, [currentUser, isValidUser, validationResult.reason]);
 
-  const value: AuthContextType = {
-    currentUser,
-    loading,
-    error,
-    signUp: authService.signUp,
-    signIn: authService.signIn,
-    signInWithGoogle: authService.signInWithGoogle,
-    signOut: authService.signOut,
-    getIdToken: authService.getIdToken,
-    getIdTokenResult: authService.getIdTokenResult,
-    refreshIdToken: authService.refreshIdToken,
-    isDrFirstUser,
-    isValidUser,
-    systemRole,
-    isAdmin,
-    isDeveloper,
-    isSalesManager,
-    isFinanceApprover,
-    isProductOwner,
-    isFinalApprover,
-  };
+  const value: AuthContextType = useMemo(
+    () => ({
+      currentUser,
+      loading,
+      error,
+      signUp: authService.signUp,
+      signIn: authService.signIn,
+      signInWithGoogle: authService.signInWithGoogle,
+      signOut: authService.signOut,
+      getIdToken: authService.getIdToken,
+      getIdTokenResult: authService.getIdTokenResult,
+      refreshIdToken: authService.refreshIdToken,
+      isDrFirstUser,
+      isValidUser,
+      systemRole,
+      isAdmin,
+      isDeveloper,
+      isSalesManager,
+      isFinanceApprover,
+      isProductOwner,
+      isFinalApprover,
+    }),
+    [
+      currentUser,
+      loading,
+      error,
+      isDrFirstUser,
+      isValidUser,
+      systemRole,
+      isAdmin,
+      isDeveloper,
+      isSalesManager,
+      isFinanceApprover,
+      isProductOwner,
+      isFinalApprover,
+    ]
+  );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
-}; 
+};
 
 // Custom hook to use the auth context
 export const useAuth = (): AuthContextType => {
@@ -109,6 +153,6 @@ export const useAuth = (): AuthContextType => {
     throw new Error('useAuth must be used within an AuthProvider');
   }
   return context;
-}; 
+};
 
-export { AuthContext }; 
+export { AuthContext };

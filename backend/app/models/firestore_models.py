@@ -20,6 +20,7 @@ class UserRole(str, Enum):
     TECHNICAL_ARCHITECT = "TECHNICAL_ARCHITECT"
     PRODUCT_OWNER = "PRODUCT_OWNER"
     BUSINESS_ANALYST = "BUSINESS_ANALYST"
+    FINAL_APPROVER = "FINAL_APPROVER"
 
 class JobStatus(str, Enum):
     """Job status enumeration"""

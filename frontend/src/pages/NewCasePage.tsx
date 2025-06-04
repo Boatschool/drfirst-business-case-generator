@@ -20,7 +20,9 @@ import { InitiateCasePayload } from '../services/agent/AgentService';
 const NewCasePage: React.FC = () => {
   const [projectTitle, setProjectTitle] = useState('');
   const [problemStatement, setProblemStatement] = useState('');
-  const [relevantLinks, setRelevantLinks] = useState<Array<{ name: string; url: string }>>([{ name: '', url: '' }]);
+  const [relevantLinks, setRelevantLinks] = useState<
+    Array<{ name: string; url: string }>
+  >([{ name: '', url: '' }]);
   const { initiateBusinessCase, isLoading, error } = useAgentContext();
   const navigate = useNavigate();
 
@@ -33,8 +35,12 @@ const NewCasePage: React.FC = () => {
     setRelevantLinks(newLinks);
   };
 
-  const handleLinkChange = (index: number, field: 'name' | 'url', value: string) => {
-    const newLinks = relevantLinks.map((link, i) => 
+  const handleLinkChange = (
+    index: number,
+    field: 'name' | 'url',
+    value: string
+  ) => {
+    const newLinks = relevantLinks.map((link, i) =>
       i === index ? { ...link, [field]: value } : link
     );
     setRelevantLinks(newLinks);
@@ -51,7 +57,9 @@ const NewCasePage: React.FC = () => {
     const payload: InitiateCasePayload = {
       projectTitle,
       problemStatement,
-      relevantLinks: relevantLinks.filter(link => link.name.trim() && link.url.trim()),
+      relevantLinks: relevantLinks.filter(
+        (link) => link.name.trim() && link.url.trim()
+      ),
     };
 
     const response = await initiateBusinessCase(payload);
@@ -103,13 +111,21 @@ const NewCasePage: React.FC = () => {
             Relevant Links (Optional)
           </Typography>
           {relevantLinks.map((link, index) => (
-            <Grid container spacing={2} key={index} alignItems="center" sx={{ mb: 1 }}>
+            <Grid
+              container
+              spacing={2}
+              key={index}
+              alignItems="center"
+              sx={{ mb: 1 }}
+            >
               <Grid item xs={12} sm={5}>
                 <TextField
                   fullWidth
                   label="Link Name"
                   value={link.name}
-                  onChange={(e) => handleLinkChange(index, 'name', e.target.value)}
+                  onChange={(e) =>
+                    handleLinkChange(index, 'name', e.target.value)
+                  }
                   disabled={isLoading}
                   size="small"
                 />
@@ -119,13 +135,24 @@ const NewCasePage: React.FC = () => {
                   fullWidth
                   label="Link URL"
                   value={link.url}
-                  onChange={(e) => handleLinkChange(index, 'url', e.target.value)}
+                  onChange={(e) =>
+                    handleLinkChange(index, 'url', e.target.value)
+                  }
                   disabled={isLoading}
                   size="small"
                 />
               </Grid>
               <Grid item xs={12} sm={1}>
-                <IconButton onClick={() => handleRemoveLink(index)} disabled={isLoading || relevantLinks.length === 1 && index === 0 && !link.name && !link.url}>
+                <IconButton
+                  onClick={() => handleRemoveLink(index)}
+                  disabled={
+                    isLoading ||
+                    (relevantLinks.length === 1 &&
+                      index === 0 &&
+                      !link.name &&
+                      !link.url)
+                  }
+                >
                   <RemoveCircleOutlineIcon />
                 </IconButton>
               </Grid>
@@ -155,4 +182,4 @@ const NewCasePage: React.FC = () => {
   );
 };
 
-export default NewCasePage; 
+export default NewCasePage;

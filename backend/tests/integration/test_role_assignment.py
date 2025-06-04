@@ -27,34 +27,53 @@ class TestUserServiceRoleOperations:
         test_email = "test@drfirst.com"
         test_role = UserRole.SALES_MANAGER
         
-        with patch.object(user_service, '_firestore_client') as mock_firestore:
-            # Mock Firestore document operations
-            mock_doc_ref = Mock()
-            mock_collection = Mock()
-            mock_collection.document.return_value = mock_doc_ref
-            mock_firestore.collection.return_value = mock_collection
-            
-            # Mock successful set operation
-            mock_doc_ref.set = AsyncMock()
-            
-            # Test user creation
-            result = await user_service.create_or_update_user(
-                uid=test_uid,
-                email=test_email,
-                display_name="Test User",
-                system_role=test_role
-            )
-            
-            # Verify the user service was called with correct parameters
-            assert result is not None
-            mock_collection.document.assert_called_with(test_uid)
-            
-            # Verify set was called with proper role
-            mock_doc_ref.set.assert_called_once()
-            call_args = mock_doc_ref.set.call_args[0][0]
-            assert call_args["email"] == test_email
-            assert call_args["system_role"] == test_role.value
-            assert "created_at" in call_args
+        with patch('asyncio.to_thread') as mock_to_thread:
+            with patch.object(user_service, 'db') as mock_firestore:
+                # Mock Firestore document operations
+                mock_doc_ref = Mock()
+                mock_collection = Mock()
+                mock_collection.document.return_value = mock_doc_ref
+                mock_firestore.collection.return_value = mock_collection
+                
+                # Mock document exists check (new user)
+                mock_doc_snapshot = Mock()
+                mock_doc_snapshot.exists = False
+                
+                # Mock the actual user data that would be returned
+                mock_created_data = {
+                    "uid": test_uid,
+                    "email": test_email,
+                    "display_name": "Test User",
+                    "systemRole": test_role.value,
+                    "created_at": "2025-01-01T00:00:00Z",
+                    "updated_at": "2025-01-01T00:00:00Z",
+                    "last_login": "2025-01-01T00:00:00Z",
+                    "is_active": True
+                }
+                
+                # Mock asyncio.to_thread calls (get, then set)
+                mock_to_thread.side_effect = [
+                    mock_doc_snapshot,  # First call: doc_ref.get()
+                    None  # Second call: doc_ref.set()
+                ]
+                
+                # Test user creation
+                result = await user_service.create_or_update_user(
+                    uid=test_uid,
+                    email=test_email,
+                    display_name="Test User",
+                    system_role=test_role
+                )
+                
+                # Verify the user service returned data
+                assert result is not None
+                assert result["email"] == test_email
+                assert result["systemRole"] == test_role.value
+                assert "created_at" in result
+                
+                # Verify Firestore operations were called
+                mock_collection.document.assert_called_with(test_uid)
+                assert mock_to_thread.call_count == 2
     
     @pytest.mark.asyncio
     async def test_update_user_role(self):
@@ -63,40 +82,61 @@ class TestUserServiceRoleOperations:
         test_email = "existing@drfirst.com"
         new_role = UserRole.FINANCE_APPROVER
         
-        with patch.object(user_service, '_firestore_client') as mock_firestore:
-            # Mock Firestore operations
-            mock_doc_ref = Mock()
-            mock_collection = Mock()
-            mock_collection.document.return_value = mock_doc_ref
-            mock_firestore.collection.return_value = mock_collection
-            
-            # Mock successful update operation
-            mock_doc_ref.set = AsyncMock()
-            
-            # Test role update
-            result = await user_service.create_or_update_user(
-                uid=test_uid,
-                email=test_email,
-                display_name="Existing User",
-                system_role=new_role
-            )
-            
-            # Verify the operation succeeded
-            assert result is not None
-            mock_doc_ref.set.assert_called_once()
-            
-            # Verify the new role is set
-            call_args = mock_doc_ref.set.call_args[0][0]
-            assert call_args["system_role"] == new_role.value
-            assert "updated_at" in call_args
+        with patch('asyncio.to_thread') as mock_to_thread:
+            with patch.object(user_service, 'db') as mock_firestore:
+                # Mock Firestore operations
+                mock_doc_ref = Mock()
+                mock_collection = Mock()
+                mock_collection.document.return_value = mock_doc_ref
+                mock_firestore.collection.return_value = mock_collection
+                
+                # Mock document exists check (new user for simplicity)
+                mock_doc_snapshot = Mock()
+                mock_doc_snapshot.exists = False
+                
+                # Mock the actual user data that would be returned
+                mock_updated_data = {
+                    "uid": test_uid,
+                    "email": test_email,
+                    "display_name": "Existing User",
+                    "systemRole": new_role.value,
+                    "created_at": "2025-01-01T00:00:00Z",
+                    "updated_at": "2025-01-01T00:00:00Z",
+                    "last_login": "2025-01-01T00:00:00Z",
+                    "is_active": True
+                }
+                
+                # Mock asyncio.to_thread calls (get, then set)
+                mock_to_thread.side_effect = [
+                    mock_doc_snapshot,  # First call: doc_ref.get()
+                    None  # Second call: doc_ref.set()
+                ]
+                
+                # Test role update
+                result = await user_service.create_or_update_user(
+                    uid=test_uid,
+                    email=test_email,
+                    display_name="Existing User",
+                    system_role=new_role
+                )
+                
+                # Verify the operation succeeded
+                assert result is not None
+                assert result["email"] == test_email
+                assert result["systemRole"] == new_role.value
+                assert "created_at" in result
+                
+                # Verify Firestore operations were called
+                mock_collection.document.assert_called_with(test_uid)
+                assert mock_to_thread.call_count == 2
     
     @pytest.mark.asyncio 
     async def test_sync_user_claims(self):
         """Test syncing user role to Firebase custom claims"""
         test_uid = "claims_test_user"
         
-        with patch('firebase_admin.auth.set_custom_user_claims') as mock_set_claims:
-            with patch.object(user_service, '_firestore_client') as mock_firestore:
+        with patch('asyncio.to_thread') as mock_to_thread:
+            with patch.object(user_service, 'db') as mock_firestore:
                 # Mock Firestore get operation
                 mock_doc_ref = Mock()
                 mock_collection = Mock()
@@ -108,41 +148,53 @@ class TestUserServiceRoleOperations:
                 mock_doc_snapshot.exists = True
                 mock_doc_snapshot.to_dict.return_value = {
                     "email": "claims@drfirst.com",
-                    "system_role": "TECHNICAL_ARCHITECT"
+                    "systemRole": "TECHNICAL_ARCHITECT"  # Fixed field name
                 }
-                mock_doc_ref.get = AsyncMock(return_value=mock_doc_snapshot)
+                
+                # Mock asyncio.to_thread calls
+                # First call returns the document snapshot
+                # Second call simulates the auth.set_custom_user_claims call
+                mock_to_thread.side_effect = [
+                    mock_doc_snapshot,  # First call: doc_ref.get()
+                    None  # Second call: auth.set_custom_user_claims()
+                ]
                 
                 # Test claims sync
                 result = await user_service.sync_user_claims(test_uid)
                 
-                # Verify Firebase claims were set
+                # Verify the result and that asyncio.to_thread was called twice
                 assert result is True
-                mock_set_claims.assert_called_once_with(
-                    test_uid, 
-                    {"systemRole": "TECHNICAL_ARCHITECT"}
-                )
+                assert mock_to_thread.call_count == 2
+                
+                # Verify the second call was to set_custom_user_claims with correct args
+                second_call_args = mock_to_thread.call_args_list[1]
+                assert second_call_args[0][1] == test_uid  # UID argument
+                assert second_call_args[0][2] == {"systemRole": "TECHNICAL_ARCHITECT"}  # Claims argument
     
     @pytest.mark.asyncio
     async def test_sync_claims_user_not_found(self):
         """Test claims sync when user document doesn't exist"""
         test_uid = "nonexistent_user"
         
-        with patch.object(user_service, '_firestore_client') as mock_firestore:
-            # Mock Firestore get operation returning non-existent document
-            mock_doc_ref = Mock()
-            mock_collection = Mock()
-            mock_collection.document.return_value = mock_doc_ref
-            mock_firestore.collection.return_value = mock_collection
-            
-            mock_doc_snapshot = Mock()
-            mock_doc_snapshot.exists = False
-            mock_doc_ref.get = AsyncMock(return_value=mock_doc_snapshot)
-            
-            # Test claims sync for non-existent user
-            result = await user_service.sync_user_claims(test_uid)
-            
-            # Should return False when user not found
-            assert result is False
+        with patch('asyncio.to_thread') as mock_to_thread:
+            with patch.object(user_service, 'db') as mock_firestore:
+                # Mock Firestore get operation returning non-existent document
+                mock_doc_ref = Mock()
+                mock_collection = Mock()
+                mock_collection.document.return_value = mock_doc_ref
+                mock_firestore.collection.return_value = mock_collection
+                
+                mock_doc_snapshot = Mock()
+                mock_doc_snapshot.exists = False
+                
+                # Mock asyncio.to_thread call (just the get operation)
+                mock_to_thread.return_value = mock_doc_snapshot
+                
+                # Test claims sync for non-existent user
+                result = await user_service.sync_user_claims(test_uid)
+                
+                # Should return False when user not found
+                assert result is False
 
 
 class TestRoleAssignmentScripts:

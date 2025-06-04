@@ -20,7 +20,7 @@ const LoginPage: React.FC = () => {
   const location = useLocation();
   const navigate = useNavigate();
   const { signIn, signInWithGoogle, currentUser, loading } = useAuth();
-  
+
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -30,7 +30,7 @@ const LoginPage: React.FC = () => {
   // Redirect if already logged in
   useEffect(() => {
     if (currentUser && !loading) {
-      navigate('/dashboard');
+      navigate('/main');
     }
   }, [currentUser, loading, navigate]);
 
@@ -43,7 +43,7 @@ const LoginPage: React.FC = () => {
 
     setIsLoading(true);
     setError(null);
-    
+
     try {
       await signIn(email, password);
       // Navigation will happen automatically via useEffect when currentUser updates
@@ -51,7 +51,7 @@ const LoginPage: React.FC = () => {
       console.error('Login error:', err);
       // Firebase error messages can be quite technical, so let's provide user-friendly messages
       let errorMessage = 'Failed to log in. Please try again.';
-      
+
       if (err.code === 'auth/user-not-found') {
         errorMessage = 'No account found with this email address.';
       } else if (err.code === 'auth/wrong-password') {
@@ -63,7 +63,7 @@ const LoginPage: React.FC = () => {
       } else if (err.message) {
         errorMessage = err.message;
       }
-      
+
       setError(errorMessage);
     } finally {
       setIsLoading(false);
@@ -73,14 +73,14 @@ const LoginPage: React.FC = () => {
   const handleGoogleLogin = async () => {
     setIsLoading(true);
     setError(null);
-    
+
     try {
       await signInWithGoogle();
       // Navigation will happen automatically via useEffect when currentUser updates
     } catch (err: any) {
       console.error('Google login error:', err);
       let errorMessage = 'Failed to log in with Google. Please try again.';
-      
+
       if (err.code === 'auth/popup-closed-by-user') {
         errorMessage = 'Sign-in was cancelled.';
       } else if (err.code === 'auth/unauthorized-domain') {
@@ -88,7 +88,7 @@ const LoginPage: React.FC = () => {
       } else if (err.message) {
         errorMessage = err.message;
       }
-      
+
       setError(errorMessage);
     } finally {
       setIsLoading(false);
@@ -99,12 +99,14 @@ const LoginPage: React.FC = () => {
   if (loading) {
     return (
       <Container component="main" maxWidth="xs">
-        <Box sx={{ 
-          marginTop: 8, 
-          display: 'flex', 
-          flexDirection: 'column', 
-          alignItems: 'center' 
-        }}>
+        <Box
+          sx={{
+            marginTop: 8,
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+          }}
+        >
           <CircularProgress />
           <Typography sx={{ mt: 2 }}>Loading...</Typography>
         </Box>
@@ -114,23 +116,25 @@ const LoginPage: React.FC = () => {
 
   return (
     <Container component="main" maxWidth="xs">
-      <Box sx={{ 
-        marginTop: 8, 
-        display: 'flex', 
-        flexDirection: 'column', 
-        alignItems: 'center' 
-      }}>
+      <Box
+        sx={{
+          marginTop: 8,
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+        }}
+      >
         <Paper elevation={3} sx={{ padding: 4, width: '100%' }}>
           <Typography component="h1" variant="h4" align="center" gutterBottom>
             Sign In
           </Typography>
-          
+
           {message && (
             <Alert severity="success" sx={{ mb: 2 }}>
               {message}
             </Alert>
           )}
-          
+
           {error && (
             <Alert severity="error" sx={{ mb: 2 }}>
               {error}
@@ -164,7 +168,7 @@ const LoginPage: React.FC = () => {
               onChange={(e) => setPassword(e.target.value)}
               disabled={isLoading}
             />
-            
+
             <Button
               type="submit"
               fullWidth
@@ -192,10 +196,13 @@ const LoginPage: React.FC = () => {
               Sign in with Google
             </Button>
 
-            <Stack direction="row" justifyContent="center" spacing={1} sx={{ mt: 2 }}>
-              <Typography variant="body2">
-                Don't have an account?
-              </Typography>
+            <Stack
+              direction="row"
+              justifyContent="center"
+              spacing={1}
+              sx={{ mt: 2 }}
+            >
+              <Typography variant="body2">Don't have an account?</Typography>
               <MuiLink component={RouterLink} to="/signup" variant="body2">
                 Sign up
               </MuiLink>
@@ -207,4 +214,4 @@ const LoginPage: React.FC = () => {
   );
 };
 
-export default LoginPage; 
+export default LoginPage;

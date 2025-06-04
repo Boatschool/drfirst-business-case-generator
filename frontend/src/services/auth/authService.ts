@@ -1,4 +1,4 @@
-import { 
+import {
   User,
   UserCredential,
   signInWithEmailAndPassword,
@@ -37,7 +37,7 @@ class AuthService {
     this.googleProvider = new GoogleAuthProvider();
     this.googleProvider.addScope('email');
     this.googleProvider.addScope('profile');
-    
+
     console.log('🔐 AuthService initialized');
   }
 
@@ -47,14 +47,18 @@ class AuthService {
   signUp = async (email: string, password: string): Promise<UserCredential> => {
     try {
       console.log('📝 Attempting email sign-up for:', email);
-      const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+      const userCredential = await createUserWithEmailAndPassword(
+        auth,
+        email,
+        password
+      );
       console.log('✅ Email sign-up successful:', userCredential.user.email);
       return userCredential;
     } catch (error) {
       console.error('❌ Email sign-up error:', error);
       throw error;
     }
-  }
+  };
 
   /**
    * Sign in with email and password
@@ -62,14 +66,18 @@ class AuthService {
   signIn = async (email: string, password: string): Promise<UserCredential> => {
     try {
       console.log('🔓 Attempting email sign-in for:', email);
-      const userCredential = await signInWithEmailAndPassword(auth, email, password);
+      const userCredential = await signInWithEmailAndPassword(
+        auth,
+        email,
+        password
+      );
       console.log('✅ Email sign-in successful:', userCredential.user.email);
       return userCredential;
     } catch (error) {
       console.error('❌ Email sign-in error:', error);
       throw error;
     }
-  }
+  };
 
   /**
    * Sign in with Google using popup
@@ -84,7 +92,7 @@ class AuthService {
       console.error('❌ Google sign-in error:', error);
       throw error;
     }
-  }
+  };
 
   /**
    * Sign out current user
@@ -98,7 +106,7 @@ class AuthService {
       console.error('❌ Sign-out error:', error);
       throw error;
     }
-  }
+  };
 
   /**
    * Get current user
@@ -118,7 +126,7 @@ class AuthService {
         console.log('No authenticated user for token');
         return null;
       }
-      
+
       console.log('🎫 Getting ID token for user:', user.email);
       const token = await getIdToken(user);
       console.log('✅ ID token retrieved successfully');
@@ -127,7 +135,7 @@ class AuthService {
       console.error('❌ Error getting ID token:', error);
       throw error;
     }
-  }
+  };
 
   /**
    * Get ID token result with custom claims for authenticated requests
@@ -139,8 +147,11 @@ class AuthService {
         console.log('No authenticated user for token result');
         return null;
       }
-      
-      console.log('🎫 Getting ID token result with custom claims for user:', user.email);
+
+      console.log(
+        '🎫 Getting ID token result with custom claims for user:',
+        user.email
+      );
       const tokenResult = await getIdTokenResult(user);
       console.log('✅ ID token result retrieved successfully');
       return tokenResult;
@@ -148,7 +159,7 @@ class AuthService {
       console.error('❌ Error getting ID token result:', error);
       throw error;
     }
-  }
+  };
 
   /**
    * Force refresh ID token to get a new token with current project configuration
@@ -160,7 +171,7 @@ class AuthService {
         console.log('No authenticated user for token refresh');
         return null;
       }
-      
+
       console.log('🔄 Force refreshing ID token for user:', user.email);
       const token = await getIdToken(user, true); // Force refresh
       console.log('✅ ID token refreshed successfully');
@@ -169,16 +180,21 @@ class AuthService {
       console.error('❌ Error refreshing ID token:', error);
       throw error;
     }
-  }
+  };
 
   /**
    * Listen to auth state changes
    */
-  onAuthStateChanged = (callback: (user: AuthUser | null) => void): (() => void) => {
+  onAuthStateChanged = (
+    callback: (user: AuthUser | null) => void
+  ): (() => void) => {
     console.log('👂 Setting up auth state listener');
     return onAuthStateChanged(auth, async (user: User | null) => {
-      console.log('🔄 Auth state changed:', user ? `${user.email} (${user.uid})` : 'null');
-      
+      console.log(
+        '🔄 Auth state changed:',
+        user ? `${user.email} (${user.uid})` : 'null'
+      );
+
       if (user) {
         // Get user with custom claims
         const authUser = await this.convertFirebaseUserWithClaims(user);
@@ -187,7 +203,7 @@ class AuthService {
         callback(null);
       }
     });
-  }
+  };
 
   /**
    * Convert Firebase User to AuthUser with custom claims
@@ -196,13 +212,13 @@ class AuthService {
     try {
       const tokenResult = await getIdTokenResult(user);
       const systemRole = tokenResult.claims.systemRole || null;
-      
-      console.log('👤 User claims:', { 
-        email: user.email, 
+
+      console.log('👤 User claims:', {
+        email: user.email,
         systemRole,
-        hasCustomClaims: Object.keys(tokenResult.claims).length > 0 
+        hasCustomClaims: Object.keys(tokenResult.claims).length > 0,
       });
-      
+
       return {
         uid: user.uid,
         email: user.email,
@@ -243,7 +259,10 @@ class AuthService {
   /**
    * Validate user access based on business rules
    */
-  validateUserAccess(user: AuthUser | null): { isValid: boolean; reason?: string } {
+  validateUserAccess(user: AuthUser | null): {
+    isValid: boolean;
+    reason?: string;
+  } {
     if (!user) {
       return { isValid: false, reason: 'No user authenticated' };
     }
@@ -263,4 +282,4 @@ class AuthService {
 }
 
 // Export singleton instance
-export const authService = new AuthService(); 
+export const authService = new AuthService();

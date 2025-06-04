@@ -21,6 +21,8 @@ import sys
 import os
 import asyncio
 from datetime import datetime, timezone
+import firebase_admin
+from firebase_admin import credentials
 
 # Add the backend directory to the Python path
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'backend'))
@@ -28,6 +30,61 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'backend'))
 from app.services.user_service import user_service
 from app.models.firestore_models import UserRole
 from firebase_admin import auth
+from app.core.config import settings
+
+def initialize_firebase():
+    """Initialize Firebase Admin SDK"""
+    try:
+        if not firebase_admin._apps:
+            print("🚀 Initializing Firebase Admin SDK...")
+            
+            # Try to initialize with service account credentials
+            cred = None
+            
+            # Method 1: Try to use service account file if it exists
+            if (settings.google_application_credentials and 
+                os.path.exists(settings.google_application_credentials)):
+                print(f"📁 Using service account file: {settings.google_application_credentials}")
+                cred = credentials.Certificate(settings.google_application_credentials)
+            
+            # Method 2: Try to use GOOGLE_APPLICATION_CREDENTIALS environment variable
+            elif os.getenv('GOOGLE_APPLICATION_CREDENTIALS'):
+                cred_path = os.getenv('GOOGLE_APPLICATION_CREDENTIALS')
+                if os.path.exists(cred_path):
+                    print(f"📁 Using service account from env: {cred_path}")
+                    cred = credentials.Certificate(cred_path)
+                else:
+                    print(f"❌ Service account file not found at: {cred_path}")
+            
+            # Method 3: Try to use default credentials (for Cloud Run)
+            else:
+                print("🔧 Using default credentials")
+                try:
+                    cred = credentials.ApplicationDefault()
+                except Exception as default_cred_error:
+                    print(f"❌ Failed to use default credentials: {default_cred_error}")
+                    if settings.firebase_project_id:
+                        print("🔧 Attempting to initialize without explicit credentials...")
+                        cred = None
+            
+            # Initialize Firebase app
+            if cred:
+                firebase_admin.initialize_app(cred, {
+                    'projectId': settings.firebase_project_id or settings.google_cloud_project_id,
+                })
+            else:
+                firebase_admin.initialize_app(options={
+                    'projectId': settings.firebase_project_id or settings.google_cloud_project_id,
+                })
+            
+            print(f"✅ Firebase Admin SDK initialized successfully")
+            
+        else:
+            print("📱 Firebase Admin SDK already initialized")
+            
+    except Exception as e:
+        print(f"❌ Firebase initialization error: {e}")
+        raise
 
 # Role descriptions for display
 ROLE_DESCRIPTIONS = {
@@ -41,7 +98,8 @@ ROLE_DESCRIPTIONS = {
     "LEGAL_APPROVER": "⚖️ Legal Approver",
     "TECHNICAL_ARCHITECT": "🏗️ Technical Architect", 
     "PRODUCT_OWNER": "📦 Product Owner",
-    "BUSINESS_ANALYST": "📈 Business Analyst"
+    "BUSINESS_ANALYST": "📈 Business Analyst",
+    "FINAL_APPROVER": "👑 Final Business Case Approver"
 }
 
 async def set_user_role(user_email: str, role_name: str):
@@ -115,6 +173,13 @@ def show_usage():
 
 async def main():
     """Main function"""
+    # Initialize Firebase
+    try:
+        initialize_firebase()
+    except Exception as e:
+        print(f"❌ Failed to initialize Firebase: {e}")
+        sys.exit(1)
+    
     if len(sys.argv) != 3:
         show_usage()
         sys.exit(1)

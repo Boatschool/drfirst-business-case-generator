@@ -34,7 +34,13 @@ export interface AgentUpdate {
   caseId: string;
   timestamp: string; // ISO 8601 timestamp
   source: 'USER' | 'AGENT'; // Who sent the message/update
-  messageType: 'TEXT' | 'PROMPT' | 'PRD_DRAFT' | 'SYSTEM_DESIGN_DRAFT' | 'STATUS_UPDATE' | 'ERROR'; // Type of update
+  messageType:
+    | 'TEXT'
+    | 'PROMPT'
+    | 'PRD_DRAFT'
+    | 'SYSTEM_DESIGN_DRAFT'
+    | 'STATUS_UPDATE'
+    | 'ERROR'; // Type of update
   content: any; // Flexible content based on messageType (e.g., string for TEXT, object for DRAFT)
   requiresResponse?: boolean; // Does this update require user input?
 }
@@ -136,12 +142,14 @@ export interface BusinessCaseDetails extends BusinessCaseSummary {
   problem_statement: string;
   relevant_links: Array<{ name: string; url: string }>;
   history: AgentUpdate[]; // Re-using AgentUpdate for history items
-  prd_draft?: { // Assuming prd_draft structure from OrchestratorAgent
+  prd_draft?: {
+    // Assuming prd_draft structure from OrchestratorAgent
     title: string;
     content_markdown: string;
     version: string;
   } | null;
-  system_design_v1_draft?: { // System design structure from ArchitectAgent
+  system_design_v1_draft?: {
+    // System design structure from ArchitectAgent
     content_markdown: string;
     generated_by: string;
     version: string;
@@ -149,10 +157,10 @@ export interface BusinessCaseDetails extends BusinessCaseSummary {
     last_edited_by?: string;
     last_edited_at?: string;
   } | null;
-  effort_estimate_v1?: EffortEstimate | null;       // New: Effort estimate from PlannerAgent
-  cost_estimate_v1?: CostEstimate | null;           // New: Cost estimate from CostAnalystAgent
-  value_projection_v1?: ValueProjection | null;     // New: Value projection from SalesValueAnalystAgent
-  financial_summary_v1?: FinancialSummary | null;   // New: Financial summary from FinancialModelAgent
+  effort_estimate_v1?: EffortEstimate | null; // New: Effort estimate from PlannerAgent
+  cost_estimate_v1?: CostEstimate | null; // New: Cost estimate from CostAnalystAgent
+  value_projection_v1?: ValueProjection | null; // New: Value projection from SalesValueAnalystAgent
+  financial_summary_v1?: FinancialSummary | null; // New: Financial summary from FinancialModelAgent
 }
 
 /**
@@ -169,7 +177,8 @@ export interface UpdatePrdPayload {
  */
 export interface UpdatePrdResponse {
   message: string;
-  updated_prd_draft: { // This should match the structure returned by the backend
+  updated_prd_draft: {
+    // This should match the structure returned by the backend
     title: string;
     content_markdown: string;
     version: string;
@@ -218,7 +227,10 @@ export interface AgentService {
    * @param onUpdateCallback - A callback function that will be invoked with each new AgentUpdate.
    * @returns A function to unsubscribe from updates.
    */
-  onAgentUpdate(caseId: string, onUpdateCallback: (update: AgentUpdate) => void): () => void;
+  onAgentUpdate(
+    caseId: string,
+    onUpdateCallback: (update: AgentUpdate) => void
+  ): () => void;
 
   /**
    * Retrieves a list of business case summaries for the authenticated user.
@@ -252,14 +264,18 @@ export interface AgentService {
    * @param caseId - The ID of the business case to submit for review.
    * @returns A promise that resolves with a confirmation message and the new status.
    */
-  submitPrdForReview(caseId: string): Promise<{ message: string; new_status: string; case_id: string }>;
+  submitPrdForReview(
+    caseId: string
+  ): Promise<{ message: string; new_status: string; case_id: string }>;
 
   /**
    * Approves the PRD for a business case.
    * @param caseId - The ID of the business case to approve.
    * @returns A promise that resolves with a confirmation message and the new status.
    */
-  approvePrd(caseId: string): Promise<{ message: string; new_status: string; case_id: string }>;
+  approvePrd(
+    caseId: string
+  ): Promise<{ message: string; new_status: string; case_id: string }>;
 
   /**
    * Rejects the PRD for a business case with an optional reason.
@@ -267,7 +283,10 @@ export interface AgentService {
    * @param reason - Optional rejection reason.
    * @returns A promise that resolves with a confirmation message and the new status.
    */
-  rejectPrd(caseId: string, reason?: string): Promise<{ message: string; new_status: string; case_id: string }>;
+  rejectPrd(
+    caseId: string,
+    reason?: string
+  ): Promise<{ message: string; new_status: string; case_id: string }>;
 
   /**
    * Updates the System Design draft for a specific business case.
@@ -275,21 +294,28 @@ export interface AgentService {
    * @param content - The new system design content in markdown.
    * @returns A promise that resolves with a confirmation message and the updated system design.
    */
-  updateSystemDesign(caseId: string, content: string): Promise<{ message: string; updated_system_design: any }>;
+  updateSystemDesign(
+    caseId: string,
+    content: string
+  ): Promise<{ message: string; updated_system_design: any }>;
 
   /**
    * Submits the System Design for review, updating the case status to SYSTEM_DESIGN_PENDING_REVIEW.
    * @param caseId - The ID of the business case to submit for review.
    * @returns A promise that resolves with a confirmation message and the new status.
    */
-  submitSystemDesignForReview(caseId: string): Promise<{ message: string; new_status: string; case_id: string }>;
+  submitSystemDesignForReview(
+    caseId: string
+  ): Promise<{ message: string; new_status: string; case_id: string }>;
 
   /**
    * Approves the System Design for a business case.
    * @param caseId - The ID of the business case to approve.
    * @returns A promise that resolves with a confirmation message and the new status.
    */
-  approveSystemDesign(caseId: string): Promise<{ message: string; new_status: string; case_id: string }>;
+  approveSystemDesign(
+    caseId: string
+  ): Promise<{ message: string; new_status: string; case_id: string }>;
 
   /**
    * Rejects the System Design for a business case with an optional reason.
@@ -297,7 +323,10 @@ export interface AgentService {
    * @param reason - Optional rejection reason.
    * @returns A promise that resolves with a confirmation message and the new status.
    */
-  rejectSystemDesign(caseId: string, reason?: string): Promise<{ message: string; new_status: string; case_id: string }>;
+  rejectSystemDesign(
+    caseId: string,
+    reason?: string
+  ): Promise<{ message: string; new_status: string; case_id: string }>;
 
   /**
    * Updates the Effort Estimate for a specific business case.
@@ -305,14 +334,19 @@ export interface AgentService {
    * @param data - The effort estimate data to update.
    * @returns A promise that resolves with a confirmation message and the updated effort estimate.
    */
-  updateEffortEstimate(caseId: string, data: EffortEstimate): Promise<{ message: string; updated_effort_estimate: EffortEstimate }>;
+  updateEffortEstimate(
+    caseId: string,
+    data: EffortEstimate
+  ): Promise<{ message: string; updated_effort_estimate: EffortEstimate }>;
 
   /**
    * Submits the Effort Estimate for review, updating the case status to EFFORT_PENDING_REVIEW.
    * @param caseId - The ID of the business case to submit for review.
    * @returns A promise that resolves with a confirmation message and the new status.
    */
-  submitEffortEstimateForReview(caseId: string): Promise<{ message: string; new_status: string; case_id: string }>;
+  submitEffortEstimateForReview(
+    caseId: string
+  ): Promise<{ message: string; new_status: string; case_id: string }>;
 
   /**
    * Updates the Cost Estimate for a specific business case.
@@ -320,14 +354,19 @@ export interface AgentService {
    * @param data - The cost estimate data to update.
    * @returns A promise that resolves with a confirmation message and the updated cost estimate.
    */
-  updateCostEstimate(caseId: string, data: CostEstimate): Promise<{ message: string; updated_cost_estimate: CostEstimate }>;
+  updateCostEstimate(
+    caseId: string,
+    data: CostEstimate
+  ): Promise<{ message: string; updated_cost_estimate: CostEstimate }>;
 
   /**
    * Submits the Cost Estimate for review, updating the case status to COSTING_PENDING_REVIEW.
    * @param caseId - The ID of the business case to submit for review.
    * @returns A promise that resolves with a confirmation message and the new status.
    */
-  submitCostEstimateForReview(caseId: string): Promise<{ message: string; new_status: string; case_id: string }>;
+  submitCostEstimateForReview(
+    caseId: string
+  ): Promise<{ message: string; new_status: string; case_id: string }>;
 
   /**
    * Updates the Value Projection for a specific business case.
@@ -335,21 +374,28 @@ export interface AgentService {
    * @param data - The value projection data to update.
    * @returns A promise that resolves with a confirmation message and the updated value projection.
    */
-  updateValueProjection(caseId: string, data: ValueProjection): Promise<{ message: string; updated_value_projection: ValueProjection }>;
+  updateValueProjection(
+    caseId: string,
+    data: ValueProjection
+  ): Promise<{ message: string; updated_value_projection: ValueProjection }>;
 
   /**
    * Submits the Value Projection for review, updating the case status to VALUE_PENDING_REVIEW.
    * @param caseId - The ID of the business case to submit for review.
    * @returns A promise that resolves with a confirmation message and the new status.
    */
-  submitValueProjectionForReview(caseId: string): Promise<{ message: string; new_status: string; case_id: string }>;
+  submitValueProjectionForReview(
+    caseId: string
+  ): Promise<{ message: string; new_status: string; case_id: string }>;
 
   /**
    * Approves the Effort Estimate for a business case.
    * @param caseId - The ID of the business case to approve.
    * @returns A promise that resolves with a confirmation message and the new status.
    */
-  approveEffortEstimate(caseId: string): Promise<{ message: string; new_status: string; case_id: string }>;
+  approveEffortEstimate(
+    caseId: string
+  ): Promise<{ message: string; new_status: string; case_id: string }>;
 
   /**
    * Rejects the Effort Estimate for a business case with an optional reason.
@@ -357,14 +403,19 @@ export interface AgentService {
    * @param reason - Optional rejection reason.
    * @returns A promise that resolves with a confirmation message and the new status.
    */
-  rejectEffortEstimate(caseId: string, reason?: string): Promise<{ message: string; new_status: string; case_id: string }>;
+  rejectEffortEstimate(
+    caseId: string,
+    reason?: string
+  ): Promise<{ message: string; new_status: string; case_id: string }>;
 
   /**
    * Approves the Cost Estimate for a business case.
    * @param caseId - The ID of the business case to approve.
    * @returns A promise that resolves with a confirmation message and the new status.
    */
-  approveCostEstimate(caseId: string): Promise<{ message: string; new_status: string; case_id: string }>;
+  approveCostEstimate(
+    caseId: string
+  ): Promise<{ message: string; new_status: string; case_id: string }>;
 
   /**
    * Rejects the Cost Estimate for a business case with an optional reason.
@@ -372,14 +423,19 @@ export interface AgentService {
    * @param reason - Optional rejection reason.
    * @returns A promise that resolves with a confirmation message and the new status.
    */
-  rejectCostEstimate(caseId: string, reason?: string): Promise<{ message: string; new_status: string; case_id: string }>;
+  rejectCostEstimate(
+    caseId: string,
+    reason?: string
+  ): Promise<{ message: string; new_status: string; case_id: string }>;
 
   /**
    * Approves the Value Projection for a business case.
    * @param caseId - The ID of the business case to approve.
    * @returns A promise that resolves with a confirmation message and the new status.
    */
-  approveValueProjection(caseId: string): Promise<{ message: string; new_status: string; case_id: string }>;
+  approveValueProjection(
+    caseId: string
+  ): Promise<{ message: string; new_status: string; case_id: string }>;
 
   /**
    * Rejects the Value Projection for a business case with an optional reason.
@@ -387,7 +443,10 @@ export interface AgentService {
    * @param reason - Optional rejection reason.
    * @returns A promise that resolves with a confirmation message and the new status.
    */
-  rejectValueProjection(caseId: string, reason?: string): Promise<{ message: string; new_status: string; case_id: string }>;
+  rejectValueProjection(
+    caseId: string,
+    reason?: string
+  ): Promise<{ message: string; new_status: string; case_id: string }>;
 
   // ============================
   // FINAL BUSINESS CASE APPROVAL METHODS
@@ -398,14 +457,18 @@ export interface AgentService {
    * @param caseId - The ID of the business case to submit for final approval.
    * @returns A promise that resolves with a confirmation message and the new status.
    */
-  submitCaseForFinalApproval(caseId: string): Promise<{ message: string; new_status: string; case_id: string }>;
+  submitCaseForFinalApproval(
+    caseId: string
+  ): Promise<{ message: string; new_status: string; case_id: string }>;
 
   /**
    * Approves the final business case.
    * @param caseId - The ID of the business case to approve.
    * @returns A promise that resolves with a confirmation message and the new status.
    */
-  approveFinalCase(caseId: string): Promise<{ message: string; new_status: string; case_id: string }>;
+  approveFinalCase(
+    caseId: string
+  ): Promise<{ message: string; new_status: string; case_id: string }>;
 
   /**
    * Rejects the final business case with an optional reason.
@@ -413,10 +476,20 @@ export interface AgentService {
    * @param reason - Optional rejection reason.
    * @returns A promise that resolves with a confirmation message and the new status.
    */
-  rejectFinalCase(caseId: string, reason?: string): Promise<{ message: string; new_status: string; case_id: string }>;
+  rejectFinalCase(
+    caseId: string,
+    reason?: string
+  ): Promise<{ message: string; new_status: string; case_id: string }>;
+
+  /**
+   * Exports the business case as a PDF document.
+   * @param caseId - The ID of the business case to export.
+   * @returns A promise that resolves with a Blob containing the PDF data.
+   */
+  exportCaseToPdf(caseId: string): Promise<Blob>;
 
   // Potential future methods:
   // getCaseHistory(caseId: string): Promise<AgentUpdate[]>;
   // getCaseStatus(caseId: string): Promise<string>; // More detailed status object
   // listCases(userId: string): Promise<Array<{caseId: string, title: string, status: string}>>;
-} 
+}

@@ -127,10 +127,25 @@ async def get_case_details(
         if not data: # Should not happen if doc.exists is true, but good practice
              raise HTTPException(status_code=404, detail=f"Business case {case_id} data is empty.")
 
-        # Basic authorization: check if the current user is the owner of the case
-        if data.get("user_id") != user_id:
-            # More granular permissions could be implemented here in the future
-            # For example, allow admins or collaborators to view.
+        # Authorization logic: Check if user has permission to view this case
+        case_owner_id = data.get("user_id")
+        case_status_str = str(data.get("status", ""))
+        
+        # Convert enum status to string if needed
+        if hasattr(data.get("status"), 'value'):
+            case_status_str = data.get("status").value
+        
+        # Define "shareable" statuses that any authenticated user can view
+        shareable_statuses = [
+            "APPROVED",  # Final approved cases
+            "PENDING_FINAL_APPROVAL",  # Cases pending final approval
+            # Add other statuses as needed for sharing
+        ]
+        
+        # Allow access if:
+        # 1. User is the case owner/initiator, OR
+        # 2. Case is in a shareable status (for authenticated DrFirst users)
+        if case_owner_id != user_id and case_status_str not in shareable_statuses:
             raise HTTPException(status_code=403, detail="You do not have permission to view this business case.")
 
         status_value = data.get("status")
@@ -2289,3 +2304,74 @@ async def reject_final_case(
         print(f"Error rejecting final case {case_id} by user {user_id}: {e}")
         print(f"Full traceback: {error_details}")
         raise HTTPException(status_code=500, detail=f"Failed to reject business case: {str(e)}")
+
+@router.get("/cases/{case_id}/export-pdf", summary="Export business case as PDF")
+async def export_case_to_pdf(
+    case_id: str,
+    current_user: dict = Depends(get_current_active_user)
+):
+    """
+    Exports a business case as a PDF document.
+    User must have access to view the case (currently owner only).
+    Returns the PDF as a downloadable file.
+    """
+    from fastapi.responses import StreamingResponse
+    from app.utils.pdf_generator import generate_business_case_pdf
+    
+    user_id = current_user.get("uid")
+    if not user_id:
+        raise HTTPException(status_code=401, detail="User ID not found in token.")
+
+    try:
+        db = firestore.Client(project=settings.firebase_project_id)
+        case_doc_ref = db.collection("businessCases").document(case_id)
+        
+        # Fetch case document
+        doc = await asyncio.to_thread(case_doc_ref.get)
+        if not doc.exists:
+            raise HTTPException(status_code=404, detail=f"Business case {case_id} not found.")
+        
+        case_data = doc.to_dict()
+        if not case_data:
+            raise HTTPException(status_code=404, detail=f"Business case {case_id} data is empty.")
+
+        # Basic authorization: check if the current user is the owner of the case
+        # In the future, this could be expanded to allow other roles (e.g., ADMIN, FINAL_APPROVER)
+        if case_data.get("user_id") != user_id:
+            # Check if user has admin role for broader access
+            user_role = current_user.get("systemRole")
+            if user_role not in ["ADMIN", "FINAL_APPROVER"]:
+                raise HTTPException(status_code=403, detail="You do not have permission to export this business case.")
+
+        # Generate PDF
+        pdf_bytes = await generate_business_case_pdf(case_data)
+        
+        # Create a file-like object from the PDF bytes
+        import io
+        pdf_buffer = io.BytesIO(pdf_bytes)
+        
+        # Generate filename
+        title = case_data.get('title', 'Business Case')
+        # Clean title for filename (remove special characters)
+        import re
+        clean_title = re.sub(r'[<>:"/\\|?*]', '_', title)
+        filename = f"business_case_{case_id}_{clean_title}.pdf"
+        
+        # Return PDF as streaming response
+        return StreamingResponse(
+            io.BytesIO(pdf_bytes),
+            media_type="application/pdf",
+            headers={
+                "Content-Disposition": f"attachment; filename=\"{filename}\"",
+                "Content-Type": "application/pdf"
+            }
+        )
+
+    except HTTPException as http_exc:
+        raise http_exc
+    except Exception as e:
+        import traceback
+        error_details = traceback.format_exc()
+        print(f"Error exporting PDF for case {case_id} by user {user_id}: {e}")
+        print(f"Full traceback: {error_details}")
+        raise HTTPException(status_code=500, detail=f"Failed to export PDF: {str(e)}")

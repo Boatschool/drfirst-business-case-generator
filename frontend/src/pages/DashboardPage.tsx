@@ -1,4 +1,4 @@
-import React, { useEffect, useContext } from 'react';
+import React, { useEffect } from 'react';
 import {
   Typography,
   Container,
@@ -10,34 +10,68 @@ import {
   Alert,
   Button,
   Paper,
+  IconButton,
+  Stack,
+  Tooltip,
 } from '@mui/material';
-import { Link as RouterLink } from 'react-router-dom';
+import { ArrowBack as ArrowBackIcon } from '@mui/icons-material';
+import { Link as RouterLink, useNavigate } from 'react-router-dom';
 import { useAgentContext } from '../contexts/AgentContext';
 import { BusinessCaseSummary } from '../services/agent/AgentService';
 
 const DashboardPage: React.FC = () => {
-  const {
-    cases,
-    isLoadingCases,
-    casesError,
-    fetchUserCases,
-  } = useAgentContext();
+  console.log('🟢 DashboardPage: Component rendering');
+
+  const navigate = useNavigate();
+  const { cases, isLoadingCases, casesError, fetchUserCases } =
+    useAgentContext();
+
+  // Debug: Log component mount/unmount
+  useEffect(() => {
+    console.log('🟢 DashboardPage: Mounted');
+    return () => {
+      console.log('🔴 DashboardPage: Unmounted');
+    };
+  }, []);
 
   useEffect(() => {
+    console.log('🔄 DashboardPage: Calling fetchUserCases');
     fetchUserCases();
-  }, [fetchUserCases]);
+  }, []);
 
   return (
     <Container component="main" maxWidth="md">
-      <Box sx={{ marginTop: 4, display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-        <Typography component="h1" variant="h4" gutterBottom>
-          Business Cases Dashboard
-        </Typography>
+      <Box
+        sx={{
+          marginTop: 4,
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+        }}
+      >
+        {/* Header with Back Button */}
+        <Stack
+          direction="row"
+          alignItems="center"
+          justifyContent="space-between"
+          sx={{ width: '100%', mb: 3 }}
+        >
+          <Stack direction="row" alignItems="center" spacing={2}>
+            <Tooltip title="Back to Home">
+              <IconButton onClick={() => navigate('/main')}>
+                <ArrowBackIcon />
+              </IconButton>
+            </Tooltip>
+            <Typography component="h1" variant="h4" gutterBottom sx={{ mb: 0 }}>
+              Business Cases Dashboard
+            </Typography>
+          </Stack>
+        </Stack>
 
-        <Button 
-          variant="contained" 
-          color="primary" 
-          component={RouterLink} 
+        <Button
+          variant="contained"
+          color="primary"
+          component={RouterLink}
           to="/new-case"
           sx={{ mb: 3, alignSelf: 'flex-start' }}
         >
@@ -66,16 +100,20 @@ const DashboardPage: React.FC = () => {
           <Paper elevation={2} sx={{ width: '100%' }}>
             <List>
               {cases.map((caseItem: BusinessCaseSummary) => (
-                <ListItem 
-                  key={caseItem.case_id} 
-                  divider 
-                  button 
-                  component={RouterLink} 
+                <ListItem
+                  key={caseItem.case_id}
+                  divider
+                  button
+                  component={RouterLink}
                   to={`/cases/${caseItem.case_id}`}
                 >
-                  <ListItemText 
+                  <ListItemText
                     primary={caseItem.title}
-                    secondary={`Status: ${caseItem.status} | Updated: ${new Date(caseItem.updated_at).toLocaleDateString()}`}
+                    secondary={`Status: ${
+                      caseItem.status
+                    } | Updated: ${new Date(
+                      caseItem.updated_at
+                    ).toLocaleDateString()}`}
                   />
                 </ListItem>
               ))}
@@ -87,4 +125,4 @@ const DashboardPage: React.FC = () => {
   );
 };
 
-export default DashboardPage; 
+export default DashboardPage;

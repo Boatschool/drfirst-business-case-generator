@@ -4,14 +4,13 @@ import {
   Paper,
   Typography,
   TextField,
-  Button,
   IconButton,
   Stack,
   Alert,
   Fab,
   Collapse,
   Divider,
-  Badge
+  Badge,
 } from '@mui/material';
 import {
   Chat as ChatIcon,
@@ -19,7 +18,7 @@ import {
   Close as CloseIcon,
   Minimize as MinimizeIcon,
   SmartToy as BotIcon,
-  Person as PersonIcon
+  Person as PersonIcon,
 } from '@mui/icons-material';
 
 interface AgentUpdate {
@@ -45,7 +44,7 @@ const FloatingChat: React.FC<FloatingChatProps> = ({
   isLoading,
   error,
   disabled = false,
-  currentCaseTitle
+  currentCaseTitle,
 }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [message, setMessage] = useState('');
@@ -64,9 +63,9 @@ const FloatingChat: React.FC<FloatingChatProps> = ({
   useEffect(() => {
     if (!isOpen) {
       // Simple logic: assume any new messages are unread when chat is closed
-      const recentMessages = messages.filter(msg => {
+      const recentMessages = messages.filter((msg) => {
         const msgTime = new Date(msg.timestamp).getTime();
-        const fiveMinutesAgo = Date.now() - (5 * 60 * 1000);
+        const fiveMinutesAgo = Date.now() - 5 * 60 * 1000;
         return msgTime > fiveMinutesAgo && msg.source !== 'USER';
       });
       setUnreadCount(recentMessages.length);
@@ -129,7 +128,7 @@ const FloatingChat: React.FC<FloatingChatProps> = ({
               flexDirection: 'column',
               borderRadius: 2,
               overflow: 'hidden',
-              border: '1px solid #e0e0e0'
+              border: '1px solid #e0e0e0',
             }}
           >
             {/* Chat Header */}
@@ -140,25 +139,33 @@ const FloatingChat: React.FC<FloatingChatProps> = ({
                 p: 2,
                 display: 'flex',
                 alignItems: 'center',
-                justifyContent: 'space-between'
+                justifyContent: 'space-between',
               }}
             >
-              <Stack direction="row" alignItems="center" spacing={1} sx={{ flex: 1, minWidth: 0 }}>
+              <Stack
+                direction="row"
+                alignItems="center"
+                spacing={1}
+                sx={{ flex: 1, minWidth: 0 }}
+              >
                 <BotIcon />
                 <Box sx={{ minWidth: 0, flex: 1 }}>
-                  <Typography variant="h6" sx={{ fontWeight: 600, fontSize: '1rem' }}>
+                  <Typography
+                    variant="h6"
+                    sx={{ fontWeight: 600, fontSize: '1rem' }}
+                  >
                     Agent Chat
                   </Typography>
                   {currentCaseTitle && (
-                    <Typography 
-                      variant="caption" 
-                      sx={{ 
+                    <Typography
+                      variant="caption"
+                      sx={{
                         opacity: 0.9,
                         fontSize: '0.75rem',
                         display: 'block',
                         whiteSpace: 'nowrap',
                         overflow: 'hidden',
-                        textOverflow: 'ellipsis'
+                        textOverflow: 'ellipsis',
                       }}
                     >
                       {currentCaseTitle}
@@ -193,7 +200,7 @@ const FloatingChat: React.FC<FloatingChatProps> = ({
                 backgroundColor: '#f8f9fa',
                 display: 'flex',
                 flexDirection: 'column',
-                gap: 1
+                gap: 1,
               }}
             >
               {messages.length > 0 ? (
@@ -201,31 +208,50 @@ const FloatingChat: React.FC<FloatingChatProps> = ({
                   <Box
                     key={`${msg.timestamp}-${index}`}
                     sx={{
-                      alignSelf: msg.source === 'USER' ? 'flex-end' : 'flex-start',
-                      maxWidth: '75%'
+                      alignSelf:
+                        msg.source === 'USER' ? 'flex-end' : 'flex-start',
+                      maxWidth: '75%',
                     }}
                   >
                     <Paper
                       elevation={1}
                       sx={{
                         p: 1.5,
-                        backgroundColor: msg.source === 'USER' ? 'primary.main' : 'background.paper',
-                        color: msg.source === 'USER' ? 'primary.contrastText' : 'text.primary',
+                        backgroundColor:
+                          msg.source === 'USER'
+                            ? 'primary.main'
+                            : 'background.paper',
+                        color:
+                          msg.source === 'USER'
+                            ? 'primary.contrastText'
+                            : 'text.primary',
                         borderRadius: 2,
-                        wordBreak: 'break-word'
+                        wordBreak: 'break-word',
                       }}
                     >
-                      <Stack direction="row" spacing={1} alignItems="flex-start" sx={{ mb: 0.5 }}>
+                      <Stack
+                        direction="row"
+                        spacing={1}
+                        alignItems="flex-start"
+                        sx={{ mb: 0.5 }}
+                      >
                         {msg.source === 'USER' ? (
                           <PersonIcon sx={{ fontSize: 16, mt: 0.5 }} />
                         ) : (
                           <BotIcon sx={{ fontSize: 16, mt: 0.5 }} />
                         )}
                         <Box sx={{ flex: 1 }}>
-                          <Typography variant="caption" display="block" sx={{ opacity: 0.8, fontSize: '0.7rem' }}>
+                          <Typography
+                            variant="caption"
+                            display="block"
+                            sx={{ opacity: 0.8, fontSize: '0.7rem' }}
+                          >
                             {new Date(msg.timestamp).toLocaleTimeString()}
                           </Typography>
-                          <Typography variant="body2" sx={{ whiteSpace: 'pre-wrap', mt: 0.5 }}>
+                          <Typography
+                            variant="body2"
+                            sx={{ whiteSpace: 'pre-wrap', mt: 0.5 }}
+                          >
                             {msg.content}
                           </Typography>
                         </Box>
@@ -235,12 +261,13 @@ const FloatingChat: React.FC<FloatingChatProps> = ({
                 ))
               ) : (
                 <Box sx={{ textAlign: 'center', py: 4 }}>
-                  <BotIcon sx={{ fontSize: 48, color: 'text.secondary', mb: 1 }} />
+                  <BotIcon
+                    sx={{ fontSize: 48, color: 'text.secondary', mb: 1 }}
+                  />
                   <Typography color="text.secondary" variant="body2">
-                    {disabled 
+                    {disabled
                       ? 'Navigate to a specific business case to start chatting with the agent'
-                      : 'Start a conversation with the agent'
-                    }
+                      : 'Start a conversation with the agent'}
                   </Typography>
                 </Box>
               )}
@@ -261,7 +288,11 @@ const FloatingChat: React.FC<FloatingChatProps> = ({
                   ref={chatInputRef}
                   fullWidth
                   size="small"
-                  placeholder={disabled ? "Select a business case to chat..." : "Type your message..."}
+                  placeholder={
+                    disabled
+                      ? 'Select a business case to chat...'
+                      : 'Type your message...'
+                  }
                   value={message}
                   onChange={(e) => setMessage(e.target.value)}
                   onKeyPress={handleKeyPress}
@@ -270,30 +301,36 @@ const FloatingChat: React.FC<FloatingChatProps> = ({
                   maxRows={3}
                   sx={{
                     '& .MuiOutlinedInput-root': {
-                      borderRadius: 2
-                    }
+                      borderRadius: 2,
+                    },
                   }}
                 />
                 <IconButton
                   color="primary"
                   onClick={handleSendMessage}
-                  disabled={!message.trim() || isSending || isLoading || disabled}
+                  disabled={
+                    !message.trim() || isSending || isLoading || disabled
+                  }
                   sx={{
                     backgroundColor: 'primary.main',
                     color: 'primary.contrastText',
                     '&:hover': {
-                      backgroundColor: 'primary.dark'
+                      backgroundColor: 'primary.dark',
                     },
                     '&:disabled': {
-                      backgroundColor: 'action.disabled'
-                    }
+                      backgroundColor: 'action.disabled',
+                    },
                   }}
                 >
                   <SendIcon />
                 </IconButton>
               </Stack>
               {(isSending || isLoading) && (
-                <Typography variant="caption" color="text.secondary" sx={{ mt: 0.5, display: 'block' }}>
+                <Typography
+                  variant="caption"
+                  color="text.secondary"
+                  sx={{ mt: 0.5, display: 'block' }}
+                >
                   {isSending ? 'Sending message...' : 'Processing...'}
                 </Typography>
               )}
@@ -310,8 +347,8 @@ const FloatingChat: React.FC<FloatingChatProps> = ({
             sx={{
               '& .MuiBadge-badge': {
                 right: 8,
-                top: 8
-              }
+                top: 8,
+              },
             }}
           >
             <Fab
@@ -324,9 +361,9 @@ const FloatingChat: React.FC<FloatingChatProps> = ({
                 boxShadow: 3,
                 '&:hover': {
                   boxShadow: 6,
-                  transform: 'scale(1.05)'
+                  transform: 'scale(1.05)',
                 },
-                transition: 'all 0.2s ease-in-out'
+                transition: 'all 0.2s ease-in-out',
               }}
             >
               <ChatIcon sx={{ fontSize: 28 }} />
@@ -338,4 +375,4 @@ const FloatingChat: React.FC<FloatingChatProps> = ({
   );
 };
 
-export default FloatingChat; 
+export default FloatingChat;

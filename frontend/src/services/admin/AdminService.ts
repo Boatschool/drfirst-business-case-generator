@@ -37,6 +37,29 @@ export interface PricingTemplate {
   updated_at: string;
 }
 
+// Request types for Rate Card operations
+export interface CreateRateCardRequest {
+  name: string;
+  description: string;
+  isActive: boolean;
+  defaultOverallRate: number;
+  roles: Array<{
+    roleName: string;
+    hourlyRate: number;
+  }>;
+}
+
+export interface UpdateRateCardRequest {
+  name?: string;
+  description?: string;
+  isActive?: boolean;
+  defaultOverallRate?: number;
+  roles?: Array<{
+    roleName: string;
+    hourlyRate: number;
+  }>;
+}
+
 /**
  * AdminService interface defines the contract for admin operations
  */
@@ -46,6 +69,28 @@ export interface AdminService {
    * @returns Promise<RateCard[]> List of rate cards
    */
   listRateCards(): Promise<RateCard[]>;
+
+  /**
+   * Create a new rate card
+   * @param data Rate card data to create
+   * @returns Promise<RateCard> Created rate card with ID
+   */
+  createRateCard(data: CreateRateCardRequest): Promise<RateCard>;
+
+  /**
+   * Update an existing rate card
+   * @param cardId ID of the rate card to update
+   * @param data Partial rate card data to update
+   * @returns Promise<RateCard> Updated rate card
+   */
+  updateRateCard(cardId: string, data: UpdateRateCardRequest): Promise<RateCard>;
+
+  /**
+   * Delete a rate card
+   * @param cardId ID of the rate card to delete
+   * @returns Promise<void>
+   */
+  deleteRateCard(cardId: string): Promise<void>;
 
   /**
    * Fetch all pricing templates from the backend

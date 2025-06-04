@@ -200,6 +200,106 @@ paths:
           description: Forbidden (e.g., user does not have admin access)
         '500':
           description: Internal Server Error
+    post:
+      summary: Create a new rate card (admin only)
+      operationId: createRateCard
+      security:
+        - firebaseIdToken: []
+      consumes:
+        - application/json
+      produces:
+        - application/json
+      parameters:
+        - in: body
+          name: body
+          description: Rate card data to create
+          required: true
+          schema:
+            $ref: '#/definitions/CreateRateCardRequest'
+      responses:
+        '200':
+          description: Rate card created successfully
+          schema:
+            $ref: '#/definitions/RateCard'
+        '400':
+          description: Bad Request (e.g., validation errors)
+        '401':
+          description: Unauthorized (e.g., invalid token)
+        '403':
+          description: Forbidden (e.g., user does not have admin access)
+        '500':
+          description: Internal Server Error
+
+  /api/v1/admin/rate-cards/{cardId}:
+    put:
+      summary: Update an existing rate card (admin only)
+      operationId: updateRateCard
+      security:
+        - firebaseIdToken: []
+      consumes:
+        - application/json
+      produces:
+        - application/json
+      parameters:
+        - in: path
+          name: cardId
+          type: string
+          required: true
+          description: Unique ID of the rate card to update
+        - in: body
+          name: body
+          description: Rate card data to update (partial updates allowed)
+          required: true
+          schema:
+            $ref: '#/definitions/UpdateRateCardRequest'
+      responses:
+        '200':
+          description: Rate card updated successfully
+          schema:
+            $ref: '#/definitions/RateCard'
+        '400':
+          description: Bad Request (e.g., validation errors)
+        '401':
+          description: Unauthorized (e.g., invalid token)
+        '403':
+          description: Forbidden (e.g., user does not have admin access)
+        '404':
+          description: Rate card not found
+        '500':
+          description: Internal Server Error
+    delete:
+      summary: Delete a rate card (admin only)
+      operationId: deleteRateCard
+      security:
+        - firebaseIdToken: []
+      produces:
+        - application/json
+      parameters:
+        - in: path
+          name: cardId
+          type: string
+          required: true
+          description: Unique ID of the rate card to delete
+      responses:
+        '200':
+          description: Rate card deleted successfully
+          schema:
+            type: object
+            properties:
+              message:
+                type: string
+                description: Success message
+              deleted_id:
+                type: string
+                description: ID of the deleted rate card
+        '401':
+          description: Unauthorized (e.g., invalid token)
+        '403':
+          description: Forbidden (e.g., user does not have admin access)
+        '404':
+          description: Rate card not found
+        '500':
+          description: Internal Server Error
 
   /api/v1/admin/pricing-templates: # New admin endpoint for pricing templates
     get:
@@ -428,4 +528,57 @@ definitions:
       - name
       - description
       - version
-      - structureDefinition 
+      - structureDefinition
+
+  CreateRateCardRequest: # Definition for the CreateRateCardRequest
+    type: object
+    required:
+      - name
+      - description
+      - defaultOverallRate
+      - roles
+    properties:
+      name:
+        type: string
+        description: "Name of the rate card."
+      description:
+        type: string
+        description: "Description of the rate card."
+      defaultOverallRate:
+        type: number
+        format: float
+        description: "Default hourly rate for unknown roles."
+      roles:
+        type: array
+        items:
+          type: object
+          properties:
+            roleName:
+              type: string
+            hourlyRate:
+              type: number
+              format: float
+
+  UpdateRateCardRequest: # Definition for the UpdateRateCardRequest (partial updates)
+    type: object
+    properties:
+      name:
+        type: string
+        description: "Name of the rate card."
+      description:
+        type: string
+        description: "Description of the rate card."
+      defaultOverallRate:
+        type: number
+        format: float
+        description: "Default hourly rate for unknown roles."
+      roles:
+        type: array
+        items:
+          type: object
+          properties:
+            roleName:
+              type: string
+            hourlyRate:
+              type: number
+              format: float 

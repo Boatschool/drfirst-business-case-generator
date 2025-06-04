@@ -4,12 +4,14 @@ Admin API routes for the DrFirst Business Case Generator
 
 from fastapi import APIRouter, HTTPException, Depends
 from fastapi.security import HTTPBearer
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Optional
 import asyncio
+import uuid
+from datetime import datetime, timezone
 from google.cloud import firestore
 from app.auth.firebase_auth import get_current_active_user
 from app.core.config import settings
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 router = APIRouter()
 security = HTTPBearer()
@@ -36,6 +38,28 @@ class PricingTemplate(BaseModel):
     created_at: str
     updated_at: str
 
+# Pydantic models for request bodies
+class RoleRate(BaseModel):
+    """Role with hourly rate"""
+    roleName: str = Field(..., description="Name of the role")
+    hourlyRate: float = Field(..., gt=0, description="Hourly rate for the role")
+
+class CreateRateCardRequest(BaseModel):
+    """Request model for creating a new rate card"""
+    name: str = Field(..., min_length=1, max_length=100, description="Name of the rate card")
+    description: str = Field(..., min_length=1, max_length=500, description="Description of the rate card")
+    isActive: bool = Field(True, description="Whether the rate card is active")
+    defaultOverallRate: float = Field(..., gt=0, description="Default overall hourly rate")
+    roles: List[RoleRate] = Field(default=[], description="List of roles with specific rates")
+
+class UpdateRateCardRequest(BaseModel):
+    """Request model for updating an existing rate card"""
+    name: Optional[str] = Field(None, min_length=1, max_length=100, description="Name of the rate card")
+    description: Optional[str] = Field(None, min_length=1, max_length=500, description="Description of the rate card")
+    isActive: Optional[bool] = Field(None, description="Whether the rate card is active")
+    defaultOverallRate: Optional[float] = Field(None, gt=0, description="Default overall hourly rate")
+    roles: Optional[List[RoleRate]] = Field(None, description="List of roles with specific rates")
+
 # Initialize Firestore client
 db = None
 try:
@@ -43,6 +67,8 @@ try:
     print("Admin routes: Firestore client initialized successfully.")
 except Exception as e:
     print(f"Admin routes: Failed to initialize Firestore client: {e}")
+
+# Rate Cards CRUD Operations
 
 @router.get("/rate-cards", response_model=List[Dict[str, Any]], summary="List all rate cards")
 async def list_rate_cards(current_user: dict = Depends(get_current_active_user)):
@@ -72,6 +98,164 @@ async def list_rate_cards(current_user: dict = Depends(get_current_active_user))
         raise HTTPException(
             status_code=500,
             detail=f"Failed to fetch rate cards: {str(e)}"
+        )
+
+@router.post("/rate-cards", response_model=Dict[str, Any], summary="Create a new rate card")
+async def create_rate_card(
+    rate_card_data: CreateRateCardRequest,
+    current_user: dict = Depends(get_current_active_user)
+):
+    """Create a new rate card (admin only)"""
+    if not db:
+        raise HTTPException(
+            status_code=500,
+            detail="Database connection not available"
+        )
+    
+    try:
+        # Generate unique ID for the new rate card
+        card_id = str(uuid.uuid4())
+        current_time = datetime.now(timezone.utc).isoformat()
+        
+        # Convert RoleRate objects to dictionaries
+        roles_data = [role.model_dump() for role in rate_card_data.roles]
+        
+        # Prepare the rate card document
+        rate_card_doc = {
+            "name": rate_card_data.name,
+            "description": rate_card_data.description,
+            "isActive": rate_card_data.isActive,
+            "defaultOverallRate": rate_card_data.defaultOverallRate,
+            "roles": roles_data,
+            "created_at": current_time,
+            "updated_at": current_time,
+            "created_by": current_user.get('email', 'unknown'),
+            "updated_by": current_user.get('email', 'unknown')
+        }
+        
+        # Save to Firestore
+        rate_cards_ref = db.collection("rateCards")
+        await asyncio.to_thread(rate_cards_ref.document(card_id).set, rate_card_doc)
+        
+        # Return the created rate card with ID
+        rate_card_doc['id'] = card_id
+        
+        print(f"[AdminAPI] Created new rate card '{rate_card_data.name}' with ID {card_id} by user: {current_user.get('email', 'unknown')}")
+        return rate_card_doc
+        
+    except Exception as e:
+        print(f"[AdminAPI] Error creating rate card: {e}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to create rate card: {str(e)}"
+        )
+
+@router.put("/rate-cards/{card_id}", response_model=Dict[str, Any], summary="Update an existing rate card")
+async def update_rate_card(
+    card_id: str,
+    rate_card_data: UpdateRateCardRequest,
+    current_user: dict = Depends(get_current_active_user)
+):
+    """Update an existing rate card (admin only)"""
+    if not db:
+        raise HTTPException(
+            status_code=500,
+            detail="Database connection not available"
+        )
+    
+    try:
+        # Check if rate card exists
+        rate_cards_ref = db.collection("rateCards")
+        doc_ref = rate_cards_ref.document(card_id)
+        doc = await asyncio.to_thread(doc_ref.get)
+        
+        if not doc.exists:
+            raise HTTPException(
+                status_code=404,
+                detail=f"Rate card with ID {card_id} not found"
+            )
+        
+        # Prepare update data (only include non-None fields)
+        update_data = {}
+        if rate_card_data.name is not None:
+            update_data["name"] = rate_card_data.name
+        if rate_card_data.description is not None:
+            update_data["description"] = rate_card_data.description
+        if rate_card_data.isActive is not None:
+            update_data["isActive"] = rate_card_data.isActive
+        if rate_card_data.defaultOverallRate is not None:
+            update_data["defaultOverallRate"] = rate_card_data.defaultOverallRate
+        if rate_card_data.roles is not None:
+            update_data["roles"] = [role.model_dump() for role in rate_card_data.roles]
+        
+        # Always update timestamp and user
+        update_data["updated_at"] = datetime.now(timezone.utc).isoformat()
+        update_data["updated_by"] = current_user.get('email', 'unknown')
+        
+        # Update the document
+        await asyncio.to_thread(doc_ref.update, update_data)
+        
+        # Fetch and return the updated document
+        updated_doc = await asyncio.to_thread(doc_ref.get)
+        updated_data = updated_doc.to_dict()
+        updated_data['id'] = card_id
+        
+        print(f"[AdminAPI] Updated rate card {card_id} by user: {current_user.get('email', 'unknown')}")
+        return updated_data
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"[AdminAPI] Error updating rate card: {e}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to update rate card: {str(e)}"
+        )
+
+@router.delete("/rate-cards/{card_id}", response_model=Dict[str, str], summary="Delete a rate card")
+async def delete_rate_card(
+    card_id: str,
+    current_user: dict = Depends(get_current_active_user)
+):
+    """Delete a rate card (admin only)"""
+    if not db:
+        raise HTTPException(
+            status_code=500,
+            detail="Database connection not available"
+        )
+    
+    try:
+        # Check if rate card exists
+        rate_cards_ref = db.collection("rateCards")
+        doc_ref = rate_cards_ref.document(card_id)
+        doc = await asyncio.to_thread(doc_ref.get)
+        
+        if not doc.exists:
+            raise HTTPException(
+                status_code=404,
+                detail=f"Rate card with ID {card_id} not found"
+            )
+        
+        # Get rate card name for logging
+        rate_card_data = doc.to_dict()
+        rate_card_name = rate_card_data.get('name', 'Unknown')
+        
+        # Delete the document
+        await asyncio.to_thread(doc_ref.delete)
+        
+        print(f"[AdminAPI] Deleted rate card '{rate_card_name}' (ID: {card_id}) by user: {current_user.get('email', 'unknown')}")
+        return {
+            "message": f"Rate card '{rate_card_name}' deleted successfully",
+            "deleted_id": card_id
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"[AdminAPI] Error deleting rate card: {e}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to delete rate card: {str(e)}"
         )
 
 @router.get("/pricing-templates", response_model=List[Dict[str, Any]], summary="List all pricing templates")

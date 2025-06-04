@@ -349,6 +349,15 @@ class ValueProjectionUpdateRequest(BaseModel):
     assumptions: Optional[List[str]] = None
     notes: Optional[str] = None
 
+class EffortEstimateRejectRequest(BaseModel):
+    reason: Optional[str] = None
+
+class CostEstimateRejectRequest(BaseModel):
+    reason: Optional[str] = None
+
+class ValueProjectionRejectRequest(BaseModel):
+    reason: Optional[str] = None
+
 @router.post("/cases/{case_id}/prd/approve", status_code=200, summary="Approve PRD for a specific business case")
 async def approve_prd(
     case_id: str,
@@ -1507,4 +1516,511 @@ async def submit_value_projection_for_review(
         error_details = traceback.format_exc()
         print(f"Error submitting value projection for case {case_id}, user {user_id}: {e}")
         print(f"Full traceback: {error_details}")
-        raise HTTPException(status_code=500, detail=f"Failed to submit value projection: {str(e)}") 
+        raise HTTPException(status_code=500, detail=f"Failed to submit value projection: {str(e)}")
+
+# Financial Estimate Approval/Rejection Endpoints
+
+@router.post("/cases/{case_id}/effort-estimate/approve", status_code=200, summary="Approve Effort Estimate for a specific business case")
+async def approve_effort_estimate(
+    case_id: str,
+    current_user: dict = Depends(get_current_active_user)
+):
+    """
+    Approves the Effort Estimate for a specific business case.
+    Only the case initiator can approve effort estimates.
+    """
+    user_id = current_user.get("uid")
+    user_email = current_user.get("email", f"User {user_id}")
+    
+    if not user_id:
+        raise HTTPException(status_code=401, detail="User ID not found in token.")
+
+    try:
+        from app.agents.orchestrator_agent import BusinessCaseStatus
+        
+        db = firestore.Client(project=settings.firebase_project_id)
+        case_doc_ref = db.collection("businessCases").document(case_id)
+
+        doc_snapshot = await asyncio.to_thread(case_doc_ref.get)
+        if not doc_snapshot.exists:
+            raise HTTPException(status_code=404, detail=f"Business case {case_id} not found.")
+
+        case_data = doc_snapshot.to_dict()
+        if not case_data:
+            raise HTTPException(status_code=404, detail=f"Business case {case_id} data is empty.")
+
+        # Authorization check: only case initiator can approve effort estimates
+        if case_data.get("user_id") != user_id:
+            raise HTTPException(status_code=403, detail="You do not have permission to approve this effort estimate.")
+
+        # Status check: must be in EFFORT_PENDING_REVIEW
+        current_status = case_data.get("status")
+        if hasattr(current_status, 'value'):
+            current_status_str = current_status.value
+        else:
+            current_status_str = str(current_status)
+
+        if current_status_str != BusinessCaseStatus.EFFORT_PENDING_REVIEW.value:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Cannot approve effort estimate from current status: {current_status_str}"
+            )
+
+        # Prepare history entry
+        history_entry = {
+            "timestamp": datetime.now(timezone.utc),
+            "source": "USER",
+            "messageType": "EFFORT_ESTIMATE_APPROVAL",
+            "content": f"Effort Estimate approved by {user_email}"
+        }
+
+        # Update case status and add history entry
+        update_data = {
+            "status": BusinessCaseStatus.EFFORT_APPROVED.value,
+            "updated_at": datetime.now(timezone.utc),
+            "history": firestore.ArrayUnion([history_entry])
+        }
+
+        await asyncio.to_thread(case_doc_ref.update, update_data)
+
+        return {
+            "message": "Effort Estimate approved successfully",
+            "new_status": BusinessCaseStatus.EFFORT_APPROVED.value,
+            "case_id": case_id
+        }
+
+    except HTTPException as http_exc:
+        raise http_exc
+    except Exception as e:
+        import traceback
+        error_details = traceback.format_exc()
+        print(f"Error approving effort estimate for case {case_id}, user {user_id}: {e}")
+        print(f"Full traceback: {error_details}")
+        raise HTTPException(status_code=500, detail=f"Failed to approve effort estimate: {str(e)}")
+
+@router.post("/cases/{case_id}/effort-estimate/reject", status_code=200, summary="Reject Effort Estimate for a specific business case")
+async def reject_effort_estimate(
+    case_id: str,
+    reject_request: EffortEstimateRejectRequest = EffortEstimateRejectRequest(),
+    current_user: dict = Depends(get_current_active_user)
+):
+    """
+    Rejects the Effort Estimate for a specific business case.
+    Only the case initiator can reject effort estimates.
+    """
+    user_id = current_user.get("uid")
+    user_email = current_user.get("email", f"User {user_id}")
+    
+    if not user_id:
+        raise HTTPException(status_code=401, detail="User ID not found in token.")
+
+    try:
+        from app.agents.orchestrator_agent import BusinessCaseStatus
+        
+        db = firestore.Client(project=settings.firebase_project_id)
+        case_doc_ref = db.collection("businessCases").document(case_id)
+
+        doc_snapshot = await asyncio.to_thread(case_doc_ref.get)
+        if not doc_snapshot.exists:
+            raise HTTPException(status_code=404, detail=f"Business case {case_id} not found.")
+
+        case_data = doc_snapshot.to_dict()
+        if not case_data:
+            raise HTTPException(status_code=404, detail=f"Business case {case_id} data is empty.")
+
+        # Authorization check: only case initiator can reject effort estimates
+        if case_data.get("user_id") != user_id:
+            raise HTTPException(status_code=403, detail="You do not have permission to reject this effort estimate.")
+
+        # Status check: must be in EFFORT_PENDING_REVIEW
+        current_status = case_data.get("status")
+        if hasattr(current_status, 'value'):
+            current_status_str = current_status.value
+        else:
+            current_status_str = str(current_status)
+
+        if current_status_str != BusinessCaseStatus.EFFORT_PENDING_REVIEW.value:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Cannot reject effort estimate from current status: {current_status_str}"
+            )
+
+        # Prepare history entry with optional reason
+        rejection_message = f"Effort Estimate rejected by {user_email}"
+        if reject_request.reason:
+            rejection_message += f". Reason: {reject_request.reason}"
+
+        history_entry = {
+            "timestamp": datetime.now(timezone.utc),
+            "source": "USER",
+            "messageType": "EFFORT_ESTIMATE_REJECTION",
+            "content": rejection_message
+        }
+
+        # Update case status and add history entry (revert to PLANNING_COMPLETE for re-edit)
+        update_data = {
+            "status": BusinessCaseStatus.PLANNING_COMPLETE.value,
+            "updated_at": datetime.now(timezone.utc),
+            "history": firestore.ArrayUnion([history_entry])
+        }
+
+        await asyncio.to_thread(case_doc_ref.update, update_data)
+
+        return {
+            "message": "Effort Estimate rejected successfully",
+            "new_status": BusinessCaseStatus.PLANNING_COMPLETE.value,
+            "case_id": case_id
+        }
+
+    except HTTPException as http_exc:
+        raise http_exc
+    except Exception as e:
+        import traceback
+        error_details = traceback.format_exc()
+        print(f"Error rejecting effort estimate for case {case_id}, user {user_id}: {e}")
+        print(f"Full traceback: {error_details}")
+        raise HTTPException(status_code=500, detail=f"Failed to reject effort estimate: {str(e)}")
+
+@router.post("/cases/{case_id}/cost-estimate/approve", status_code=200, summary="Approve Cost Estimate for a specific business case")
+async def approve_cost_estimate(
+    case_id: str,
+    current_user: dict = Depends(get_current_active_user)
+):
+    """
+    Approves the Cost Estimate for a specific business case.
+    Only the case initiator can approve cost estimates.
+    """
+    user_id = current_user.get("uid")
+    user_email = current_user.get("email", f"User {user_id}")
+    
+    if not user_id:
+        raise HTTPException(status_code=401, detail="User ID not found in token.")
+
+    try:
+        from app.agents.orchestrator_agent import BusinessCaseStatus
+        
+        db = firestore.Client(project=settings.firebase_project_id)
+        case_doc_ref = db.collection("businessCases").document(case_id)
+
+        doc_snapshot = await asyncio.to_thread(case_doc_ref.get)
+        if not doc_snapshot.exists:
+            raise HTTPException(status_code=404, detail=f"Business case {case_id} not found.")
+
+        case_data = doc_snapshot.to_dict()
+        if not case_data:
+            raise HTTPException(status_code=404, detail=f"Business case {case_id} data is empty.")
+
+        # Authorization check: only case initiator can approve cost estimates
+        if case_data.get("user_id") != user_id:
+            raise HTTPException(status_code=403, detail="You do not have permission to approve this cost estimate.")
+
+        # Status check: must be in COSTING_PENDING_REVIEW
+        current_status = case_data.get("status")
+        if hasattr(current_status, 'value'):
+            current_status_str = current_status.value
+        else:
+            current_status_str = str(current_status)
+
+        if current_status_str != BusinessCaseStatus.COSTING_PENDING_REVIEW.value:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Cannot approve cost estimate from current status: {current_status_str}"
+            )
+
+        # Prepare history entry
+        history_entry = {
+            "timestamp": datetime.now(timezone.utc),
+            "source": "USER",
+            "messageType": "COST_ESTIMATE_APPROVAL",
+            "content": f"Cost Estimate approved by {user_email}"
+        }
+
+        # Update case status and add history entry
+        update_data = {
+            "status": BusinessCaseStatus.COSTING_APPROVED.value,
+            "updated_at": datetime.now(timezone.utc),
+            "history": firestore.ArrayUnion([history_entry])
+        }
+
+        await asyncio.to_thread(case_doc_ref.update, update_data)
+
+        return {
+            "message": "Cost Estimate approved successfully",
+            "new_status": BusinessCaseStatus.COSTING_APPROVED.value,
+            "case_id": case_id
+        }
+
+    except HTTPException as http_exc:
+        raise http_exc
+    except Exception as e:
+        import traceback
+        error_details = traceback.format_exc()
+        print(f"Error approving cost estimate for case {case_id}, user {user_id}: {e}")
+        print(f"Full traceback: {error_details}")
+        raise HTTPException(status_code=500, detail=f"Failed to approve cost estimate: {str(e)}")
+
+@router.post("/cases/{case_id}/cost-estimate/reject", status_code=200, summary="Reject Cost Estimate for a specific business case")
+async def reject_cost_estimate(
+    case_id: str,
+    reject_request: CostEstimateRejectRequest = CostEstimateRejectRequest(),
+    current_user: dict = Depends(get_current_active_user)
+):
+    """
+    Rejects the Cost Estimate for a specific business case.
+    Only the case initiator can reject cost estimates.
+    """
+    user_id = current_user.get("uid")
+    user_email = current_user.get("email", f"User {user_id}")
+    
+    if not user_id:
+        raise HTTPException(status_code=401, detail="User ID not found in token.")
+
+    try:
+        from app.agents.orchestrator_agent import BusinessCaseStatus
+        
+        db = firestore.Client(project=settings.firebase_project_id)
+        case_doc_ref = db.collection("businessCases").document(case_id)
+
+        doc_snapshot = await asyncio.to_thread(case_doc_ref.get)
+        if not doc_snapshot.exists:
+            raise HTTPException(status_code=404, detail=f"Business case {case_id} not found.")
+
+        case_data = doc_snapshot.to_dict()
+        if not case_data:
+            raise HTTPException(status_code=404, detail=f"Business case {case_id} data is empty.")
+
+        # Authorization check: only case initiator can reject cost estimates
+        if case_data.get("user_id") != user_id:
+            raise HTTPException(status_code=403, detail="You do not have permission to reject this cost estimate.")
+
+        # Status check: must be in COSTING_PENDING_REVIEW
+        current_status = case_data.get("status")
+        if hasattr(current_status, 'value'):
+            current_status_str = current_status.value
+        else:
+            current_status_str = str(current_status)
+
+        if current_status_str != BusinessCaseStatus.COSTING_PENDING_REVIEW.value:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Cannot reject cost estimate from current status: {current_status_str}"
+            )
+
+        # Prepare history entry with optional reason
+        rejection_message = f"Cost Estimate rejected by {user_email}"
+        if reject_request.reason:
+            rejection_message += f". Reason: {reject_request.reason}"
+
+        history_entry = {
+            "timestamp": datetime.now(timezone.utc),
+            "source": "USER",
+            "messageType": "COST_ESTIMATE_REJECTION",
+            "content": rejection_message
+        }
+
+        # Update case status and add history entry (revert to COSTING_COMPLETE for re-edit)
+        update_data = {
+            "status": BusinessCaseStatus.COSTING_COMPLETE.value,
+            "updated_at": datetime.now(timezone.utc),
+            "history": firestore.ArrayUnion([history_entry])
+        }
+
+        await asyncio.to_thread(case_doc_ref.update, update_data)
+
+        return {
+            "message": "Cost Estimate rejected successfully",
+            "new_status": BusinessCaseStatus.COSTING_COMPLETE.value,
+            "case_id": case_id
+        }
+
+    except HTTPException as http_exc:
+        raise http_exc
+    except Exception as e:
+        import traceback
+        error_details = traceback.format_exc()
+        print(f"Error rejecting cost estimate for case {case_id}, user {user_id}: {e}")
+        print(f"Full traceback: {error_details}")
+        raise HTTPException(status_code=500, detail=f"Failed to reject cost estimate: {str(e)}")
+
+@router.post("/cases/{case_id}/value-projection/approve", status_code=200, summary="Approve Value Projection for a specific business case")
+async def approve_value_projection(
+    case_id: str,
+    current_user: dict = Depends(get_current_active_user)
+):
+    """
+    Approves the Value Projection for a specific business case.
+    Option A (V1): Only the case initiator can approve value projections.
+    Option B (Future): Users with SALES_MANAGER_APPROVER role can approve.
+    """
+    user_id = current_user.get("uid")
+    user_email = current_user.get("email", f"User {user_id}")
+    
+    if not user_id:
+        raise HTTPException(status_code=401, detail="User ID not found in token.")
+
+    try:
+        from app.agents.orchestrator_agent import BusinessCaseStatus
+        
+        db = firestore.Client(project=settings.firebase_project_id)
+        case_doc_ref = db.collection("businessCases").document(case_id)
+
+        doc_snapshot = await asyncio.to_thread(case_doc_ref.get)
+        if not doc_snapshot.exists:
+            raise HTTPException(status_code=404, detail=f"Business case {case_id} not found.")
+
+        case_data = doc_snapshot.to_dict()
+        if not case_data:
+            raise HTTPException(status_code=404, detail=f"Business case {case_id} data is empty.")
+
+        # Authorization check for Value Projection approval
+        system_role = current_user.get("system_role") or current_user.get("systemRole")
+        
+        # Option A (V1 Simplest): Current user is the case initiator
+        # Option B (Preferred): Check for SALES_MANAGER_APPROVER role
+        is_case_initiator = case_data.get("user_id") == user_id
+        is_sales_manager_approver = system_role == "SALES_MANAGER_APPROVER"
+        
+        if not (is_case_initiator or is_sales_manager_approver):
+            raise HTTPException(
+                status_code=403, 
+                detail="You do not have permission to approve this value projection. Must be case initiator or have SALES_MANAGER_APPROVER role."
+            )
+
+        # Status check: must be in VALUE_PENDING_REVIEW
+        current_status = case_data.get("status")
+        if hasattr(current_status, 'value'):
+            current_status_str = current_status.value
+        else:
+            current_status_str = str(current_status)
+
+        if current_status_str != BusinessCaseStatus.VALUE_PENDING_REVIEW.value:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Cannot approve value projection from current status: {current_status_str}"
+            )
+
+        # Prepare history entry
+        history_entry = {
+            "timestamp": datetime.now(timezone.utc),
+            "source": "USER",
+            "messageType": "VALUE_PROJECTION_APPROVAL",
+            "content": f"Value Projection approved by {user_email}"
+        }
+
+        # Update case status and add history entry
+        update_data = {
+            "status": BusinessCaseStatus.VALUE_APPROVED.value,
+            "updated_at": datetime.now(timezone.utc),
+            "history": firestore.ArrayUnion([history_entry])
+        }
+
+        await asyncio.to_thread(case_doc_ref.update, update_data)
+
+        return {
+            "message": "Value Projection approved successfully",
+            "new_status": BusinessCaseStatus.VALUE_APPROVED.value,
+            "case_id": case_id
+        }
+
+    except HTTPException as http_exc:
+        raise http_exc
+    except Exception as e:
+        import traceback
+        error_details = traceback.format_exc()
+        print(f"Error approving value projection for case {case_id}, user {user_id}: {e}")
+        print(f"Full traceback: {error_details}")
+        raise HTTPException(status_code=500, detail=f"Failed to approve value projection: {str(e)}")
+
+@router.post("/cases/{case_id}/value-projection/reject", status_code=200, summary="Reject Value Projection for a specific business case")
+async def reject_value_projection(
+    case_id: str,
+    reject_request: ValueProjectionRejectRequest = ValueProjectionRejectRequest(),
+    current_user: dict = Depends(get_current_active_user)
+):
+    """
+    Rejects the Value Projection for a specific business case.
+    Option A (V1): Only the case initiator can reject value projections.
+    Option B (Future): Users with SALES_MANAGER_APPROVER role can reject.
+    """
+    user_id = current_user.get("uid")
+    user_email = current_user.get("email", f"User {user_id}")
+    
+    if not user_id:
+        raise HTTPException(status_code=401, detail="User ID not found in token.")
+
+    try:
+        from app.agents.orchestrator_agent import BusinessCaseStatus
+        
+        db = firestore.Client(project=settings.firebase_project_id)
+        case_doc_ref = db.collection("businessCases").document(case_id)
+
+        doc_snapshot = await asyncio.to_thread(case_doc_ref.get)
+        if not doc_snapshot.exists:
+            raise HTTPException(status_code=404, detail=f"Business case {case_id} not found.")
+
+        case_data = doc_snapshot.to_dict()
+        if not case_data:
+            raise HTTPException(status_code=404, detail=f"Business case {case_id} data is empty.")
+
+        # Authorization check for Value Projection rejection
+        system_role = current_user.get("system_role") or current_user.get("systemRole")
+        
+        # Option A (V1 Simplest): Current user is the case initiator
+        # Option B (Preferred): Check for SALES_MANAGER_APPROVER role
+        is_case_initiator = case_data.get("user_id") == user_id
+        is_sales_manager_approver = system_role == "SALES_MANAGER_APPROVER"
+        
+        if not (is_case_initiator or is_sales_manager_approver):
+            raise HTTPException(
+                status_code=403, 
+                detail="You do not have permission to reject this value projection. Must be case initiator or have SALES_MANAGER_APPROVER role."
+            )
+
+        # Status check: must be in VALUE_PENDING_REVIEW
+        current_status = case_data.get("status")
+        if hasattr(current_status, 'value'):
+            current_status_str = current_status.value
+        else:
+            current_status_str = str(current_status)
+
+        if current_status_str != BusinessCaseStatus.VALUE_PENDING_REVIEW.value:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Cannot reject value projection from current status: {current_status_str}"
+            )
+
+        # Prepare history entry with optional reason
+        rejection_message = f"Value Projection rejected by {user_email}"
+        if reject_request.reason:
+            rejection_message += f". Reason: {reject_request.reason}"
+
+        history_entry = {
+            "timestamp": datetime.now(timezone.utc),
+            "source": "USER",
+            "messageType": "VALUE_PROJECTION_REJECTION",
+            "content": rejection_message
+        }
+
+        # Update case status and add history entry (revert to VALUE_ANALYSIS_COMPLETE for re-edit)
+        update_data = {
+            "status": BusinessCaseStatus.VALUE_ANALYSIS_COMPLETE.value,
+            "updated_at": datetime.now(timezone.utc),
+            "history": firestore.ArrayUnion([history_entry])
+        }
+
+        await asyncio.to_thread(case_doc_ref.update, update_data)
+
+        return {
+            "message": "Value Projection rejected successfully",
+            "new_status": BusinessCaseStatus.VALUE_ANALYSIS_COMPLETE.value,
+            "case_id": case_id
+        }
+
+    except HTTPException as http_exc:
+        raise http_exc
+    except Exception as e:
+        import traceback
+        error_details = traceback.format_exc()
+        print(f"Error rejecting value projection for case {case_id}, user {user_id}: {e}")
+        print(f"Full traceback: {error_details}")
+        raise HTTPException(status_code=500, detail=f"Failed to reject value projection: {str(e)}") 

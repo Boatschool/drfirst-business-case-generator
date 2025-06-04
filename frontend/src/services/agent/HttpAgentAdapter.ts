@@ -231,6 +231,48 @@ export class HttpAgentAdapter implements AgentService {
       method: 'POST',
     });
   }
+
+  async approveEffortEstimate(caseId: string): Promise<{ message: string; new_status: string; case_id: string }> {
+    return this.fetchWithAuth<{ message: string; new_status: string; case_id: string }>(`/cases/${caseId}/effort-estimate/approve`, {
+      method: 'POST',
+    });
+  }
+
+  async rejectEffortEstimate(caseId: string, reason?: string): Promise<{ message: string; new_status: string; case_id: string }> {
+    const requestBody = reason ? { reason } : {};
+    return this.fetchWithAuth<{ message: string; new_status: string; case_id: string }>(`/cases/${caseId}/effort-estimate/reject`, {
+      method: 'POST',
+      body: JSON.stringify(requestBody),
+    });
+  }
+
+  async approveCostEstimate(caseId: string): Promise<{ message: string; new_status: string; case_id: string }> {
+    return this.fetchWithAuth<{ message: string; new_status: string; case_id: string }>(`/cases/${caseId}/cost-estimate/approve`, {
+      method: 'POST',
+    });
+  }
+
+  async rejectCostEstimate(caseId: string, reason?: string): Promise<{ message: string; new_status: string; case_id: string }> {
+    const requestBody = reason ? { reason } : {};
+    return this.fetchWithAuth<{ message: string; new_status: string; case_id: string }>(`/cases/${caseId}/cost-estimate/reject`, {
+      method: 'POST',
+      body: JSON.stringify(requestBody),
+    });
+  }
+
+  async approveValueProjection(caseId: string): Promise<{ message: string; new_status: string; case_id: string }> {
+    return this.fetchWithAuth<{ message: string; new_status: string; case_id: string }>(`/cases/${caseId}/value-projection/approve`, {
+      method: 'POST',
+    });
+  }
+
+  async rejectValueProjection(caseId: string, reason?: string): Promise<{ message: string; new_status: string; case_id: string }> {
+    const requestBody = reason ? { reason } : {};
+    return this.fetchWithAuth<{ message: string; new_status: string; case_id: string }>(`/cases/${caseId}/value-projection/reject`, {
+      method: 'POST',
+      body: JSON.stringify(requestBody),
+    });
+  }
 }
 
 // Export an instance if you prefer a singleton pattern for services

@@ -48,6 +48,12 @@ interface AgentContextType extends AgentContextState {
   submitCostEstimateForReview: (caseId: string) => Promise<boolean>;
   updateValueProjection: (caseId: string, data: ValueProjection) => Promise<boolean>;
   submitValueProjectionForReview: (caseId: string) => Promise<boolean>;
+  approveEffortEstimate: (caseId: string) => Promise<boolean>;
+  rejectEffortEstimate: (caseId: string, reason?: string) => Promise<boolean>;
+  approveCostEstimate: (caseId: string) => Promise<boolean>;
+  rejectCostEstimate: (caseId: string, reason?: string) => Promise<boolean>;
+  approveValueProjection: (caseId: string) => Promise<boolean>;
+  rejectValueProjection: (caseId: string, reason?: string) => Promise<boolean>;
   clearAgentState: () => void;
   clearCurrentCaseDetails: () => void;
   // TODO: Add a way to subscribe to agent updates via onAgentUpdate from AgentService
@@ -366,6 +372,96 @@ export const AgentProvider: React.FC<AgentProviderProps> = ({ children }) => {
     }
   }, [state.currentCaseId, fetchCaseDetails]);
 
+  const approveEffortEstimate = useCallback(async (caseId: string): Promise<boolean> => {
+    setState(prevState => ({ ...prevState, isLoading: true, error: null }));
+    try {
+      await agentService.approveEffortEstimate(caseId);
+      setState(prevState => ({ ...prevState, isLoading: false }));
+      if (caseId === state.currentCaseId) {
+        await fetchCaseDetails(caseId);
+      }
+      return true;
+    } catch (err: any) {
+      setState(prevState => ({ ...prevState, isLoading: false, error: err }));
+      return false;
+    }
+  }, [state.currentCaseId, fetchCaseDetails]);
+
+  const rejectEffortEstimate = useCallback(async (caseId: string, reason?: string): Promise<boolean> => {
+    setState(prevState => ({ ...prevState, isLoading: true, error: null }));
+    try {
+      await agentService.rejectEffortEstimate(caseId, reason);
+      setState(prevState => ({ ...prevState, isLoading: false }));
+      if (caseId === state.currentCaseId) {
+        await fetchCaseDetails(caseId);
+      }
+      return true;
+    } catch (err: any) {
+      setState(prevState => ({ ...prevState, isLoading: false, error: err }));
+      return false;
+    }
+  }, [state.currentCaseId, fetchCaseDetails]);
+
+  const approveCostEstimate = useCallback(async (caseId: string): Promise<boolean> => {
+    setState(prevState => ({ ...prevState, isLoading: true, error: null }));
+    try {
+      await agentService.approveCostEstimate(caseId);
+      setState(prevState => ({ ...prevState, isLoading: false }));
+      if (caseId === state.currentCaseId) {
+        await fetchCaseDetails(caseId);
+      }
+      return true;
+    } catch (err: any) {
+      setState(prevState => ({ ...prevState, isLoading: false, error: err }));
+      return false;
+    }
+  }, [state.currentCaseId, fetchCaseDetails]);
+
+  const rejectCostEstimate = useCallback(async (caseId: string, reason?: string): Promise<boolean> => {
+    setState(prevState => ({ ...prevState, isLoading: true, error: null }));
+    try {
+      await agentService.rejectCostEstimate(caseId, reason);
+      setState(prevState => ({ ...prevState, isLoading: false }));
+      if (caseId === state.currentCaseId) {
+        await fetchCaseDetails(caseId);
+      }
+      return true;
+    } catch (err: any) {
+      setState(prevState => ({ ...prevState, isLoading: false, error: err }));
+      return false;
+    }
+  }, [state.currentCaseId, fetchCaseDetails]);
+
+  const approveValueProjection = useCallback(async (caseId: string): Promise<boolean> => {
+    setState(prevState => ({ ...prevState, isLoading: true, error: null }));
+    try {
+      await agentService.approveValueProjection(caseId);
+      setState(prevState => ({ ...prevState, isLoading: false }));
+      if (caseId === state.currentCaseId) {
+        await fetchCaseDetails(caseId);
+      }
+      return true;
+    } catch (err: any) {
+      setState(prevState => ({ ...prevState, isLoading: false, error: err }));
+      return false;
+    }
+  }, [state.currentCaseId, fetchCaseDetails]);
+
+  const rejectValueProjection = useCallback(async (caseId: string, reason?: string): Promise<boolean> => {
+    setState(prevState => ({ ...prevState, isLoading: true, error: null }));
+    try {
+      await agentService.rejectValueProjection(caseId, reason);
+      setState(prevState => ({ ...prevState, isLoading: false }));
+      if (caseId === state.currentCaseId) {
+        await fetchCaseDetails(caseId);
+      }
+      return true;
+    } catch (err: any) {
+      setState(prevState => ({ ...prevState, isLoading: false, error: err }));
+      return false;
+    }
+  }, [state.currentCaseId, fetchCaseDetails]);
+
   const clearAgentState = useCallback(() => {
     setState({
       currentCaseId: null,
@@ -429,6 +525,12 @@ export const AgentProvider: React.FC<AgentProviderProps> = ({ children }) => {
     submitCostEstimateForReview,
     updateValueProjection,
     submitValueProjectionForReview,
+    approveEffortEstimate,
+    rejectEffortEstimate,
+    approveCostEstimate,
+    rejectCostEstimate,
+    approveValueProjection,
+    rejectValueProjection,
     clearAgentState,
     clearCurrentCaseDetails,
   };

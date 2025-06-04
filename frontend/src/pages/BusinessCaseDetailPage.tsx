@@ -163,6 +163,12 @@ const BusinessCaseDetailPage: React.FC = () => {
     submitCostEstimateForReview,
     updateValueProjection,
     submitValueProjectionForReview,
+    approveEffortEstimate,
+    rejectEffortEstimate,
+    approveCostEstimate,
+    rejectCostEstimate,
+    approveValueProjection,
+    rejectValueProjection,
     isLoading,
     error: agentContextError,
     clearCurrentCaseDetails,
@@ -176,7 +182,6 @@ const BusinessCaseDetailPage: React.FC = () => {
   const [editableSystemDesignContent, setEditableSystemDesignContent] = useState('');
   const [feedbackMessage, setFeedbackMessage] = useState('');
   const [isSendingFeedback, setIsSendingFeedback] = useState(false);
-  const [feedbackSendError, setFeedbackSendError] = useState<string | null>(null);
   const [prdUpdateError, setPrdUpdateError] = useState<string | null>(null);
   const [prdUpdateSuccess, setPrdUpdateSuccess] = useState<string | null>(null);
   const [systemDesignUpdateError, setSystemDesignUpdateError] = useState<string | null>(null);
@@ -189,6 +194,14 @@ const BusinessCaseDetailPage: React.FC = () => {
   const [isSystemDesignRejectDialogOpen, setIsSystemDesignRejectDialogOpen] = useState(false);
   const [rejectionReason, setRejectionReason] = useState('');
   const [systemDesignRejectionReason, setSystemDesignRejectionReason] = useState('');
+
+  // Financial estimate rejection dialogs
+  const [isEffortRejectDialogOpen, setIsEffortRejectDialogOpen] = useState(false);
+  const [isCostRejectDialogOpen, setIsCostRejectDialogOpen] = useState(false);
+  const [isValueRejectDialogOpen, setIsValueRejectDialogOpen] = useState(false);
+  const [effortRejectionReason, setEffortRejectionReason] = useState('');
+  const [costRejectionReason, setCostRejectionReason] = useState('');
+  const [valueRejectionReason, setValueRejectionReason] = useState('');
 
   // Financial estimate editing states
   const [isEditingEffortEstimate, setIsEditingEffortEstimate] = useState(false);
@@ -265,10 +278,10 @@ const BusinessCaseDetailPage: React.FC = () => {
     }
   };
 
+  // Note: handleSendFeedback is currently unused but left for potential future use
   const handleSendFeedback = async () => {
     if (!caseId || !feedbackMessage.trim() || !currentUser?.uid) return;
     setIsSendingFeedback(true);
-    setFeedbackSendError(null);
     try {
       await sendFeedbackToAgent({
         caseId,
@@ -276,7 +289,7 @@ const BusinessCaseDetailPage: React.FC = () => {
       });
       setFeedbackMessage('');
     } catch (err: any) {
-      setFeedbackSendError(err.message || 'Failed to send feedback. Please try again.');
+      console.error('Failed to send feedback:', err.message || 'Failed to send feedback. Please try again.');
     } finally {
       setIsSendingFeedback(false);
     }
@@ -588,6 +601,128 @@ const BusinessCaseDetailPage: React.FC = () => {
     }
   };
 
+  // Financial estimate approval/rejection handlers
+  const handleApproveEffortEstimate = async () => {
+    if (!caseId) return;
+    try {
+      const success = await approveEffortEstimate(caseId);
+      if (success) {
+        setApprovalSuccess('Effort Estimate approved successfully!');
+      } else {
+        setApprovalError('Failed to approve effort estimate. Please try again.');
+      }
+    } catch (error: any) {
+      setApprovalError(error.message || 'Failed to approve effort estimate.');
+    }
+  };
+
+  const handleRejectEffortEstimate = async () => {
+    if (!caseId) return;
+    try {
+      const success = await rejectEffortEstimate(caseId, effortRejectionReason || undefined);
+      if (success) {
+        setApprovalSuccess('Effort Estimate rejected successfully!');
+        setIsEffortRejectDialogOpen(false);
+        setEffortRejectionReason('');
+      } else {
+        setApprovalError('Failed to reject effort estimate. Please try again.');
+      }
+    } catch (error: any) {
+      setApprovalError(error.message || 'Failed to reject effort estimate.');
+    }
+  };
+
+  const handleApproveCostEstimate = async () => {
+    if (!caseId) return;
+    try {
+      const success = await approveCostEstimate(caseId);
+      if (success) {
+        setApprovalSuccess('Cost Estimate approved successfully!');
+      } else {
+        setApprovalError('Failed to approve cost estimate. Please try again.');
+      }
+    } catch (error: any) {
+      setApprovalError(error.message || 'Failed to approve cost estimate.');
+    }
+  };
+
+  const handleRejectCostEstimate = async () => {
+    if (!caseId) return;
+    try {
+      const success = await rejectCostEstimate(caseId, costRejectionReason || undefined);
+      if (success) {
+        setApprovalSuccess('Cost Estimate rejected successfully!');
+        setIsCostRejectDialogOpen(false);
+        setCostRejectionReason('');
+      } else {
+        setApprovalError('Failed to reject cost estimate. Please try again.');
+      }
+    } catch (error: any) {
+      setApprovalError(error.message || 'Failed to reject cost estimate.');
+    }
+  };
+
+  const handleApproveValueProjection = async () => {
+    if (!caseId) return;
+    try {
+      const success = await approveValueProjection(caseId);
+      if (success) {
+        setApprovalSuccess('Value Projection approved successfully!');
+      } else {
+        setApprovalError('Failed to approve value projection. Please try again.');
+      }
+    } catch (error: any) {
+      setApprovalError(error.message || 'Failed to approve value projection.');
+    }
+  };
+
+  const handleRejectValueProjection = async () => {
+    if (!caseId) return;
+    try {
+      const success = await rejectValueProjection(caseId, valueRejectionReason || undefined);
+      if (success) {
+        setApprovalSuccess('Value Projection rejected successfully!');
+        setIsValueRejectDialogOpen(false);
+        setValueRejectionReason('');
+      } else {
+        setApprovalError('Failed to reject value projection. Please try again.');
+      }
+    } catch (error: any) {
+      setApprovalError(error.message || 'Failed to reject value projection.');
+    }
+  };
+
+  // Dialog handlers for financial estimates
+  const handleOpenEffortRejectDialog = () => {
+    setIsEffortRejectDialogOpen(true);
+    setEffortRejectionReason('');
+  };
+
+  const handleCloseEffortRejectDialog = () => {
+    setIsEffortRejectDialogOpen(false);
+    setEffortRejectionReason('');
+  };
+
+  const handleOpenCostRejectDialog = () => {
+    setIsCostRejectDialogOpen(true);
+    setCostRejectionReason('');
+  };
+
+  const handleCloseCostRejectDialog = () => {
+    setIsCostRejectDialogOpen(false);
+    setCostRejectionReason('');
+  };
+
+  const handleOpenValueRejectDialog = () => {
+    setIsValueRejectDialogOpen(true);
+    setValueRejectionReason('');
+  };
+
+  const handleCloseValueRejectDialog = () => {
+    setIsValueRejectDialogOpen(false);
+    setValueRejectionReason('');
+  };
+
   // Helper functions to check permissions and status
   const canEditEffortEstimate = () => {
     if (!currentCaseDetails || !currentUser) return false;
@@ -631,6 +766,26 @@ const BusinessCaseDetailPage: React.FC = () => {
     return isInitiator && allowedStatuses.includes(currentCaseDetails.status) && currentCaseDetails.value_projection_v1;
   };
 
+  // Financial estimate approval/rejection permission helpers
+  const canApproveRejectEffortEstimate = () => {
+    if (!currentCaseDetails || !currentUser) return false;
+    const isInitiator = currentCaseDetails.user_id === currentUser.uid;
+    return isInitiator && currentCaseDetails.status === 'EFFORT_PENDING_REVIEW';
+  };
+
+  const canApproveRejectCostEstimate = () => {
+    if (!currentCaseDetails || !currentUser) return false;
+    const isInitiator = currentCaseDetails.user_id === currentUser.uid;
+    return isInitiator && currentCaseDetails.status === 'COSTING_PENDING_REVIEW';
+  };
+
+  const canApproveRejectValueProjection = () => {
+    if (!currentCaseDetails || !currentUser) return false;
+    const isInitiator = currentCaseDetails.user_id === currentUser.uid;
+    const isSalesManagerApprover = systemRole === 'SALES_MANAGER_APPROVER';
+    return (isInitiator || isSalesManagerApprover) && currentCaseDetails.status === 'VALUE_PENDING_REVIEW';
+  };
+
   if (isLoadingCaseDetails && !currentCaseDetails) {
     return <CircularProgress sx={{ display: 'block', margin: 'auto', mt: 5 }} />;
   }
@@ -657,7 +812,8 @@ const BusinessCaseDetailPage: React.FC = () => {
 
   const { title, status, problem_statement, relevant_links, prd_draft, system_design_v1_draft, effort_estimate_v1, cost_estimate_v1, value_projection_v1 } = currentCaseDetails;
 
-  const displayMessages = (messages || []).filter(msg => msg.messageType !== 'PRD_DRAFT');
+  // Note: displayMessages is currently unused but may be needed for future chat functionality
+  // const displayMessages = (messages || []).filter(msg => msg.messageType !== 'PRD_DRAFT');
 
   return (
     <Container maxWidth="lg" sx={{ py: 4 }}>
@@ -1023,6 +1179,30 @@ const BusinessCaseDetailPage: React.FC = () => {
                       Submit for Review
                     </Button>
                   )}
+                  {canApproveRejectEffortEstimate() && !isEditingEffortEstimate && (
+                    <>
+                      <Button
+                        variant="contained"
+                        size="small"
+                        color="success"
+                        startIcon={<CheckCircleIcon />}
+                        onClick={handleApproveEffortEstimate}
+                        disabled={isLoading}
+                      >
+                        Approve Effort
+                      </Button>
+                      <Button
+                        variant="outlined"
+                        size="small"
+                        color="error"
+                        startIcon={<RejectIcon />}
+                        onClick={handleOpenEffortRejectDialog}
+                        disabled={isLoading}
+                      >
+                        Reject Effort
+                      </Button>
+                    </>
+                  )}
                 </Stack>
               </Stack>
               
@@ -1203,6 +1383,30 @@ const BusinessCaseDetailPage: React.FC = () => {
                     >
                       Submit for Review
                     </Button>
+                  )}
+                  {canApproveRejectCostEstimate() && !isEditingCostEstimate && (
+                    <>
+                      <Button
+                        variant="contained"
+                        size="small"
+                        color="success"
+                        startIcon={<CheckCircleIcon />}
+                        onClick={handleApproveCostEstimate}
+                        disabled={isLoading}
+                      >
+                        Approve Cost
+                      </Button>
+                      <Button
+                        variant="outlined"
+                        size="small"
+                        color="error"
+                        startIcon={<RejectIcon />}
+                        onClick={handleOpenCostRejectDialog}
+                        disabled={isLoading}
+                      >
+                        Reject Cost
+                      </Button>
+                    </>
                   )}
                 </Stack>
               </Stack>
@@ -1394,6 +1598,30 @@ const BusinessCaseDetailPage: React.FC = () => {
                     >
                       Submit for Review
                     </Button>
+                  )}
+                  {canApproveRejectValueProjection() && !isEditingValueProjection && (
+                    <>
+                      <Button
+                        variant="contained"
+                        size="small"
+                        color="success"
+                        startIcon={<CheckCircleIcon />}
+                        onClick={handleApproveValueProjection}
+                        disabled={isLoading}
+                      >
+                        Approve Value
+                      </Button>
+                      <Button
+                        variant="outlined"
+                        size="small"
+                        color="error"
+                        startIcon={<RejectIcon />}
+                        onClick={handleOpenValueRejectDialog}
+                        disabled={isLoading}
+                      >
+                        Reject Value
+                      </Button>
+                    </>
                   )}
                 </Stack>
               </Stack>
@@ -1640,6 +1868,104 @@ const BusinessCaseDetailPage: React.FC = () => {
             disabled={isLoading}
           >
             {isLoading ? 'Rejecting...' : 'Reject System Design'}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Financial Estimate Rejection Dialogs */}
+      
+      {/* Effort Estimate Rejection Dialog */}
+      <Dialog open={isEffortRejectDialogOpen} onClose={handleCloseEffortRejectDialog} maxWidth="sm" fullWidth>
+        <DialogTitle>Reject Effort Estimate</DialogTitle>
+        <DialogContent>
+          <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+            Please provide a reason for rejecting this Effort Estimate (optional):
+          </Typography>
+          <TextField
+            fullWidth
+            multiline
+            rows={3}
+            value={effortRejectionReason}
+            onChange={(e) => setEffortRejectionReason(e.target.value)}
+            placeholder="Enter reason for rejection..."
+            variant="outlined"
+          />
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={handleCloseEffortRejectDialog} disabled={isLoading}>
+            Cancel
+          </Button>
+          <Button 
+            onClick={handleRejectEffortEstimate} 
+            color="error" 
+            variant="contained"
+            disabled={isLoading}
+          >
+            {isLoading ? 'Rejecting...' : 'Reject Effort Estimate'}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Cost Estimate Rejection Dialog */}
+      <Dialog open={isCostRejectDialogOpen} onClose={handleCloseCostRejectDialog} maxWidth="sm" fullWidth>
+        <DialogTitle>Reject Cost Estimate</DialogTitle>
+        <DialogContent>
+          <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+            Please provide a reason for rejecting this Cost Estimate (optional):
+          </Typography>
+          <TextField
+            fullWidth
+            multiline
+            rows={3}
+            value={costRejectionReason}
+            onChange={(e) => setCostRejectionReason(e.target.value)}
+            placeholder="Enter reason for rejection..."
+            variant="outlined"
+          />
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={handleCloseCostRejectDialog} disabled={isLoading}>
+            Cancel
+          </Button>
+          <Button 
+            onClick={handleRejectCostEstimate} 
+            color="error" 
+            variant="contained"
+            disabled={isLoading}
+          >
+            {isLoading ? 'Rejecting...' : 'Reject Cost Estimate'}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Value Projection Rejection Dialog */}
+      <Dialog open={isValueRejectDialogOpen} onClose={handleCloseValueRejectDialog} maxWidth="sm" fullWidth>
+        <DialogTitle>Reject Value Projection</DialogTitle>
+        <DialogContent>
+          <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+            Please provide a reason for rejecting this Value Projection (optional):
+          </Typography>
+          <TextField
+            fullWidth
+            multiline
+            rows={3}
+            value={valueRejectionReason}
+            onChange={(e) => setValueRejectionReason(e.target.value)}
+            placeholder="Enter reason for rejection..."
+            variant="outlined"
+          />
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={handleCloseValueRejectDialog} disabled={isLoading}>
+            Cancel
+          </Button>
+          <Button 
+            onClick={handleRejectValueProjection} 
+            color="error" 
+            variant="contained"
+            disabled={isLoading}
+          >
+            {isLoading ? 'Rejecting...' : 'Reject Value Projection'}
           </Button>
         </DialogActions>
       </Dialog>

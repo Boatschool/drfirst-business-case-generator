@@ -319,6 +319,51 @@ export interface AgentService {
    */
   submitValueProjectionForReview(caseId: string): Promise<{ message: string; new_status: string; case_id: string }>;
 
+  /**
+   * Approves the Effort Estimate for a business case.
+   * @param caseId - The ID of the business case to approve.
+   * @returns A promise that resolves with a confirmation message and the new status.
+   */
+  approveEffortEstimate(caseId: string): Promise<{ message: string; new_status: string; case_id: string }>;
+
+  /**
+   * Rejects the Effort Estimate for a business case with an optional reason.
+   * @param caseId - The ID of the business case to reject.
+   * @param reason - Optional rejection reason.
+   * @returns A promise that resolves with a confirmation message and the new status.
+   */
+  rejectEffortEstimate(caseId: string, reason?: string): Promise<{ message: string; new_status: string; case_id: string }>;
+
+  /**
+   * Approves the Cost Estimate for a business case.
+   * @param caseId - The ID of the business case to approve.
+   * @returns A promise that resolves with a confirmation message and the new status.
+   */
+  approveCostEstimate(caseId: string): Promise<{ message: string; new_status: string; case_id: string }>;
+
+  /**
+   * Rejects the Cost Estimate for a business case with an optional reason.
+   * @param caseId - The ID of the business case to reject.
+   * @param reason - Optional rejection reason.
+   * @returns A promise that resolves with a confirmation message and the new status.
+   */
+  rejectCostEstimate(caseId: string, reason?: string): Promise<{ message: string; new_status: string; case_id: string }>;
+
+  /**
+   * Approves the Value Projection for a business case.
+   * @param caseId - The ID of the business case to approve.
+   * @returns A promise that resolves with a confirmation message and the new status.
+   */
+  approveValueProjection(caseId: string): Promise<{ message: string; new_status: string; case_id: string }>;
+
+  /**
+   * Rejects the Value Projection for a business case with an optional reason.
+   * @param caseId - The ID of the business case to reject.
+   * @param reason - Optional rejection reason.
+   * @returns A promise that resolves with a confirmation message and the new status.
+   */
+  rejectValueProjection(caseId: string, reason?: string): Promise<{ message: string; new_status: string; case_id: string }>;
+
   // Potential future methods:
   // getCaseHistory(caseId: string): Promise<AgentUpdate[]>;
   // getCaseStatus(caseId: string): Promise<string>; // More detailed status object

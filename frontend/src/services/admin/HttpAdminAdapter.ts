@@ -3,7 +3,7 @@
  * Handles authenticated requests to the backend admin endpoints
  */
 
-import { AdminService, RateCard, PricingTemplate, CreateRateCardRequest, UpdateRateCardRequest, CreatePricingTemplateRequest, UpdatePricingTemplateRequest } from './AdminService';
+import { AdminService, RateCard, PricingTemplate, CreateRateCardRequest, UpdateRateCardRequest, CreatePricingTemplateRequest, UpdatePricingTemplateRequest, User } from './AdminService';
 import { authService } from '../auth/authService';
 
 export class HttpAdminAdapter implements AdminService {
@@ -191,6 +191,21 @@ export class HttpAdminAdapter implements AdminService {
       console.log(`[HttpAdminAdapter] Successfully deleted pricing template: ${templateId}`);
     } catch (error) {
       console.error('[HttpAdminAdapter] Error deleting pricing template:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Fetch all users from the backend (admin only)
+   */
+  async listUsers(): Promise<User[]> {
+    try {
+      console.log('[HttpAdminAdapter] Fetching users...');
+      const users = await this.fetchWithAuth<User[]>(`${this.apiBaseUrl}/admin/users`);
+      console.log(`[HttpAdminAdapter] Successfully fetched ${users.length} users`);
+      return users;
+    } catch (error) {
+      console.error('[HttpAdminAdapter] Error fetching users:', error);
       throw error;
     }
   }

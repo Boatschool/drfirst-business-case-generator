@@ -323,6 +323,28 @@ paths:
         '500':
           description: Internal Server Error
 
+  /api/v1/admin/users: # New admin endpoint for user management
+    get:
+      summary: List all users with their system roles (admin only)
+      operationId: listUsers
+      security:
+        - firebaseIdToken: []
+      produces:
+        - application/json
+      responses:
+        '200':
+          description: Successfully retrieved list of users
+          schema:
+            type: array
+            items:
+              $ref: '#/definitions/User'
+        '401':
+          description: Unauthorized (e.g., invalid token)
+        '403':
+          description: Forbidden (e.g., user does not have admin access)
+        '500':
+          description: Internal Server Error
+
 # Define data models used in responses or requests
 definitions:
   BusinessCaseSummary:
@@ -582,3 +604,43 @@ definitions:
             hourlyRate:
               type: number
               format: float 
+
+  User: # Definition for user model
+    type: object
+    properties:
+      uid:
+        type: string
+        description: "Unique user identifier (Firebase UID)."
+      email:
+        type: string
+        description: "User's email address."
+      display_name:
+        type: string
+        description: "User's display name."
+        nullable: true
+      systemRole:
+        type: string
+        description: "User's system role (e.g., ADMIN, USER, VIEWER)."
+        nullable: true
+      is_active:
+        type: boolean
+        description: "Whether the user is currently active."
+        default: true
+      created_at:
+        type: string
+        format: date-time
+        description: "Timestamp of user creation."
+        nullable: true
+      updated_at:
+        type: string
+        format: date-time
+        description: "Timestamp of last update."
+        nullable: true
+      last_login:
+        type: string
+        format: date-time
+        description: "Timestamp of last login."
+        nullable: true
+    required:
+      - uid
+      - email

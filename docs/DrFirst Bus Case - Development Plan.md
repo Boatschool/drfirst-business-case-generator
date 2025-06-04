@@ -195,8 +195,8 @@ The application now provides a professional, persistent chat experience that sup
 
 **Phase 7: Admin UI Enhancements & Role-Based Access Control (RBAC)**
 
-* **Focus:** Implement CRUD operations for Rate Cards and Pricing Templates in the Admin UI. Implement basic RBAC for accessing Admin features and potentially for approval steps.  
-* **Status:** PHASE COMPLETE ✅ - All Rate Card CRUD (Task 7.1), Pricing Template CRUD (Task 7.2), and Enterprise-Grade RBAC Implementation (Task 7.3) complete. Full admin interface with role-based security, complete user management, and production-ready access control. System now provides comprehensive admin functionality with enterprise-grade security suitable for immediate production deployment.
+* **Focus:** Implement CRUD operations for Rate Cards and Pricing Templates in the Admin UI. Implement basic RBAC for accessing Admin features and user management foundation.  
+* **Status:** PHASE COMPLETE ✅ - All Rate Card CRUD (Task 7.1), Pricing Template CRUD (Task 7.2), Enterprise-Grade RBAC Implementation (Task 7.3), and User Listing Foundation (Task 7.4) complete. Full admin interface with role-based security, complete user management visibility, and production-ready access control. System now provides comprehensive admin functionality with enterprise-grade security suitable for immediate production deployment.
 
 ---
 
@@ -256,6 +256,8 @@ The application now provides a professional, persistent chat experience that sup
 | 7.3.3 | Frontend Role Consumption: AuthContext systemRole parsing and isAdmin computed values with role-based helpers | COMPLETE | high | medium | 7.3.1, 7.3.2 | ✅ COMPLETE: Enhanced AuthService with getIdTokenResult() for custom claims extraction. Updated AuthContext with systemRole and isAdmin computed values. Complete role information available throughout application. |
 | 7.3.4 | Frontend Route Protection: AdminProtectedRoute component with professional access denied page and navigation | COMPLETE | high | medium | 7.3.3 | ✅ COMPLETE: Created AdminProtectedRoute component checking authentication AND admin role. Professional access denied page with current role display and navigation options. Applied to /admin route with nested structure. |
 | 7.3.5 | Backend API Protection: require_admin_role dependency protecting all admin endpoints with 403 for non-admin users | COMPLETE | high | medium | 7.3.1, 7.3.2 | ✅ COMPLETE: Created require_admin_role dependency validating systemRole === 'ADMIN' from custom claims. Protected all admin endpoints (rate-cards, pricing-templates, users, analytics). Detailed logging and proper error responses. |
+| 7.4 | **User Management (Admin UI)** | **COMPLETE** | **medium** | **low** | **7.3** | **✅ USER LISTING FOUNDATION COMPLETE** |
+| 7.4.1 | Basic User Listing in Admin UI (Read-Only Roles): Display list of users from Firestore users collection showing email and systemRole | COMPLETE | medium | low | 7.3 | ✅ COMPLETE: Enhanced AdminPage with professional user listing table. Backend GET /api/v1/admin/users endpoint with proper RBAC protection. Complete TypeScript interfaces and error handling. Material-UI design with loading states and professional UX. Read-only implementation with secure admin-only access. |
 
 | Task ID | Title | Status | Priority | Complexity | Dependencies | Notes |
 | :---- | :---- | :---- | :---- | :---- | :---- | :---- |

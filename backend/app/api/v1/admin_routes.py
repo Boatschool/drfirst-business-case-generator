@@ -75,6 +75,18 @@ class UpdatePricingTemplateRequest(BaseModel):
     version: Optional[str] = Field(None, min_length=1, max_length=20, description="Version of the pricing template")
     structureDefinition: Optional[Dict[str, Any]] = Field(None, description="Structure definition (JSON object)")
 
+# Add User Pydantic model near the top with other models
+class User(BaseModel):
+    """User model for API responses"""
+    uid: str
+    email: str
+    display_name: Optional[str] = None
+    systemRole: Optional[str] = None
+    is_active: Optional[bool] = True
+    created_at: Optional[str] = None
+    updated_at: Optional[str] = None
+    last_login: Optional[str] = None
+
 # Initialize Firestore client
 db = None
 try:
@@ -455,12 +467,50 @@ async def delete_pricing_template(
             detail=f"Failed to delete pricing template: {str(e)}"
         )
 
-# Legacy endpoints (kept for backwards compatibility)
-@router.get("/users", summary="List all users")
+# Replace the placeholder users endpoint with complete implementation
+@router.get("/users", response_model=List[User], summary="List all users")
 async def list_users(current_user: dict = Depends(require_admin_role)):
-    """Get a list of all users (admin only)"""
-    # TODO: Implement admin user listing
-    return {"message": "Admin users endpoint - implementation pending"}
+    """Get a list of all users with their system roles (admin only)"""
+    if not db:
+        raise HTTPException(
+            status_code=500,
+            detail="Database connection not available"
+        )
+    
+    try:
+        # Fetch all documents from users collection
+        users_ref = db.collection("users")
+        docs = await asyncio.to_thread(lambda: list(users_ref.stream()))
+        
+        users = []
+        for doc in docs:
+            user_data = doc.to_dict()
+            # Add document ID as uid if not present
+            if 'uid' not in user_data:
+                user_data['uid'] = doc.id
+            
+            # Create User object with safe field access
+            user = User(
+                uid=user_data.get('uid', doc.id),
+                email=user_data.get('email', 'N/A'),
+                display_name=user_data.get('display_name'),
+                systemRole=user_data.get('systemRole'),
+                is_active=user_data.get('is_active', True),
+                created_at=user_data.get('created_at'),
+                updated_at=user_data.get('updated_at'),
+                last_login=user_data.get('last_login')
+            )
+            users.append(user)
+        
+        print(f"[AdminAPI] Retrieved {len(users)} users for admin: {current_user.get('email', 'unknown')}")
+        return users
+        
+    except Exception as e:
+        print(f"[AdminAPI] Error fetching users: {e}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to fetch users: {str(e)}"
+        )
 
 @router.get("/analytics", summary="Get system analytics")
 async def get_analytics(current_user: dict = Depends(require_admin_role)):

@@ -91,6 +91,18 @@ export interface UpdatePricingTemplateRequest {
   };
 }
 
+// Add User interface near the top with other interfaces
+export interface User {
+  uid: string;
+  email: string;
+  display_name?: string;
+  systemRole?: string;
+  is_active?: boolean;
+  created_at?: string;
+  updated_at?: string;
+  last_login?: string;
+}
+
 /**
  * AdminService interface defines the contract for admin operations
  */
@@ -150,4 +162,10 @@ export interface AdminService {
    * @returns Promise<void>
    */
   deletePricingTemplate(templateId: string): Promise<void>;
+
+  /**
+   * Fetch all users from the backend (admin only)
+   * @returns Promise<User[]> List of users with their system roles
+   */
+  listUsers(): Promise<User[]>;
 } 

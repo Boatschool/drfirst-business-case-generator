@@ -44,6 +44,7 @@ import {
   AdminPanelSettings,
   AccountBalanceWallet,
   PriceCheck,
+  People as PeopleIcon,
   Add as AddIcon,
   Edit as EditIcon,
   Delete as DeleteIcon,
@@ -51,7 +52,7 @@ import {
   Cancel as CancelIcon,
 } from '@mui/icons-material';
 import { AuthContext } from '../contexts/AuthContext';
-import { RateCard, PricingTemplate, CreateRateCardRequest, UpdateRateCardRequest, CreatePricingTemplateRequest, UpdatePricingTemplateRequest } from '../services/admin/AdminService';
+import { RateCard, PricingTemplate, CreateRateCardRequest, UpdateRateCardRequest, CreatePricingTemplateRequest, UpdatePricingTemplateRequest, User } from '../services/admin/AdminService';
 import { HttpAdminAdapter } from '../services/admin/HttpAdminAdapter';
 
 interface RoleFormData {
@@ -103,6 +104,11 @@ const AdminPage: React.FC = () => {
   const [pricingTemplates, setPricingTemplates] = useState<PricingTemplate[]>([]);
   const [isLoadingPricingTemplates, setIsLoadingPricingTemplates] = useState(false);
   const [pricingTemplatesError, setPricingTemplatesError] = useState<string | null>(null);
+
+  // Users state
+  const [users, setUsers] = useState<User[]>([]);
+  const [isLoadingUsers, setIsLoadingUsers] = useState(false);
+  const [usersError, setUsersError] = useState<string | null>(null);
 
   // Modal states for Rate Cards
   const [createModalOpen, setCreateModalOpen] = useState(false);
@@ -207,11 +213,29 @@ const AdminPage: React.FC = () => {
     }
   }, [adminService]);
 
+  // Fetch users
+  const fetchUsers = useCallback(async () => {
+    setIsLoadingUsers(true);
+    setUsersError(null);
+    
+    try {
+      const usersList = await adminService.listUsers();
+      setUsers(usersList);
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Failed to fetch users';
+      setUsersError(errorMessage);
+      console.error('Error fetching users:', error);
+    } finally {
+      setIsLoadingUsers(false);
+    }
+  }, [adminService]);
+
   // Load data on component mount
   useEffect(() => {
     fetchRateCards();
     fetchPricingTemplates();
-  }, [fetchRateCards, fetchPricingTemplates]);
+    fetchUsers();
+  }, [fetchRateCards, fetchPricingTemplates, fetchUsers]);
 
   // Show notification
   const showNotification = (message: string, severity: 'success' | 'error' | 'info' | 'warning' = 'success') => {
@@ -862,6 +886,104 @@ const AdminPage: React.FC = () => {
                     </Grid>
                   ))}
                 </Grid>
+              )}
+            </Paper>
+          </Grid>
+
+          {/* Users Section */}
+          <Grid item xs={12}>
+            <Paper sx={{ p: 3 }}>
+                             <Box sx={{ display: 'flex', alignItems: 'center', mb: 3 }}>
+                 <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                   <PeopleIcon sx={{ mr: 2, color: 'primary.main' }} />
+                   <Typography variant="h5" component="h2">
+                     User Management
+                   </Typography>
+                 </Box>
+               </Box>
+
+              {isLoadingUsers && (
+                <Box sx={{ display: 'flex', justifyContent: 'center', p: 4 }}>
+                  <CircularProgress />
+                </Box>
+              )}
+
+              {usersError && (
+                <Alert severity="error" sx={{ mb: 2 }}>
+                  {usersError}
+                </Alert>
+              )}
+
+              {!isLoadingUsers && !usersError && users.length === 0 && (
+                <Alert severity="info">
+                  No users found in the system.
+                </Alert>
+              )}
+
+              {!isLoadingUsers && !usersError && users.length > 0 && (
+                <TableContainer>
+                  <Table>
+                    <TableHead>
+                      <TableRow>
+                        <TableCell>User ID</TableCell>
+                        <TableCell>Email</TableCell>
+                        <TableCell>Display Name</TableCell>
+                        <TableCell>System Role</TableCell>
+                        <TableCell>Status</TableCell>
+                        <TableCell>Last Login</TableCell>
+                      </TableRow>
+                    </TableHead>
+                    <TableBody>
+                      {users.map((user) => (
+                        <TableRow key={user.uid}>
+                          <TableCell>
+                            <Typography variant="body2" sx={{ fontFamily: 'monospace' }}>
+                              {user.uid}
+                            </Typography>
+                          </TableCell>
+                          <TableCell>
+                            <Typography variant="subtitle2" fontWeight="bold">
+                              {user.email}
+                            </Typography>
+                          </TableCell>
+                          <TableCell>
+                            <Typography variant="body2">
+                              {user.display_name || 'N/A'}
+                            </Typography>
+                          </TableCell>
+                          <TableCell>
+                            {user.systemRole ? (
+                              <Chip
+                                label={user.systemRole}
+                                color={user.systemRole === 'ADMIN' ? 'primary' : 'default'}
+                                size="small"
+                              />
+                            ) : (
+                              <Typography variant="body2" color="text.secondary">
+                                No Role Assigned
+                              </Typography>
+                            )}
+                          </TableCell>
+                          <TableCell>
+                            <Chip
+                              label={user.is_active !== false ? 'Active' : 'Inactive'}
+                              color={user.is_active !== false ? 'success' : 'default'}
+                              size="small"
+                            />
+                          </TableCell>
+                          <TableCell>
+                            <Typography variant="body2" color="text.secondary">
+                              {user.last_login 
+                                ? new Date(user.last_login).toLocaleDateString()
+                                : 'Never'
+                              }
+                            </Typography>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </TableContainer>
               )}
             </Paper>
           </Grid>

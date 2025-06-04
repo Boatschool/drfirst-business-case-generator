@@ -108,6 +108,28 @@ export interface ValueProjection {
 }
 
 /**
+ * Financial Summary structure from FinancialModelAgent
+ */
+export interface FinancialSummary {
+  total_estimated_cost: number;
+  currency: string;
+  value_scenarios: { [key: string]: number }; // e.g., { "Low": 75000, "Base": 175000, "High": 350000 }
+  financial_metrics: {
+    // Primary metrics for summary display
+    primary_net_value: number;
+    primary_roi_percentage: number | string;
+    simple_payback_period_years: number | string;
+    payback_period_note?: string;
+    // Per-scenario metrics (dynamic keys)
+    [key: string]: number | string | undefined;
+  };
+  cost_breakdown_source?: string; // e.g., "Default Development Rates V1"
+  value_methodology?: string; // e.g., "AI-assisted healthcare value projection"
+  notes?: string;
+  generated_timestamp?: string; // ISO 8601 timestamp
+}
+
+/**
  * Represents the full details of a business case.
  */
 export interface BusinessCaseDetails extends BusinessCaseSummary {
@@ -130,7 +152,7 @@ export interface BusinessCaseDetails extends BusinessCaseSummary {
   effort_estimate_v1?: EffortEstimate | null;       // New: Effort estimate from PlannerAgent
   cost_estimate_v1?: CostEstimate | null;           // New: Cost estimate from CostAnalystAgent
   value_projection_v1?: ValueProjection | null;     // New: Value projection from SalesValueAnalystAgent
-  // Add other fields as they are defined, e.g., financial_model
+  financial_summary_v1?: FinancialSummary | null;   // New: Financial summary from FinancialModelAgent
 }
 
 /**

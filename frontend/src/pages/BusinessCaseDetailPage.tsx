@@ -45,7 +45,7 @@ import {
 } from '@mui/icons-material';
 import ReactMarkdown from 'react-markdown';
 import { useAgentContext } from '../contexts/AgentContext';
-import { EffortEstimate, CostEstimate, ValueProjection } from '../services/agent/AgentService';
+import { EffortEstimate, CostEstimate, ValueProjection, FinancialSummary } from '../services/agent/AgentService';
 
 import { useAuth } from '../contexts/AuthContext';
 
@@ -1794,6 +1794,154 @@ const BusinessCaseDetailPage: React.FC = () => {
                       </Stack>
                     </>
                   )}
+                </CardContent>
+              </Card>
+            </Box>
+          </>
+        )}
+
+        {/* Financial Summary Section */}
+        {currentCaseDetails?.financial_summary_v1 && (
+          <>
+            <Divider sx={{ my: 3 }} />
+            <Box mb={3}>
+              <Stack direction="row" alignItems="center" spacing={1} mb={2}>
+                <MoneyIcon color="primary" />
+                <Typography variant="h5" gutterBottom sx={{ mb: 0 }}>Financial Model Summary</Typography>
+              </Stack>
+              
+              <Card variant="outlined" sx={{ mb: 2, backgroundColor: '#f8f9fa' }}>
+                <CardContent>
+                  <Stack spacing={3}>
+                    {/* Key Financial Metrics */}
+                    <Box>
+                      <Typography variant="h6" gutterBottom color="primary">
+                        Key Financial Metrics
+                      </Typography>
+                      <Stack direction="row" spacing={4} mb={2}>
+                        <Box>
+                          <Typography variant="h4" color="primary" fontWeight="bold">
+                            ${currentCaseDetails.financial_summary_v1.total_estimated_cost.toLocaleString()}
+                          </Typography>
+                          <Typography variant="body2" color="text.secondary">
+                            Total Estimated Cost ({currentCaseDetails.financial_summary_v1.currency})
+                          </Typography>
+                        </Box>
+                        <Box>
+                          <Typography variant="h4" color="success.main" fontWeight="bold">
+                            ${currentCaseDetails.financial_summary_v1.financial_metrics.primary_net_value.toLocaleString()}
+                          </Typography>
+                          <Typography variant="body2" color="text.secondary">
+                            Net Value (Base Case)
+                          </Typography>
+                        </Box>
+                        <Box>
+                          <Typography variant="h4" color="info.main" fontWeight="bold">
+                            {typeof currentCaseDetails.financial_summary_v1.financial_metrics.primary_roi_percentage === 'number' 
+                              ? `${currentCaseDetails.financial_summary_v1.financial_metrics.primary_roi_percentage.toFixed(1)}%`
+                              : currentCaseDetails.financial_summary_v1.financial_metrics.primary_roi_percentage}
+                          </Typography>
+                          <Typography variant="body2" color="text.secondary">
+                            Return on Investment (ROI)
+                          </Typography>
+                        </Box>
+                        <Box>
+                          <Typography variant="h4" color="warning.main" fontWeight="bold">
+                            {typeof currentCaseDetails.financial_summary_v1.financial_metrics.simple_payback_period_years === 'number'
+                              ? `${currentCaseDetails.financial_summary_v1.financial_metrics.simple_payback_period_years.toFixed(1)} years`
+                              : currentCaseDetails.financial_summary_v1.financial_metrics.simple_payback_period_years}
+                          </Typography>
+                          <Typography variant="body2" color="text.secondary">
+                            Estimated Payback Period
+                          </Typography>
+                        </Box>
+                      </Stack>
+                    </Box>
+
+                    {/* Value Scenarios */}
+                    {Object.keys(currentCaseDetails.financial_summary_v1.value_scenarios).length > 0 && (
+                      <Box>
+                        <Typography variant="h6" gutterBottom>
+                          Value Scenarios Analysis
+                        </Typography>
+                        <Stack direction="row" spacing={2}>
+                          {Object.entries(currentCaseDetails.financial_summary_v1.value_scenarios).map(([scenario, value]) => {
+                            const scenarioKey = scenario.toLowerCase().replace(' ', '_');
+                            const netValue = currentCaseDetails.financial_summary_v1?.financial_metrics[`net_value_${scenarioKey}`];
+                            const roi = currentCaseDetails.financial_summary_v1?.financial_metrics[`roi_${scenarioKey}_percentage`];
+                            
+                            return (
+                              <Card key={scenario} variant="outlined" sx={{ flex: 1 }}>
+                                <CardContent sx={{ textAlign: 'center' }}>
+                                  <Typography variant="h6" color="primary" gutterBottom>
+                                    {scenario} Case
+                                  </Typography>
+                                  <Typography variant="h5" fontWeight="bold" color="success.main" gutterBottom>
+                                    ${value.toLocaleString()}
+                                  </Typography>
+                                  <Typography variant="body2" color="text.secondary" gutterBottom>
+                                    Projected Value
+                                  </Typography>
+                                  {netValue !== undefined && (
+                                    <>
+                                      <Typography variant="body1" fontWeight="medium">
+                                        Net: ${typeof netValue === 'number' ? netValue.toLocaleString() : netValue}
+                                      </Typography>
+                                      <Typography variant="body2" color="text.secondary">
+                                        ROI: {typeof roi === 'number' ? `${roi.toFixed(1)}%` : roi}
+                                      </Typography>
+                                    </>
+                                  )}
+                                </CardContent>
+                              </Card>
+                            );
+                          })}
+                        </Stack>
+                      </Box>
+                    )}
+
+                    {/* Methodology and Sources */}
+                    <Box>
+                      <Typography variant="h6" gutterBottom>
+                        Analysis Methodology
+                      </Typography>
+                      <Stack spacing={1}>
+                        {currentCaseDetails.financial_summary_v1.cost_breakdown_source && (
+                          <Typography variant="body2">
+                            <strong>Cost Analysis:</strong> {currentCaseDetails.financial_summary_v1.cost_breakdown_source}
+                          </Typography>
+                        )}
+                        {currentCaseDetails.financial_summary_v1.value_methodology && (
+                          <Typography variant="body2">
+                            <strong>Value Methodology:</strong> {currentCaseDetails.financial_summary_v1.value_methodology}
+                          </Typography>
+                        )}
+                        {currentCaseDetails.financial_summary_v1.financial_metrics.payback_period_note && (
+                          <Typography variant="body2" color="text.secondary" sx={{ fontStyle: 'italic' }}>
+                            <strong>Payback Note:</strong> {currentCaseDetails.financial_summary_v1.financial_metrics.payback_period_note}
+                          </Typography>
+                        )}
+                      </Stack>
+                    </Box>
+
+                    {/* Additional Notes */}
+                    {currentCaseDetails.financial_summary_v1.notes && (
+                      <Box>
+                        <Typography variant="body2" color="text.secondary" sx={{ fontStyle: 'italic' }}>
+                          <strong>Notes:</strong> {currentCaseDetails.financial_summary_v1.notes}
+                        </Typography>
+                      </Box>
+                    )}
+
+                    {/* Generation Timestamp */}
+                    {currentCaseDetails.financial_summary_v1.generated_timestamp && (
+                      <Box>
+                        <Typography variant="caption" color="text.secondary">
+                          Financial summary generated on: {new Date(currentCaseDetails.financial_summary_v1.generated_timestamp).toLocaleString()}
+                        </Typography>
+                      </Box>
+                    )}
+                  </Stack>
                 </CardContent>
               </Card>
             </Box>

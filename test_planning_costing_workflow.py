@@ -108,7 +108,7 @@ async def test_planning_costing_workflow():
             print(f"   Rate Card: {cost_estimate['rate_card_used']}")
             print(f"   Method: {cost_estimate['calculation_method']}")
             print("   Role Cost Breakdown:")
-            for role_cost in cost_estimate["role_breakdown"]:
+            for role_cost in cost_estimate["breakdown_by_role"]:
                 print(f"     - {role_cost['role']}: {role_cost['hours']}h × ${role_cost['hourly_rate']}/h = ${role_cost['total_cost']:,.2f}")
         else:
             print(f"❌ Cost calculation failed: {cost_result['message']}")
@@ -127,7 +127,7 @@ async def test_planning_costing_workflow():
     # Verify data compatibility
     if effort_breakdown and cost_estimate:
         total_hours_check = sum(role['hours'] for role in effort_breakdown['roles'])
-        calculated_cost_check = sum(role['total_cost'] for role in cost_estimate['role_breakdown'])
+        calculated_cost_check = sum(role['total_cost'] for role in cost_estimate['breakdown_by_role'])
         
         print(f"✅ Data consistency checks:")
         print(f"   Effort total hours: {total_hours_check} (expected: {effort_breakdown['total_hours']})")

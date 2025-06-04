@@ -65,7 +65,7 @@ async def test_financial_api_response():
             print(f"✅ Cost Estimate found:")
             print(f"   Total Cost: ${cost.get('estimated_cost'):,.2f} {cost.get('currency')}")
             print(f"   Rate Card: {cost.get('rate_card_used')}")
-            print(f"   Role Breakdown: {len(cost.get('role_breakdown', []))} roles")
+            print(f"   Role Breakdown: {len(cost.get('breakdown_by_role', []))} roles")
         else:
             print("❌ Cost Estimate not found in API response")
         

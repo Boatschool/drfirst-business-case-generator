@@ -42,7 +42,7 @@ class BusinessCaseDetailsModel(BaseModel):
     effort_estimate_v1: Optional[Dict[str, Any]] = None     # New: Effort estimate from PlannerAgent
     cost_estimate_v1: Optional[Dict[str, Any]] = None       # New: Cost estimate from CostAnalystAgent
     value_projection_v1: Optional[Dict[str, Any]] = None    # New: Value projection from SalesValueAnalystAgent
-    # Add other fields as necessary, e.g., financial_model
+    financial_summary_v1: Optional[Dict[str, Any]] = None   # New: Financial summary from FinancialModelAgent
     created_at: datetime
     updated_at: datetime
 
@@ -152,6 +152,7 @@ async def get_case_details(
             effort_estimate_v1=data.get("effort_estimate_v1"),
             cost_estimate_v1=data.get("cost_estimate_v1"),
             value_projection_v1=data.get("value_projection_v1"),
+            financial_summary_v1=data.get("financial_summary_v1"),
             created_at=data.get("created_at"),
             updated_at=data.get("updated_at")
         )
@@ -337,7 +338,7 @@ class CostEstimateUpdateRequest(BaseModel):
     estimated_cost: float
     currency: str
     rate_card_used: Optional[str] = None
-    role_breakdown: List[Dict[str, Any]]
+    breakdown_by_role: List[Dict[str, Any]]
     calculation_method: Optional[str] = None
     notes: Optional[str] = None
 
@@ -1223,7 +1224,7 @@ async def update_cost_estimate(
             "estimated_cost": cost_update_request.estimated_cost,
             "currency": cost_update_request.currency,
             "rate_card_used": cost_update_request.rate_card_used,
-            "role_breakdown": cost_update_request.role_breakdown,
+            "breakdown_by_role": cost_update_request.breakdown_by_role,
             "calculation_method": cost_update_request.calculation_method,
             "notes": cost_update_request.notes
         }
@@ -1744,6 +1745,16 @@ async def approve_cost_estimate(
 
         await asyncio.to_thread(case_doc_ref.update, update_data)
 
+        # Check if we should trigger financial model generation
+        try:
+            from app.agents.orchestrator_agent import OrchestratorAgent
+            orchestrator = OrchestratorAgent()
+            financial_model_result = await orchestrator.check_and_trigger_financial_model(case_id)
+            print(f"Financial model check result: {financial_model_result}")
+        except Exception as e:
+            print(f"Error checking financial model trigger after cost approval: {e}")
+            # Don't fail the approval if financial model check fails
+
         return {
             "message": "Cost Estimate approved successfully",
             "new_status": BusinessCaseStatus.COSTING_APPROVED.value,
@@ -1915,6 +1926,16 @@ async def approve_value_projection(
         }
 
         await asyncio.to_thread(case_doc_ref.update, update_data)
+
+        # Check if we should trigger financial model generation
+        try:
+            from app.agents.orchestrator_agent import OrchestratorAgent
+            orchestrator = OrchestratorAgent()
+            financial_model_result = await orchestrator.check_and_trigger_financial_model(case_id)
+            print(f"Financial model check result: {financial_model_result}")
+        except Exception as e:
+            print(f"Error checking financial model trigger after value approval: {e}")
+            # Don't fail the approval if financial model check fails
 
         return {
             "message": "Value Projection approved successfully",

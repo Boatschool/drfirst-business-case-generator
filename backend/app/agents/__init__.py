@@ -5,6 +5,7 @@ from .architect_agent import ArchitectAgent
 from .planner_agent import PlannerAgent
 from .cost_analyst_agent import CostAnalystAgent
 from .sales_value_analyst_agent import SalesValueAnalystAgent
+from .financial_model_agent import FinancialModelAgent
 
 __all__ = [
     "OrchestratorAgent",
@@ -13,6 +14,7 @@ __all__ = [
     "PlannerAgent",
     "CostAnalystAgent",
     "SalesValueAnalystAgent",
+    "FinancialModelAgent",
     "BusinessCaseStatus",
     "BusinessCaseData"
 ] 

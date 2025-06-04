@@ -143,9 +143,9 @@ async def test_complete_business_case_workflow():
                 print(f"   Rate Card: {cost_data.get('rate_card_used', 'N/A')}")
                 
                 # Show role breakdown
-                if cost_data.get('role_breakdown'):
+                if cost_data.get('breakdown_by_role'):
                     print(f"   Role Breakdown:")
-                    for role_cost in cost_data['role_breakdown']:
+                    for role_cost in cost_data['breakdown_by_role']:
                         print(f"     - {role_cost['role']}: {role_cost['hours']}h @ ${role_cost['hourly_rate']}/h = ${role_cost['total_cost']:,.2f}")
                         
         else:

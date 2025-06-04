@@ -194,7 +194,7 @@ class HitlFinancialEstimatesTest:
             "estimated_cost": 45000.00,
             "currency": "USD",
             "rate_card_used": "Standard 2024 Rates (Updated)",
-            "role_breakdown": [
+            "breakdown_by_role": [
                 {
                     "role": "Senior Developer",
                     "hours": 120,

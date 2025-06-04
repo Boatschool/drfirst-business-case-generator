@@ -1459,7 +1459,7 @@ const BusinessCaseDetailPage: React.FC = () => {
                             </TableRow>
                           </TableHead>
                           <TableBody>
-                            {cost_estimate_v1.role_breakdown?.map((role, index) => (
+                            {cost_estimate_v1.breakdown_by_role?.map((role, index) => (
                               <TableRow key={index}>
                                 <TableCell>{role.role}</TableCell>
                                 <TableCell align="right">{role.hours}</TableCell>

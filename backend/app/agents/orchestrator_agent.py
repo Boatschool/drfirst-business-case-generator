@@ -22,6 +22,8 @@ from .planner_agent import PlannerAgent
 from .cost_analyst_agent import CostAnalystAgent
 # Import SalesValueAnalystAgent  
 from .sales_value_analyst_agent import SalesValueAnalystAgent
+# Import FinancialModelAgent
+from .financial_model_agent import FinancialModelAgent
 
 class BusinessCaseStatus(Enum):
     """Represents the various states of a business case lifecycle."""
@@ -50,6 +52,8 @@ class BusinessCaseStatus(Enum):
     VALUE_PENDING_REVIEW = "VALUE_PENDING_REVIEW"
     VALUE_APPROVED = "VALUE_APPROVED"
     VALUE_REJECTED = "VALUE_REJECTED"
+    FINANCIAL_MODEL_IN_PROGRESS = "FINANCIAL_MODEL_IN_PROGRESS"
+    FINANCIAL_MODEL_COMPLETE = "FINANCIAL_MODEL_COMPLETE"
     FINANCIAL_ANALYSIS = "FINANCIAL_ANALYSIS"
     FINAL_REVIEW = "FINAL_REVIEW"
     APPROVED = "APPROVED"
@@ -69,6 +73,7 @@ class BusinessCaseData(BaseModel):
     effort_estimate_v1: Optional[Dict[str, Any]] = Field(None, description="Generated effort estimate from PlannerAgent")
     cost_estimate_v1: Optional[Dict[str, Any]] = Field(None, description="Generated cost estimate from CostAnalystAgent")
     value_projection_v1: Optional[Dict[str, Any]] = Field(None, description="Generated value projection from SalesValueAnalystAgent")
+    financial_summary_v1: Optional[Dict[str, Any]] = Field(None, description="Generated financial summary from FinancialModelAgent")
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
@@ -106,6 +111,7 @@ class OrchestratorAgent:
         self.planner_agent = PlannerAgent()
         self.cost_analyst_agent = CostAnalystAgent()
         self.sales_value_analyst_agent = SalesValueAnalystAgent()
+        self.financial_model_agent = FinancialModelAgent()
         try:
             self.db = firestore.Client(project=settings.firebase_project_id)
             print("OrchestratorAgent: Firestore client initialized successfully.")
@@ -739,4 +745,202 @@ class OrchestratorAgent:
             "name": self.name,
             "status": self.status,
             "description": self.description
-        } 
+        }
+
+    async def check_and_trigger_financial_model(self, case_id: str) -> Dict[str, Any]:
+        """
+        Check if both cost estimate and value projection are approved, and if so,
+        trigger the FinancialModelAgent to generate a financial summary.
+        
+        Args:
+            case_id (str): The business case ID
+            
+        Returns:
+            Dict[str, Any]: Result of the check and potential financial model generation
+        """
+        if not self.db:
+            return {"status": "error", "message": "Firestore client not initialized"}
+        
+        try:
+            # Get the latest case data
+            case_doc_ref = self.db.collection("businessCases").document(case_id)
+            doc_snapshot = await asyncio.to_thread(case_doc_ref.get)
+            
+            if not doc_snapshot.exists:
+                return {"status": "error", "message": f"Business case {case_id} not found"}
+            
+            case_data = doc_snapshot.to_dict()
+            if not case_data:
+                return {"status": "error", "message": f"Business case {case_id} data is empty"}
+            
+            current_status = case_data.get("status")
+            cost_estimate = case_data.get("cost_estimate_v1")
+            value_projection = case_data.get("value_projection_v1")
+            
+            print(f"[OrchestratorAgent] Checking financial model trigger for case {case_id}")
+            print(f"[OrchestratorAgent] Current status: {current_status}")
+            print(f"[OrchestratorAgent] Cost estimate exists: {cost_estimate is not None}")
+            print(f"[OrchestratorAgent] Value projection exists: {value_projection is not None}")
+            
+            # Check if both are approved
+            if current_status == BusinessCaseStatus.COSTING_APPROVED.value:
+                # Cost was just approved, check if value is also approved
+                case_doc_ref_refresh = self.db.collection("businessCases").document(case_id)
+                doc_snapshot_refresh = await asyncio.to_thread(case_doc_ref_refresh.get)
+                case_data_refresh = doc_snapshot_refresh.to_dict()
+                
+                # Look for VALUE_APPROVED in the history or check if there's a value approval workflow completed
+                value_approved = False
+                for history_item in case_data_refresh.get("history", []):
+                    if history_item.get("messageType") == "VALUE_PROJECTION_APPROVAL":
+                        value_approved = True
+                        break
+                
+                if value_approved and cost_estimate and value_projection:
+                    print(f"[OrchestratorAgent] Both cost and value are approved, triggering financial model for case {case_id}")
+                    return await self._generate_financial_model(case_id, case_doc_ref, cost_estimate, value_projection, case_data.get("title", "Unknown"))
+                else:
+                    print(f"[OrchestratorAgent] Cost approved but value not yet approved for case {case_id}")
+                    return {"status": "success", "message": "Cost approved, waiting for value approval"}
+                    
+            elif current_status == BusinessCaseStatus.VALUE_APPROVED.value:
+                # Value was just approved, check if cost is also approved
+                case_doc_ref_refresh = self.db.collection("businessCases").document(case_id)
+                doc_snapshot_refresh = await asyncio.to_thread(case_doc_ref_refresh.get)
+                case_data_refresh = doc_snapshot_refresh.to_dict()
+                
+                # Look for COSTING_APPROVED in the history
+                cost_approved = False
+                for history_item in case_data_refresh.get("history", []):
+                    if history_item.get("messageType") == "COST_ESTIMATE_APPROVAL":
+                        cost_approved = True
+                        break
+                
+                if cost_approved and cost_estimate and value_projection:
+                    print(f"[OrchestratorAgent] Both cost and value are approved, triggering financial model for case {case_id}")
+                    return await self._generate_financial_model(case_id, case_doc_ref, cost_estimate, value_projection, case_data.get("title", "Unknown"))
+                else:
+                    print(f"[OrchestratorAgent] Value approved but cost not yet approved for case {case_id}")
+                    return {"status": "success", "message": "Value approved, waiting for cost approval"}
+            else:
+                print(f"[OrchestratorAgent] Neither cost nor value approval status detected for case {case_id}")
+                return {"status": "success", "message": "No action needed - financial model not ready"}
+                
+        except Exception as e:
+            error_msg = f"Error checking financial model trigger for case {case_id}: {str(e)}"
+            print(f"[OrchestratorAgent] {error_msg}")
+            return {"status": "error", "message": error_msg}
+
+    async def _generate_financial_model(self, case_id: str, case_doc_ref, cost_estimate: Dict[str, Any], value_projection: Dict[str, Any], case_title: str) -> Dict[str, Any]:
+        """
+        Generate financial model using the FinancialModelAgent.
+        
+        Args:
+            case_id (str): The business case ID
+            case_doc_ref: Firestore document reference
+            cost_estimate (Dict[str, Any]): Approved cost estimate data
+            value_projection (Dict[str, Any]): Approved value projection data
+            case_title (str): Case title
+            
+        Returns:
+            Dict[str, Any]: Result of financial model generation
+        """
+        print(f"[OrchestratorAgent] Starting financial model generation for case {case_id}")
+        
+        try:
+            # Update status to FINANCIAL_MODEL_IN_PROGRESS
+            current_time = datetime.now(timezone.utc)
+            update_data = {
+                "status": BusinessCaseStatus.FINANCIAL_MODEL_IN_PROGRESS.value,
+                "updated_at": current_time,
+                "history": firestore.ArrayUnion([{
+                    "timestamp": current_time.isoformat(),
+                    "source": "ORCHESTRATOR_AGENT",
+                    "type": "STATUS_UPDATE",
+                    "content": f"Status updated to {BusinessCaseStatus.FINANCIAL_MODEL_IN_PROGRESS.value}. FinancialModelAgent initiated for financial summary generation."
+                }])
+            }
+            await asyncio.to_thread(case_doc_ref.update, update_data)
+            
+            # Invoke FinancialModelAgent
+            financial_response = await self.financial_model_agent.generate_financial_summary(
+                cost_estimate=cost_estimate,
+                value_projection=value_projection,
+                case_title=case_title
+            )
+            
+            updated_at_time = datetime.now(timezone.utc)
+            
+            if financial_response.get("status") == "success" and financial_response.get("financial_summary"):
+                # Financial model generation successful
+                financial_summary = financial_response["financial_summary"]
+                
+                # Add timestamp to the financial summary
+                financial_summary["generated_timestamp"] = updated_at_time.isoformat()
+                
+                # Extract key metrics for history logging
+                primary_roi = financial_summary.get("financial_metrics", {}).get("primary_roi_percentage", "Unknown")
+                primary_net_value = financial_summary.get("financial_metrics", {}).get("primary_net_value", "Unknown")
+                currency = financial_summary.get("currency", "USD")
+                
+                # Update case with financial summary and change status to FINANCIAL_MODEL_COMPLETE
+                update_data = {
+                    "financial_summary_v1": financial_summary,
+                    "status": BusinessCaseStatus.FINANCIAL_MODEL_COMPLETE.value,
+                    "updated_at": updated_at_time,
+                    "history": firestore.ArrayUnion([
+                        {
+                            "timestamp": updated_at_time.isoformat(),
+                            "source": "FINANCIAL_MODEL_AGENT",
+                            "type": "FINANCIAL_SUMMARY",
+                            "content": f"Financial summary generated. ROI: {primary_roi}%, Net Value: {primary_net_value} {currency}"
+                        },
+                        {
+                            "timestamp": updated_at_time.isoformat(),
+                            "source": "ORCHESTRATOR_AGENT",
+                            "type": "STATUS_UPDATE",
+                            "content": f"Status updated to {BusinessCaseStatus.FINANCIAL_MODEL_COMPLETE.value}. Complete financial model generated."
+                        }
+                    ])
+                }
+                
+                await asyncio.to_thread(case_doc_ref.update, update_data)
+                
+                print(f"[OrchestratorAgent] Financial model generation completed successfully for case {case_id}")
+                return {
+                    "status": "success",
+                    "message": "Financial model generated successfully",
+                    "case_id": case_id,
+                    "financial_summary": financial_summary,
+                    "new_status": BusinessCaseStatus.FINANCIAL_MODEL_COMPLETE.value
+                }
+                
+            else:
+                # Financial model generation failed
+                error_message = financial_response.get("message", "Failed to generate financial model")
+                print(f"[OrchestratorAgent] FinancialModelAgent failed for case {case_id}: {error_message}")
+                
+                # Update with error information - revert to a stable state
+                update_data = {
+                    "status": BusinessCaseStatus.VALUE_APPROVED.value,  # Revert to stable state
+                    "updated_at": updated_at_time,
+                    "history": firestore.ArrayUnion([{
+                        "timestamp": updated_at_time.isoformat(),
+                        "source": "ORCHESTRATOR_AGENT",
+                        "type": "ERROR",
+                        "content": f"Financial model generation failed: {error_message}"
+                    }])
+                }
+                
+                await asyncio.to_thread(case_doc_ref.update, update_data)
+                
+                return {
+                    "status": "error",
+                    "message": f"Financial model generation failed: {error_message}",
+                    "case_id": case_id
+                }
+                
+        except Exception as e:
+            error_msg = f"Error in financial model generation for case {case_id}: {str(e)}"
+            print(f"[OrchestratorAgent] {error_msg}")
+            return {"status": "error", "message": error_msg} 

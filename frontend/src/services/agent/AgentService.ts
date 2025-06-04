@@ -72,14 +72,17 @@ export interface CostEstimate {
   estimated_cost: number;
   currency: string;
   rate_card_used?: string;
-  role_breakdown: Array<{
+  rate_card_id?: string;
+  breakdown_by_role: Array<{
     role: string;
     hours: number;
     hourly_rate: number;
     total_cost: number;
     currency: string;
+    rate_source?: string;
   }>;
   calculation_method?: string;
+  warnings?: string[];
   notes?: string;
 }
 

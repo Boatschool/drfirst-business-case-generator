@@ -31,7 +31,7 @@ async def check_case():
         print(f'  Total Cost: ${cost.get("estimated_cost"):,.2f} {cost.get("currency")}')
         print(f'  Rate Card: {cost.get("rate_card_used")}')
         print('  Role Cost Breakdown:')
-        for role in cost.get('role_breakdown', []):
+        for role in cost.get('breakdown_by_role', []):
             print(f'    - {role["role"]}: {role["hours"]}h × ${role["hourly_rate"]}/h = ${role["total_cost"]:,.2f}')
     
     print()

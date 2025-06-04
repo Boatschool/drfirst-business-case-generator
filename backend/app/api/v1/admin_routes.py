@@ -60,6 +60,21 @@ class UpdateRateCardRequest(BaseModel):
     defaultOverallRate: Optional[float] = Field(None, gt=0, description="Default overall hourly rate")
     roles: Optional[List[RoleRate]] = Field(None, description="List of roles with specific rates")
 
+# Pydantic models for Pricing Template operations
+class CreatePricingTemplateRequest(BaseModel):
+    """Request model for creating a new pricing template"""
+    name: str = Field(..., min_length=1, max_length=100, description="Name of the pricing template")
+    description: str = Field(..., min_length=1, max_length=500, description="Description of the pricing template")
+    version: str = Field(..., min_length=1, max_length=20, description="Version of the pricing template")
+    structureDefinition: Dict[str, Any] = Field(..., description="Structure definition (JSON object)")
+
+class UpdatePricingTemplateRequest(BaseModel):
+    """Request model for updating an existing pricing template"""
+    name: Optional[str] = Field(None, min_length=1, max_length=100, description="Name of the pricing template")
+    description: Optional[str] = Field(None, min_length=1, max_length=500, description="Description of the pricing template")
+    version: Optional[str] = Field(None, min_length=1, max_length=20, description="Version of the pricing template")
+    structureDefinition: Optional[Dict[str, Any]] = Field(None, description="Structure definition (JSON object)")
+
 # Initialize Firestore client
 db = None
 try:
@@ -286,6 +301,158 @@ async def list_pricing_templates(current_user: dict = Depends(get_current_active
         raise HTTPException(
             status_code=500,
             detail=f"Failed to fetch pricing templates: {str(e)}"
+        )
+
+@router.post("/pricing-templates", response_model=Dict[str, Any], summary="Create a new pricing template")
+async def create_pricing_template(
+    template_data: CreatePricingTemplateRequest,
+    current_user: dict = Depends(get_current_active_user)
+):
+    """Create a new pricing template (admin only)"""
+    if not db:
+        raise HTTPException(
+            status_code=500,
+            detail="Database connection not available"
+        )
+    
+    try:
+        # Generate unique ID for the new pricing template
+        template_id = str(uuid.uuid4())
+        current_time = datetime.now(timezone.utc).isoformat()
+        
+        # Prepare the pricing template document
+        template_doc = {
+            "name": template_data.name,
+            "description": template_data.description,
+            "version": template_data.version,
+            "structureDefinition": template_data.structureDefinition,
+            "created_at": current_time,
+            "updated_at": current_time,
+            "created_by": current_user.get('email', 'unknown'),
+            "updated_by": current_user.get('email', 'unknown')
+        }
+        
+        # Save to Firestore
+        templates_ref = db.collection("pricingTemplates")
+        await asyncio.to_thread(templates_ref.document(template_id).set, template_doc)
+        
+        # Return the created template with ID
+        template_doc['id'] = template_id
+        
+        print(f"[AdminAPI] Created new pricing template '{template_data.name}' with ID {template_id} by user: {current_user.get('email', 'unknown')}")
+        return template_doc
+        
+    except Exception as e:
+        print(f"[AdminAPI] Error creating pricing template: {e}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to create pricing template: {str(e)}"
+        )
+
+@router.put("/pricing-templates/{template_id}", response_model=Dict[str, Any], summary="Update an existing pricing template")
+async def update_pricing_template(
+    template_id: str,
+    template_data: UpdatePricingTemplateRequest,
+    current_user: dict = Depends(get_current_active_user)
+):
+    """Update an existing pricing template (admin only)"""
+    if not db:
+        raise HTTPException(
+            status_code=500,
+            detail="Database connection not available"
+        )
+    
+    try:
+        # Check if pricing template exists
+        templates_ref = db.collection("pricingTemplates")
+        doc_ref = templates_ref.document(template_id)
+        doc = await asyncio.to_thread(doc_ref.get)
+        
+        if not doc.exists:
+            raise HTTPException(
+                status_code=404,
+                detail=f"Pricing template with ID {template_id} not found"
+            )
+        
+        # Prepare update data (only include non-None fields)
+        update_data = {}
+        if template_data.name is not None:
+            update_data["name"] = template_data.name
+        if template_data.description is not None:
+            update_data["description"] = template_data.description
+        if template_data.version is not None:
+            update_data["version"] = template_data.version
+        if template_data.structureDefinition is not None:
+            update_data["structureDefinition"] = template_data.structureDefinition
+        
+        # Always update timestamp and user
+        update_data["updated_at"] = datetime.now(timezone.utc).isoformat()
+        update_data["updated_by"] = current_user.get('email', 'unknown')
+        
+        # Update the document
+        await asyncio.to_thread(doc_ref.update, update_data)
+        
+        # Fetch and return the updated document
+        updated_doc = await asyncio.to_thread(doc_ref.get)
+        updated_data = updated_doc.to_dict()
+        updated_data['id'] = template_id
+        
+        print(f"[AdminAPI] Updated pricing template {template_id} by user: {current_user.get('email', 'unknown')}")
+        return updated_data
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"[AdminAPI] Error updating pricing template: {e}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to update pricing template: {str(e)}"
+        )
+
+@router.delete("/pricing-templates/{template_id}", response_model=Dict[str, str], summary="Delete a pricing template")
+async def delete_pricing_template(
+    template_id: str,
+    current_user: dict = Depends(get_current_active_user)
+):
+    """Delete a pricing template (admin only)"""
+    if not db:
+        raise HTTPException(
+            status_code=500,
+            detail="Database connection not available"
+        )
+    
+    try:
+        # Check if pricing template exists
+        templates_ref = db.collection("pricingTemplates")
+        doc_ref = templates_ref.document(template_id)
+        doc = await asyncio.to_thread(doc_ref.get)
+        
+        if not doc.exists:
+            raise HTTPException(
+                status_code=404,
+                detail=f"Pricing template with ID {template_id} not found"
+            )
+        
+        # Get template name for logging
+        template_data = doc.to_dict()
+        template_name = template_data.get('name', 'Unknown')
+        
+        # Delete the document
+        await asyncio.to_thread(doc_ref.delete)
+        
+        print(f"[AdminAPI] Deleted pricing template '{template_name}' (ID: {template_id}) by user: {current_user.get('email', 'unknown')}")
+        return {
+            "message": f"Pricing template '{template_name}' deleted successfully",
+            "deleted_id": template_id
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"[AdminAPI] Error deleting pricing template: {e}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to delete pricing template: {str(e)}"
         )
 
 # Legacy endpoints (kept for backwards compatibility)

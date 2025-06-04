@@ -51,7 +51,7 @@ import {
   Cancel as CancelIcon,
 } from '@mui/icons-material';
 import { AuthContext } from '../contexts/AuthContext';
-import { RateCard, PricingTemplate, CreateRateCardRequest, UpdateRateCardRequest } from '../services/admin/AdminService';
+import { RateCard, PricingTemplate, CreateRateCardRequest, UpdateRateCardRequest, CreatePricingTemplateRequest, UpdatePricingTemplateRequest } from '../services/admin/AdminService';
 import { HttpAdminAdapter } from '../services/admin/HttpAdminAdapter';
 
 interface RoleFormData {
@@ -74,6 +74,20 @@ interface RateCardFormErrors {
   roles?: string;
 }
 
+interface PricingTemplateFormData {
+  name: string;
+  description: string;
+  version: string;
+  structureDefinition: string; // JSON string for the form
+}
+
+interface PricingTemplateFormErrors {
+  name?: string;
+  description?: string;
+  version?: string;
+  structureDefinition?: string;
+}
+
 const AdminPage: React.FC = () => {
   const authContext = useContext(AuthContext);
   
@@ -90,13 +104,19 @@ const AdminPage: React.FC = () => {
   const [isLoadingPricingTemplates, setIsLoadingPricingTemplates] = useState(false);
   const [pricingTemplatesError, setPricingTemplatesError] = useState<string | null>(null);
 
-  // Modal states
+  // Modal states for Rate Cards
   const [createModalOpen, setCreateModalOpen] = useState(false);
   const [editModalOpen, setEditModalOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [selectedRateCard, setSelectedRateCard] = useState<RateCard | null>(null);
+  
+  // Modal states for Pricing Templates
+  const [createTemplateModalOpen, setCreateTemplateModalOpen] = useState(false);
+  const [editTemplateModalOpen, setEditTemplateModalOpen] = useState(false);
+  const [deleteTemplateDialogOpen, setDeleteTemplateDialogOpen] = useState(false);
+  const [selectedPricingTemplate, setSelectedPricingTemplate] = useState<PricingTemplate | null>(null);
 
-  // Form states
+  // Form states for Rate Cards
   const [formData, setFormData] = useState<RateCardFormData>({
     name: '',
     description: '',
@@ -105,6 +125,23 @@ const AdminPage: React.FC = () => {
     roles: []
   });
   const [formErrors, setFormErrors] = useState<RateCardFormErrors>({});
+  
+  // Form states for Pricing Templates
+  const [templateFormData, setTemplateFormData] = useState<PricingTemplateFormData>({
+    name: '',
+    description: '',
+    version: '1.0',
+    structureDefinition: JSON.stringify({
+      type: 'LowBaseHigh',
+      scenarios: [
+        { case: 'low', value: 5000, description: 'Conservative estimate' },
+        { case: 'base', value: 15000, description: 'Most likely scenario' },
+        { case: 'high', value: 30000, description: 'Optimistic scenario' }
+      ]
+    }, null, 2)
+  });
+  const [templateFormErrors, setTemplateFormErrors] = useState<PricingTemplateFormErrors>({});
+  
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Notification states
@@ -175,7 +212,7 @@ const AdminPage: React.FC = () => {
     setSnackbar(prev => ({ ...prev, open: false }));
   };
 
-  // Reset form data
+  // Reset form data for Rate Cards
   const resetFormData = () => {
     setFormData({
       name: '',
@@ -185,6 +222,24 @@ const AdminPage: React.FC = () => {
       roles: []
     });
     setFormErrors({});
+  };
+
+  // Reset form data for Pricing Templates
+  const resetTemplateFormData = () => {
+    setTemplateFormData({
+      name: '',
+      description: '',
+      version: '1.0',
+      structureDefinition: JSON.stringify({
+        type: 'LowBaseHigh',
+        scenarios: [
+          { case: 'low', value: 5000, description: 'Conservative estimate' },
+          { case: 'base', value: 15000, description: 'Most likely scenario' },
+          { case: 'high', value: 30000, description: 'Optimistic scenario' }
+        ]
+      }, null, 2)
+    });
+    setTemplateFormErrors({});
   };
 
   // Validate form data
@@ -381,6 +436,161 @@ const AdminPage: React.FC = () => {
     setSelectedRateCard(null);
   };
 
+  // Validate form data for Pricing Templates
+  const validateTemplateFormData = (data: PricingTemplateFormData): PricingTemplateFormErrors => {
+    const errors: PricingTemplateFormErrors = {};
+
+    if (!data.name.trim()) {
+      errors.name = 'Name is required';
+    } else if (data.name.length > 100) {
+      errors.name = 'Name must be 100 characters or less';
+    }
+
+    if (!data.description.trim()) {
+      errors.description = 'Description is required';
+    } else if (data.description.length > 500) {
+      errors.description = 'Description must be 500 characters or less';
+    }
+
+    if (!data.version.trim()) {
+      errors.version = 'Version is required';
+    } else if (data.version.length > 20) {
+      errors.version = 'Version must be 20 characters or less';
+    }
+
+    if (!data.structureDefinition.trim()) {
+      errors.structureDefinition = 'Structure definition is required';
+    } else {
+      try {
+        JSON.parse(data.structureDefinition);
+      } catch (e) {
+        errors.structureDefinition = 'Structure definition must be valid JSON';
+      }
+    }
+
+    return errors;
+  };
+
+  // Pricing Template Handlers
+  const handleCreatePricingTemplate = () => {
+    resetTemplateFormData();
+    setCreateTemplateModalOpen(true);
+  };
+
+  const handleEditPricingTemplate = (template: PricingTemplate) => {
+    setSelectedPricingTemplate(template);
+    setTemplateFormData({
+      name: template.name,
+      description: template.description,
+      version: template.version,
+      structureDefinition: JSON.stringify(template.structureDefinition, null, 2)
+    });
+    setTemplateFormErrors({});
+    setEditTemplateModalOpen(true);
+  };
+
+  const handleDeletePricingTemplate = (template: PricingTemplate) => {
+    setSelectedPricingTemplate(template);
+    setDeleteTemplateDialogOpen(true);
+  };
+
+  const handleSubmitCreateTemplate = async () => {
+    const errors = validateTemplateFormData(templateFormData);
+    setTemplateFormErrors(errors);
+
+    if (Object.keys(errors).length > 0) {
+      return;
+    }
+
+    setIsSubmitting(true);
+    try {
+      const createData: CreatePricingTemplateRequest = {
+        name: templateFormData.name,
+        description: templateFormData.description,
+        version: templateFormData.version,
+        structureDefinition: JSON.parse(templateFormData.structureDefinition)
+      };
+
+      await adminService.createPricingTemplate(createData);
+      showNotification('Pricing template created successfully!');
+      setCreateTemplateModalOpen(false);
+      resetTemplateFormData();
+      await fetchPricingTemplates(); // Refresh the list
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Failed to create pricing template';
+      showNotification(errorMessage, 'error');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleSubmitEditTemplate = async () => {
+    if (!selectedPricingTemplate) return;
+
+    const errors = validateTemplateFormData(templateFormData);
+    setTemplateFormErrors(errors);
+
+    if (Object.keys(errors).length > 0) {
+      return;
+    }
+
+    setIsSubmitting(true);
+    try {
+      const updateData: UpdatePricingTemplateRequest = {
+        name: templateFormData.name,
+        description: templateFormData.description,
+        version: templateFormData.version,
+        structureDefinition: JSON.parse(templateFormData.structureDefinition)
+      };
+
+      await adminService.updatePricingTemplate(selectedPricingTemplate.id, updateData);
+      showNotification('Pricing template updated successfully!');
+      setEditTemplateModalOpen(false);
+      setSelectedPricingTemplate(null);
+      resetTemplateFormData();
+      await fetchPricingTemplates(); // Refresh the list
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Failed to update pricing template';
+      showNotification(errorMessage, 'error');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleConfirmDeleteTemplate = async () => {
+    if (!selectedPricingTemplate) return;
+
+    setIsSubmitting(true);
+    try {
+      await adminService.deletePricingTemplate(selectedPricingTemplate.id);
+      showNotification(`Pricing template "${selectedPricingTemplate.name}" deleted successfully!`);
+      setDeleteTemplateDialogOpen(false);
+      setSelectedPricingTemplate(null);
+      await fetchPricingTemplates(); // Refresh the list
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Failed to delete pricing template';
+      showNotification(errorMessage, 'error');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleCloseCreateTemplateModal = () => {
+    setCreateTemplateModalOpen(false);
+    resetTemplateFormData();
+  };
+
+  const handleCloseEditTemplateModal = () => {
+    setEditTemplateModalOpen(false);
+    setSelectedPricingTemplate(null);
+    resetTemplateFormData();
+  };
+
+  const handleCloseDeleteTemplateDialog = () => {
+    setDeleteTemplateDialogOpen(false);
+    setSelectedPricingTemplate(null);
+  };
+
   return (
     <Container maxWidth="lg">
       <Box sx={{ my: 4 }}>
@@ -519,11 +729,21 @@ const AdminPage: React.FC = () => {
           {/* Pricing Templates Section */}
           <Grid item xs={12}>
             <Paper sx={{ p: 3 }}>
-              <Box sx={{ display: 'flex', alignItems: 'center', mb: 3 }}>
-                <PriceCheck sx={{ mr: 2, color: 'primary.main' }} />
-                <Typography variant="h5" component="h2">
-                  Pricing Templates
-                </Typography>
+              <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 3 }}>
+                <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                  <PriceCheck sx={{ mr: 2, color: 'primary.main' }} />
+                  <Typography variant="h5" component="h2">
+                    Pricing Templates
+                  </Typography>
+                </Box>
+                <Button
+                  variant="contained"
+                  startIcon={<AddIcon />}
+                  onClick={handleCreatePricingTemplate}
+                  disabled={isLoadingPricingTemplates}
+                >
+                  Create New Pricing Template
+                </Button>
               </Box>
 
               {isLoadingPricingTemplates && (
@@ -550,9 +770,32 @@ const AdminPage: React.FC = () => {
                     <Grid item xs={12} md={6} key={template.id}>
                       <Card variant="outlined">
                         <CardContent>
-                          <Typography variant="h6" component="h3" gutterBottom>
-                            {template.name}
-                          </Typography>
+                          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 2 }}>
+                            <Typography variant="h6" component="h3" gutterBottom>
+                              {template.name}
+                            </Typography>
+                            <Stack direction="row" spacing={1}>
+                              <Tooltip title="Edit pricing template">
+                                <IconButton
+                                  size="small"
+                                  onClick={() => handleEditPricingTemplate(template)}
+                                  disabled={isSubmitting}
+                                >
+                                  <EditIcon />
+                                </IconButton>
+                              </Tooltip>
+                              <Tooltip title="Delete pricing template">
+                                <IconButton
+                                  size="small"
+                                  onClick={() => handleDeletePricingTemplate(template)}
+                                  disabled={isSubmitting}
+                                  color="error"
+                                >
+                                  <DeleteIcon />
+                                </IconButton>
+                              </Tooltip>
+                            </Stack>
+                          </Box>
                           <Typography variant="body2" color="text.secondary" paragraph>
                             {template.description}
                           </Typography>
@@ -847,7 +1090,7 @@ const AdminPage: React.FC = () => {
         </DialogActions>
       </Dialog>
 
-      {/* Delete Confirmation Dialog */}
+      {/* Delete Rate Card Confirmation Dialog */}
       <Dialog
         open={deleteDialogOpen}
         onClose={handleCloseDeleteDialog}
@@ -871,6 +1114,186 @@ const AdminPage: React.FC = () => {
           </Button>
           <Button
             onClick={handleConfirmDelete}
+            variant="contained"
+            color="error"
+            disabled={isSubmitting}
+            startIcon={isSubmitting ? <CircularProgress size={20} /> : <DeleteIcon />}
+          >
+            {isSubmitting ? 'Deleting...' : 'Delete'}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Create Pricing Template Modal */}
+      <Dialog
+        open={createTemplateModalOpen}
+        onClose={handleCloseCreateTemplateModal}
+        maxWidth="md"
+        fullWidth
+        disableEscapeKeyDown={isSubmitting}
+      >
+        <DialogTitle>Create New Pricing Template</DialogTitle>
+        <DialogContent>
+          <Stack spacing={3} sx={{ mt: 1 }}>
+            <TextField
+              label="Name"
+              value={templateFormData.name}
+              onChange={(e) => setTemplateFormData(prev => ({ ...prev, name: e.target.value }))}
+              error={!!templateFormErrors.name}
+              helperText={templateFormErrors.name}
+              fullWidth
+              required
+            />
+            <TextField
+              label="Description"
+              value={templateFormData.description}
+              onChange={(e) => setTemplateFormData(prev => ({ ...prev, description: e.target.value }))}
+              error={!!templateFormErrors.description}
+              helperText={templateFormErrors.description}
+              fullWidth
+              required
+              multiline
+              rows={3}
+            />
+            <TextField
+              label="Version"
+              value={templateFormData.version}
+              onChange={(e) => setTemplateFormData(prev => ({ ...prev, version: e.target.value }))}
+              error={!!templateFormErrors.version}
+              helperText={templateFormErrors.version}
+              fullWidth
+              required
+            />
+            <TextField
+              label="Structure Definition (JSON)"
+              value={templateFormData.structureDefinition}
+              onChange={(e) => setTemplateFormData(prev => ({ ...prev, structureDefinition: e.target.value }))}
+              error={!!templateFormErrors.structureDefinition}
+              helperText={templateFormErrors.structureDefinition || 'Enter a valid JSON structure definition for the pricing template'}
+              fullWidth
+              required
+              multiline
+              rows={8}
+              sx={{ fontFamily: 'monospace' }}
+            />
+          </Stack>
+        </DialogContent>
+        <DialogActions>
+          <Button
+            onClick={handleCloseCreateTemplateModal}
+            disabled={isSubmitting}
+            startIcon={<CancelIcon />}
+          >
+            Cancel
+          </Button>
+          <Button
+            onClick={handleSubmitCreateTemplate}
+            variant="contained"
+            disabled={isSubmitting}
+            startIcon={isSubmitting ? <CircularProgress size={20} /> : <SaveIcon />}
+          >
+            {isSubmitting ? 'Creating...' : 'Create Pricing Template'}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Edit Pricing Template Modal */}
+      <Dialog
+        open={editTemplateModalOpen}
+        onClose={handleCloseEditTemplateModal}
+        maxWidth="md"
+        fullWidth
+        disableEscapeKeyDown={isSubmitting}
+      >
+        <DialogTitle>Edit Pricing Template</DialogTitle>
+        <DialogContent>
+          <Stack spacing={3} sx={{ mt: 1 }}>
+            <TextField
+              label="Name"
+              value={templateFormData.name}
+              onChange={(e) => setTemplateFormData(prev => ({ ...prev, name: e.target.value }))}
+              error={!!templateFormErrors.name}
+              helperText={templateFormErrors.name}
+              fullWidth
+              required
+            />
+            <TextField
+              label="Description"
+              value={templateFormData.description}
+              onChange={(e) => setTemplateFormData(prev => ({ ...prev, description: e.target.value }))}
+              error={!!templateFormErrors.description}
+              helperText={templateFormErrors.description}
+              fullWidth
+              required
+              multiline
+              rows={3}
+            />
+            <TextField
+              label="Version"
+              value={templateFormData.version}
+              onChange={(e) => setTemplateFormData(prev => ({ ...prev, version: e.target.value }))}
+              error={!!templateFormErrors.version}
+              helperText={templateFormErrors.version}
+              fullWidth
+              required
+            />
+            <TextField
+              label="Structure Definition (JSON)"
+              value={templateFormData.structureDefinition}
+              onChange={(e) => setTemplateFormData(prev => ({ ...prev, structureDefinition: e.target.value }))}
+              error={!!templateFormErrors.structureDefinition}
+              helperText={templateFormErrors.structureDefinition || 'Enter a valid JSON structure definition for the pricing template'}
+              fullWidth
+              required
+              multiline
+              rows={8}
+              sx={{ fontFamily: 'monospace' }}
+            />
+          </Stack>
+        </DialogContent>
+        <DialogActions>
+          <Button
+            onClick={handleCloseEditTemplateModal}
+            disabled={isSubmitting}
+            startIcon={<CancelIcon />}
+          >
+            Cancel
+          </Button>
+          <Button
+            onClick={handleSubmitEditTemplate}
+            variant="contained"
+            disabled={isSubmitting}
+            startIcon={isSubmitting ? <CircularProgress size={20} /> : <SaveIcon />}
+          >
+            {isSubmitting ? 'Updating...' : 'Update Pricing Template'}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Delete Pricing Template Confirmation Dialog */}
+      <Dialog
+        open={deleteTemplateDialogOpen}
+        onClose={handleCloseDeleteTemplateDialog}
+        disableEscapeKeyDown={isSubmitting}
+      >
+        <DialogTitle>Confirm Delete</DialogTitle>
+        <DialogContent>
+          <Typography>
+            Are you sure you want to delete the pricing template "{selectedPricingTemplate?.name}"?
+          </Typography>
+          <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
+            This action cannot be undone. The pricing template will be permanently removed from the system.
+          </Typography>
+        </DialogContent>
+        <DialogActions>
+          <Button
+            onClick={handleCloseDeleteTemplateDialog}
+            disabled={isSubmitting}
+          >
+            Cancel
+          </Button>
+          <Button
+            onClick={handleConfirmDeleteTemplate}
             variant="contained"
             color="error"
             disabled={isSubmitting}

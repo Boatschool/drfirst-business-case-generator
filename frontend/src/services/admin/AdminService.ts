@@ -60,6 +60,37 @@ export interface UpdateRateCardRequest {
   }>;
 }
 
+// Request types for Pricing Template operations
+export interface CreatePricingTemplateRequest {
+  name: string;
+  description: string;
+  version: string;
+  structureDefinition: {
+    type?: string;
+    scenarios?: Array<{
+      case: string;
+      value: number;
+      description: string;
+    }>;
+    [key: string]: any; // Allow additional properties
+  };
+}
+
+export interface UpdatePricingTemplateRequest {
+  name?: string;
+  description?: string;
+  version?: string;
+  structureDefinition?: {
+    type?: string;
+    scenarios?: Array<{
+      case: string;
+      value: number;
+      description: string;
+    }>;
+    [key: string]: any; // Allow additional properties
+  };
+}
+
 /**
  * AdminService interface defines the contract for admin operations
  */
@@ -97,4 +128,26 @@ export interface AdminService {
    * @returns Promise<PricingTemplate[]> List of pricing templates
    */
   listPricingTemplates(): Promise<PricingTemplate[]>;
+
+  /**
+   * Create a new pricing template
+   * @param data Pricing template data to create
+   * @returns Promise<PricingTemplate> Created pricing template with ID
+   */
+  createPricingTemplate(data: CreatePricingTemplateRequest): Promise<PricingTemplate>;
+
+  /**
+   * Update an existing pricing template
+   * @param templateId ID of the pricing template to update
+   * @param data Partial pricing template data to update
+   * @returns Promise<PricingTemplate> Updated pricing template
+   */
+  updatePricingTemplate(templateId: string, data: UpdatePricingTemplateRequest): Promise<PricingTemplate>;
+
+  /**
+   * Delete a pricing template
+   * @param templateId ID of the pricing template to delete
+   * @returns Promise<void>
+   */
+  deletePricingTemplate(templateId: string): Promise<void>;
 } 

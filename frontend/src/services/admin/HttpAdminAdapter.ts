@@ -3,7 +3,7 @@
  * Handles authenticated requests to the backend admin endpoints
  */
 
-import { AdminService, RateCard, PricingTemplate, CreateRateCardRequest, UpdateRateCardRequest } from './AdminService';
+import { AdminService, RateCard, PricingTemplate, CreateRateCardRequest, UpdateRateCardRequest, CreatePricingTemplateRequest, UpdatePricingTemplateRequest } from './AdminService';
 import { authService } from '../auth/authService';
 
 export class HttpAdminAdapter implements AdminService {
@@ -139,6 +139,58 @@ export class HttpAdminAdapter implements AdminService {
       return pricingTemplates;
     } catch (error) {
       console.error('[HttpAdminAdapter] Error fetching pricing templates:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Create a new pricing template
+   */
+  async createPricingTemplate(data: CreatePricingTemplateRequest): Promise<PricingTemplate> {
+    try {
+      console.log('[HttpAdminAdapter] Creating pricing template:', data.name);
+      const createdTemplate = await this.fetchWithAuth<PricingTemplate>(`${this.apiBaseUrl}/admin/pricing-templates`, {
+        method: 'POST',
+        body: JSON.stringify(data),
+      });
+      console.log(`[HttpAdminAdapter] Successfully created pricing template: ${createdTemplate.id}`);
+      return createdTemplate;
+    } catch (error) {
+      console.error('[HttpAdminAdapter] Error creating pricing template:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Update an existing pricing template
+   */
+  async updatePricingTemplate(templateId: string, data: UpdatePricingTemplateRequest): Promise<PricingTemplate> {
+    try {
+      console.log('[HttpAdminAdapter] Updating pricing template:', templateId);
+      const updatedTemplate = await this.fetchWithAuth<PricingTemplate>(`${this.apiBaseUrl}/admin/pricing-templates/${templateId}`, {
+        method: 'PUT',
+        body: JSON.stringify(data),
+      });
+      console.log(`[HttpAdminAdapter] Successfully updated pricing template: ${templateId}`);
+      return updatedTemplate;
+    } catch (error) {
+      console.error('[HttpAdminAdapter] Error updating pricing template:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Delete a pricing template
+   */
+  async deletePricingTemplate(templateId: string): Promise<void> {
+    try {
+      console.log('[HttpAdminAdapter] Deleting pricing template:', templateId);
+      await this.fetchWithAuth<{ message: string; deleted_id: string }>(`${this.apiBaseUrl}/admin/pricing-templates/${templateId}`, {
+        method: 'DELETE',
+      });
+      console.log(`[HttpAdminAdapter] Successfully deleted pricing template: ${templateId}`);
+    } catch (error) {
+      console.error('[HttpAdminAdapter] Error deleting pricing template:', error);
       throw error;
     }
   }

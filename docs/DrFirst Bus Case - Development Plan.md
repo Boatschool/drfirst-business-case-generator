@@ -259,26 +259,6 @@ The application now provides a professional, persistent chat experience that sup
 | 7.4 | **User Management (Admin UI)** | **COMPLETE** | **medium** | **low** | **7.3** | **✅ USER LISTING FOUNDATION COMPLETE** |
 | 7.4.1 | Basic User Listing in Admin UI (Read-Only Roles): Display list of users from Firestore users collection showing email and systemRole | COMPLETE | medium | low | 7.3 | ✅ COMPLETE: Enhanced AdminPage with professional user listing table. Backend GET /api/v1/admin/users endpoint with proper RBAC protection. Complete TypeScript interfaces and error handling. Material-UI design with loading states and professional UX. Read-only implementation with secure admin-only access. |
 
-| Task ID | Title | Status | Priority | Complexity | Dependencies | Notes |
-| :---- | :---- | :---- | :---- | :---- | :---- | :---- |
-| 7.1 | **Admin CRUD for Rate Cards** |  |  |  |  |  |
-| 7.1.1 | AdminPage.tsx: Add "Create New Rate Card" button and form (name, roles with rates) | todo | medium | low | 6.4.2 |  |
-| 7.1.2 | Backend API: Implement /api/v1/admin/rate-cards (POST) to create a new rate card in Firestore | todo | medium | low | 2.3.3 (rateCards model), 7.1.1 | Ensure validation of input. |
-| 7.1.3 | AdminPage.tsx: Add "Edit" and "Delete" functionality for existing rate cards | todo | medium | low | 6.4.2 | "Delete" might be a soft delete (mark inactive). |
-| 7.1.4 | Backend API: Implement /api/v1/admin/rate-cards/{cardId} (PUT, DELETE) to update/delete rate cards | todo | medium | low | 7.1.3 |  |
-| 7.2 | **Admin CRUD for Pricing Templates** |  |  |  |  |  |
-| 7.2.1 | AdminPage.tsx: Add "Create New Pricing Template" button and form (name, structure definition \- simple for now) | todo | medium | low | 6.4.3 | Structure definition could be a JSON text area initially. |
-| 7.2.2 | Backend API: Implement /api/v1/admin/pricing-templates (POST) to create a new pricing template | todo | medium | low | 2.3.3 (pricingTemplates model), 7.2.1 |  |
-| 7.2.3 | AdminPage.tsx: Add "Edit" and "Delete" functionality for existing pricing templates | todo | medium | low | 6.4.3 |  |
-| 7.2.4 | Backend API: Implement /api/v1/admin/pricing-templates/{templateId} (PUT, DELETE) to update/delete pricing templates | todo | medium | low | 7.2.3 |  |
-| 7.3 | **Role-Based Access Control (RBAC) Implementation** |  |  |  |  |  |
-| 7.3.1 | users Firestore Collection: Add systemRole field (e.g., "ADMIN", "BUSINESS_USER", "DEVELOPER", "SALES_MANAGER_APPROVER") | todo | high | low | 2.3.2 | Define initial roles based on PRD User Roles. |
-| 7.3.2 | GCIP Custom Claims: On user creation/update (e.g., via an admin function), set a custom claim for systemRole based on Firestore users data | todo | high | low | 1.1.5, 3.4.1, 7.3.1 | This allows roles to be easily accessible from the ID token. Requires a backend Cloud Function for managing custom claims. |
-| 7.3.3 | Frontend: Update AuthContext to parse and store systemRole from GCIP ID token's custom claims | todo | high | low | 3.3.1, 7.3.2 |  |
-| 7.3.4 | Frontend: Protect AdminPage.tsx route so only users with "ADMIN" role can access it | todo | high | low | 6.4.1, 7.3.3 | Update ProtectedRoute logic. |
-| 7.3.5 | Backend API: Secure Admin API endpoints (/api/v1/admin/\*) to only allow users with "ADMIN" role (check custom claim from ID token) | todo | high | low | 3.4.1, 7.1.2, 7.1.4, 7.2.2, 7.2.4, 7.3.2 | Update API Gateway or Application Server middleware. |
-| 7.3.6 | Admin UI: Basic user management UI stub (list users, view current role \- no role editing yet) | todo | medium | low | 6.4.1, 7.3.1 | New API: /api/v1/admin/users (GET). |
-
 ---
 
 **Phase 8: Full HITL for Technical & Financials, FinancialModelAgent**

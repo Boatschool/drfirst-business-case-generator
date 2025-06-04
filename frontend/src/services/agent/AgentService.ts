@@ -274,6 +274,51 @@ export interface AgentService {
    */
   rejectSystemDesign(caseId: string, reason?: string): Promise<{ message: string; new_status: string; case_id: string }>;
 
+  /**
+   * Updates the Effort Estimate for a specific business case.
+   * @param caseId - The ID of the business case to update.
+   * @param data - The effort estimate data to update.
+   * @returns A promise that resolves with a confirmation message and the updated effort estimate.
+   */
+  updateEffortEstimate(caseId: string, data: EffortEstimate): Promise<{ message: string; updated_effort_estimate: EffortEstimate }>;
+
+  /**
+   * Submits the Effort Estimate for review, updating the case status to EFFORT_PENDING_REVIEW.
+   * @param caseId - The ID of the business case to submit for review.
+   * @returns A promise that resolves with a confirmation message and the new status.
+   */
+  submitEffortEstimateForReview(caseId: string): Promise<{ message: string; new_status: string; case_id: string }>;
+
+  /**
+   * Updates the Cost Estimate for a specific business case.
+   * @param caseId - The ID of the business case to update.
+   * @param data - The cost estimate data to update.
+   * @returns A promise that resolves with a confirmation message and the updated cost estimate.
+   */
+  updateCostEstimate(caseId: string, data: CostEstimate): Promise<{ message: string; updated_cost_estimate: CostEstimate }>;
+
+  /**
+   * Submits the Cost Estimate for review, updating the case status to COSTING_PENDING_REVIEW.
+   * @param caseId - The ID of the business case to submit for review.
+   * @returns A promise that resolves with a confirmation message and the new status.
+   */
+  submitCostEstimateForReview(caseId: string): Promise<{ message: string; new_status: string; case_id: string }>;
+
+  /**
+   * Updates the Value Projection for a specific business case.
+   * @param caseId - The ID of the business case to update.
+   * @param data - The value projection data to update.
+   * @returns A promise that resolves with a confirmation message and the updated value projection.
+   */
+  updateValueProjection(caseId: string, data: ValueProjection): Promise<{ message: string; updated_value_projection: ValueProjection }>;
+
+  /**
+   * Submits the Value Projection for review, updating the case status to VALUE_PENDING_REVIEW.
+   * @param caseId - The ID of the business case to submit for review.
+   * @returns A promise that resolves with a confirmation message and the new status.
+   */
+  submitValueProjectionForReview(caseId: string): Promise<{ message: string; new_status: string; case_id: string }>;
+
   // Potential future methods:
   // getCaseHistory(caseId: string): Promise<AgentUpdate[]>;
   // getCaseStatus(caseId: string): Promise<string>; // More detailed status object

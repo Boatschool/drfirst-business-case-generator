@@ -45,6 +45,7 @@ import {
 } from '@mui/icons-material';
 import ReactMarkdown from 'react-markdown';
 import { useAgentContext } from '../contexts/AgentContext';
+import { EffortEstimate, CostEstimate, ValueProjection } from '../services/agent/AgentService';
 
 import { useAuth } from '../contexts/AuthContext';
 
@@ -156,6 +157,12 @@ const BusinessCaseDetailPage: React.FC = () => {
     submitSystemDesignForReview,
     approveSystemDesign,
     rejectSystemDesign,
+    updateEffortEstimate,
+    submitEffortEstimateForReview,
+    updateCostEstimate,
+    submitCostEstimateForReview,
+    updateValueProjection,
+    submitValueProjectionForReview,
     isLoading,
     error: agentContextError,
     clearCurrentCaseDetails,
@@ -182,6 +189,22 @@ const BusinessCaseDetailPage: React.FC = () => {
   const [isSystemDesignRejectDialogOpen, setIsSystemDesignRejectDialogOpen] = useState(false);
   const [rejectionReason, setRejectionReason] = useState('');
   const [systemDesignRejectionReason, setSystemDesignRejectionReason] = useState('');
+
+  // Financial estimate editing states
+  const [isEditingEffortEstimate, setIsEditingEffortEstimate] = useState(false);
+  const [editableEffortEstimate, setEditableEffortEstimate] = useState<EffortEstimate | null>(null);
+  const [isEditingCostEstimate, setIsEditingCostEstimate] = useState(false);
+  const [editableCostEstimate, setEditableCostEstimate] = useState<CostEstimate | null>(null);
+  const [isEditingValueProjection, setIsEditingValueProjection] = useState(false);
+  const [editableValueProjection, setEditableValueProjection] = useState<ValueProjection | null>(null);
+
+  // Success/error states for financial estimates
+  const [effortEstimateUpdateSuccess, setEffortEstimateUpdateSuccess] = useState<string | null>(null);
+  const [effortEstimateUpdateError, setEffortEstimateUpdateError] = useState<string | null>(null);
+  const [costEstimateUpdateSuccess, setCostEstimateUpdateSuccess] = useState<string | null>(null);
+  const [costEstimateUpdateError, setCostEstimateUpdateError] = useState<string | null>(null);
+  const [valueProjectionUpdateSuccess, setValueProjectionUpdateSuccess] = useState<string | null>(null);
+  const [valueProjectionUpdateError, setValueProjectionUpdateError] = useState<string | null>(null);
 
   const loadDetails = useCallback(() => {
     if (caseId) {
@@ -407,6 +430,205 @@ const BusinessCaseDetailPage: React.FC = () => {
   const handleCloseSystemDesignRejectDialog = () => {
     setIsSystemDesignRejectDialogOpen(false);
     setSystemDesignRejectionReason('');
+  };
+
+  // Effort Estimate handlers
+  const handleEditEffortEstimate = () => {
+    if (currentCaseDetails?.effort_estimate_v1) {
+      setEditableEffortEstimate({ ...currentCaseDetails.effort_estimate_v1 });
+      setIsEditingEffortEstimate(true);
+      setEffortEstimateUpdateSuccess(null);
+      setEffortEstimateUpdateError(null);
+    }
+  };
+
+  const handleCancelEditEffortEstimate = () => {
+    setIsEditingEffortEstimate(false);
+    setEditableEffortEstimate(null);
+    setEffortEstimateUpdateSuccess(null);
+    setEffortEstimateUpdateError(null);
+  };
+
+  const handleSaveEffortEstimate = async () => {
+    if (!caseId || !editableEffortEstimate) return;
+
+    setEffortEstimateUpdateSuccess(null);
+    setEffortEstimateUpdateError(null);
+
+    try {
+      const success = await updateEffortEstimate(caseId, editableEffortEstimate);
+      if (success) {
+        setEffortEstimateUpdateSuccess('Effort Estimate updated successfully!');
+        setIsEditingEffortEstimate(false);
+        setEditableEffortEstimate(null);
+      } else {
+        setEffortEstimateUpdateError('Failed to update effort estimate. Please try again.');
+      }
+    } catch (error: any) {
+      setEffortEstimateUpdateError(error.message || 'Failed to update effort estimate.');
+    }
+  };
+
+  const handleSubmitEffortEstimateForReview = async () => {
+    if (!caseId) return;
+
+    try {
+      const success = await submitEffortEstimateForReview(caseId);
+      if (success) {
+        setEffortEstimateUpdateSuccess('Effort Estimate submitted for review successfully!');
+      } else {
+        setEffortEstimateUpdateError('Failed to submit effort estimate for review. Please try again.');
+      }
+    } catch (error: any) {
+      setEffortEstimateUpdateError(error.message || 'Failed to submit effort estimate for review.');
+    }
+  };
+
+  // Cost Estimate handlers
+  const handleEditCostEstimate = () => {
+    if (currentCaseDetails?.cost_estimate_v1) {
+      setEditableCostEstimate({ ...currentCaseDetails.cost_estimate_v1 });
+      setIsEditingCostEstimate(true);
+      setCostEstimateUpdateSuccess(null);
+      setCostEstimateUpdateError(null);
+    }
+  };
+
+  const handleCancelEditCostEstimate = () => {
+    setIsEditingCostEstimate(false);
+    setEditableCostEstimate(null);
+    setCostEstimateUpdateSuccess(null);
+    setCostEstimateUpdateError(null);
+  };
+
+  const handleSaveCostEstimate = async () => {
+    if (!caseId || !editableCostEstimate) return;
+
+    setCostEstimateUpdateSuccess(null);
+    setCostEstimateUpdateError(null);
+
+    try {
+      const success = await updateCostEstimate(caseId, editableCostEstimate);
+      if (success) {
+        setCostEstimateUpdateSuccess('Cost Estimate updated successfully!');
+        setIsEditingCostEstimate(false);
+        setEditableCostEstimate(null);
+      } else {
+        setCostEstimateUpdateError('Failed to update cost estimate. Please try again.');
+      }
+    } catch (error: any) {
+      setCostEstimateUpdateError(error.message || 'Failed to update cost estimate.');
+    }
+  };
+
+  const handleSubmitCostEstimateForReview = async () => {
+    if (!caseId) return;
+
+    try {
+      const success = await submitCostEstimateForReview(caseId);
+      if (success) {
+        setCostEstimateUpdateSuccess('Cost Estimate submitted for review successfully!');
+      } else {
+        setCostEstimateUpdateError('Failed to submit cost estimate for review. Please try again.');
+      }
+    } catch (error: any) {
+      setCostEstimateUpdateError(error.message || 'Failed to submit cost estimate for review.');
+    }
+  };
+
+  // Value Projection handlers
+  const handleEditValueProjection = () => {
+    if (currentCaseDetails?.value_projection_v1) {
+      setEditableValueProjection({ ...currentCaseDetails.value_projection_v1 });
+      setIsEditingValueProjection(true);
+      setValueProjectionUpdateSuccess(null);
+      setValueProjectionUpdateError(null);
+    }
+  };
+
+  const handleCancelEditValueProjection = () => {
+    setIsEditingValueProjection(false);
+    setEditableValueProjection(null);
+    setValueProjectionUpdateSuccess(null);
+    setValueProjectionUpdateError(null);
+  };
+
+  const handleSaveValueProjection = async () => {
+    if (!caseId || !editableValueProjection) return;
+
+    setValueProjectionUpdateSuccess(null);
+    setValueProjectionUpdateError(null);
+
+    try {
+      const success = await updateValueProjection(caseId, editableValueProjection);
+      if (success) {
+        setValueProjectionUpdateSuccess('Value Projection updated successfully!');
+        setIsEditingValueProjection(false);
+        setEditableValueProjection(null);
+      } else {
+        setValueProjectionUpdateError('Failed to update value projection. Please try again.');
+      }
+    } catch (error: any) {
+      setValueProjectionUpdateError(error.message || 'Failed to update value projection.');
+    }
+  };
+
+  const handleSubmitValueProjectionForReview = async () => {
+    if (!caseId) return;
+
+    try {
+      const success = await submitValueProjectionForReview(caseId);
+      if (success) {
+        setValueProjectionUpdateSuccess('Value Projection submitted for review successfully!');
+      } else {
+        setValueProjectionUpdateError('Failed to submit value projection for review. Please try again.');
+      }
+    } catch (error: any) {
+      setValueProjectionUpdateError(error.message || 'Failed to submit value projection for review.');
+    }
+  };
+
+  // Helper functions to check permissions and status
+  const canEditEffortEstimate = () => {
+    if (!currentCaseDetails || !currentUser) return false;
+    const isInitiator = currentCaseDetails.user_id === currentUser.uid;
+    const allowedStatuses = ['PLANNING_COMPLETE', 'EFFORT_PENDING_REVIEW', 'EFFORT_REJECTED'];
+    return isInitiator && allowedStatuses.includes(currentCaseDetails.status);
+  };
+
+  const canSubmitEffortEstimate = () => {
+    if (!currentCaseDetails || !currentUser) return false;
+    const isInitiator = currentCaseDetails.user_id === currentUser.uid;
+    const allowedStatuses = ['PLANNING_COMPLETE', 'EFFORT_REJECTED'];
+    return isInitiator && allowedStatuses.includes(currentCaseDetails.status) && currentCaseDetails.effort_estimate_v1;
+  };
+
+  const canEditCostEstimate = () => {
+    if (!currentCaseDetails || !currentUser) return false;
+    const isInitiator = currentCaseDetails.user_id === currentUser.uid;
+    const allowedStatuses = ['COSTING_COMPLETE', 'COSTING_PENDING_REVIEW', 'COSTING_REJECTED'];
+    return isInitiator && allowedStatuses.includes(currentCaseDetails.status);
+  };
+
+  const canSubmitCostEstimate = () => {
+    if (!currentCaseDetails || !currentUser) return false;
+    const isInitiator = currentCaseDetails.user_id === currentUser.uid;
+    const allowedStatuses = ['COSTING_COMPLETE', 'COSTING_REJECTED'];
+    return isInitiator && allowedStatuses.includes(currentCaseDetails.status) && currentCaseDetails.cost_estimate_v1;
+  };
+
+  const canEditValueProjection = () => {
+    if (!currentCaseDetails || !currentUser) return false;
+    const isInitiator = currentCaseDetails.user_id === currentUser.uid;
+    const allowedStatuses = ['VALUE_ANALYSIS_COMPLETE', 'VALUE_PENDING_REVIEW', 'VALUE_REJECTED'];
+    return isInitiator && allowedStatuses.includes(currentCaseDetails.status);
+  };
+
+  const canSubmitValueProjection = () => {
+    if (!currentCaseDetails || !currentUser) return false;
+    const isInitiator = currentCaseDetails.user_id === currentUser.uid;
+    const allowedStatuses = ['VALUE_ANALYSIS_COMPLETE', 'VALUE_REJECTED'];
+    return isInitiator && allowedStatuses.includes(currentCaseDetails.status) && currentCaseDetails.value_projection_v1;
   };
 
   if (isLoadingCaseDetails && !currentCaseDetails) {
@@ -773,64 +995,175 @@ const BusinessCaseDetailPage: React.FC = () => {
           <>
             <Divider sx={{ my: 3 }} />
             <Box mb={3}>
-              <Stack direction="row" alignItems="center" spacing={1} mb={2}>
-                <TimeIcon color="primary" />
-                <Typography variant="h5" gutterBottom sx={{ mb: 0 }}>Effort Estimate</Typography>
+              <Stack direction="row" alignItems="center" justifyContent="space-between" mb={2}>
+                <Stack direction="row" alignItems="center" spacing={1}>
+                  <TimeIcon color="primary" />
+                  <Typography variant="h5" gutterBottom sx={{ mb: 0 }}>Effort Estimate</Typography>
+                </Stack>
+                <Stack direction="row" spacing={1}>
+                  {canEditEffortEstimate() && !isEditingEffortEstimate && (
+                    <Button
+                      variant="outlined"
+                      size="small"
+                      startIcon={<EditIcon />}
+                      onClick={handleEditEffortEstimate}
+                      disabled={isLoading}
+                    >
+                      Edit Effort Estimate
+                    </Button>
+                  )}
+                  {canSubmitEffortEstimate() && !isEditingEffortEstimate && (
+                    <Button
+                      variant="contained"
+                      size="small"
+                      startIcon={<SendIcon />}
+                      onClick={handleSubmitEffortEstimateForReview}
+                      disabled={isLoading}
+                    >
+                      Submit for Review
+                    </Button>
+                  )}
+                </Stack>
               </Stack>
+              
+              {effortEstimateUpdateSuccess && (
+                <Alert severity="success" sx={{ mb: 2 }} onClose={() => setEffortEstimateUpdateSuccess(null)}>
+                  {effortEstimateUpdateSuccess}
+                </Alert>
+              )}
+              {effortEstimateUpdateError && (
+                <Alert severity="error" sx={{ mb: 2 }} onClose={() => setEffortEstimateUpdateError(null)}>
+                  {effortEstimateUpdateError}
+                </Alert>
+              )}
+
               <Card variant="outlined" sx={{ mb: 2 }}>
                 <CardContent>
-                  <Stack direction="row" spacing={4} mb={3}>
-                    <Box>
-                      <Typography variant="h6" color="primary">
-                        {effort_estimate_v1.total_hours}
-                      </Typography>
-                      <Typography variant="body2" color="text.secondary">
-                        Total Hours
-                      </Typography>
-                    </Box>
-                    <Box>
-                      <Typography variant="h6" color="primary">
-                        {effort_estimate_v1.estimated_duration_weeks}
-                      </Typography>
-                      <Typography variant="body2" color="text.secondary">
-                        Weeks Duration
-                      </Typography>
-                    </Box>
-                    <Box>
-                      <Chip 
-                        label={effort_estimate_v1.complexity_assessment} 
-                        color="info" 
-                        variant="outlined" 
+                  {!isEditingEffortEstimate ? (
+                    <>
+                      <Stack direction="row" spacing={4} mb={3}>
+                        <Box>
+                          <Typography variant="h6" color="primary">
+                            {effort_estimate_v1.total_hours}
+                          </Typography>
+                          <Typography variant="body2" color="text.secondary">
+                            Total Hours
+                          </Typography>
+                        </Box>
+                        <Box>
+                          <Typography variant="h6" color="primary">
+                            {effort_estimate_v1.estimated_duration_weeks}
+                          </Typography>
+                          <Typography variant="body2" color="text.secondary">
+                            Weeks Duration
+                          </Typography>
+                        </Box>
+                        <Box>
+                          <Chip 
+                            label={effort_estimate_v1.complexity_assessment} 
+                            color="info" 
+                            variant="outlined" 
+                          />
+                        </Box>
+                      </Stack>
+                      
+                      <Typography variant="h6" gutterBottom>Role Breakdown</Typography>
+                      <TableContainer>
+                        <Table size="small">
+                          <TableHead>
+                            <TableRow>
+                              <TableCell><strong>Role</strong></TableCell>
+                              <TableCell align="right"><strong>Hours</strong></TableCell>
+                            </TableRow>
+                          </TableHead>
+                          <TableBody>
+                            {effort_estimate_v1.roles?.map((role, index) => (
+                              <TableRow key={index}>
+                                <TableCell>{role.role}</TableCell>
+                                <TableCell align="right">{role.hours}</TableCell>
+                              </TableRow>
+                            ))}
+                          </TableBody>
+                        </Table>
+                      </TableContainer>
+                      
+                      {effort_estimate_v1.notes && (
+                        <Box mt={2}>
+                          <Typography variant="body2" color="text.secondary" sx={{ fontStyle: 'italic' }}>
+                            {effort_estimate_v1.notes}
+                          </Typography>
+                        </Box>
+                      )}
+                    </>
+                  ) : (
+                    <>
+                      <Stack direction="row" spacing={2} mb={3}>
+                        <TextField
+                          label="Total Hours"
+                          type="number"
+                          value={editableEffortEstimate?.total_hours || 0}
+                          onChange={(e) => editableEffortEstimate && setEditableEffortEstimate({
+                            ...editableEffortEstimate,
+                            total_hours: parseInt(e.target.value) || 0
+                          })}
+                          size="small"
+                          sx={{ minWidth: 150 }}
+                        />
+                        <TextField
+                          label="Duration (Weeks)"
+                          type="number"
+                          value={editableEffortEstimate?.estimated_duration_weeks || 0}
+                          onChange={(e) => editableEffortEstimate && setEditableEffortEstimate({
+                            ...editableEffortEstimate,
+                            estimated_duration_weeks: parseInt(e.target.value) || 0
+                          })}
+                          size="small"
+                          sx={{ minWidth: 150 }}
+                        />
+                        <TextField
+                          label="Complexity Assessment"
+                          value={editableEffortEstimate?.complexity_assessment || ''}
+                          onChange={(e) => editableEffortEstimate && setEditableEffortEstimate({
+                            ...editableEffortEstimate,
+                            complexity_assessment: e.target.value
+                          })}
+                          size="small"
+                          sx={{ minWidth: 200 }}
+                        />
+                      </Stack>
+
+                      <TextField
+                        label="Notes"
+                        multiline
+                        rows={3}
+                        fullWidth
+                        value={editableEffortEstimate?.notes || ''}
+                        onChange={(e) => editableEffortEstimate && setEditableEffortEstimate({
+                          ...editableEffortEstimate,
+                          notes: e.target.value
+                        })}
+                        sx={{ mb: 3 }}
                       />
-                    </Box>
-                  </Stack>
-                  
-                  <Typography variant="h6" gutterBottom>Role Breakdown</Typography>
-                  <TableContainer>
-                    <Table size="small">
-                      <TableHead>
-                        <TableRow>
-                          <TableCell><strong>Role</strong></TableCell>
-                          <TableCell align="right"><strong>Hours</strong></TableCell>
-                        </TableRow>
-                      </TableHead>
-                      <TableBody>
-                        {effort_estimate_v1.roles?.map((role, index) => (
-                          <TableRow key={index}>
-                            <TableCell>{role.role}</TableCell>
-                            <TableCell align="right">{role.hours}</TableCell>
-                          </TableRow>
-                        ))}
-                      </TableBody>
-                    </Table>
-                  </TableContainer>
-                  
-                  {effort_estimate_v1.notes && (
-                    <Box mt={2}>
-                      <Typography variant="body2" color="text.secondary" sx={{ fontStyle: 'italic' }}>
-                        {effort_estimate_v1.notes}
-                      </Typography>
-                    </Box>
+
+                      <Stack direction="row" spacing={2} justifyContent="flex-end">
+                        <Button
+                          variant="outlined"
+                          startIcon={<CancelIcon />}
+                          onClick={handleCancelEditEffortEstimate}
+                          disabled={isLoading}
+                        >
+                          Cancel
+                        </Button>
+                        <Button
+                          variant="contained"
+                          startIcon={<SaveIcon />}
+                          onClick={handleSaveEffortEstimate}
+                          disabled={isLoading}
+                        >
+                          {isLoading ? 'Saving...' : 'Save Changes'}
+                        </Button>
+                      </Stack>
+                    </>
                   )}
                 </CardContent>
               </Card>
@@ -843,63 +1176,185 @@ const BusinessCaseDetailPage: React.FC = () => {
           <>
             <Divider sx={{ my: 3 }} />
             <Box mb={3}>
-              <Stack direction="row" alignItems="center" spacing={1} mb={2}>
-                <MoneyIcon color="primary" />
-                <Typography variant="h5" gutterBottom sx={{ mb: 0 }}>Cost Estimate</Typography>
+              <Stack direction="row" alignItems="center" justifyContent="space-between" mb={2}>
+                <Stack direction="row" alignItems="center" spacing={1}>
+                  <MoneyIcon color="primary" />
+                  <Typography variant="h5" gutterBottom sx={{ mb: 0 }}>Cost Estimate</Typography>
+                </Stack>
+                <Stack direction="row" spacing={1}>
+                  {canEditCostEstimate() && !isEditingCostEstimate && (
+                    <Button
+                      variant="outlined"
+                      size="small"
+                      startIcon={<EditIcon />}
+                      onClick={handleEditCostEstimate}
+                      disabled={isLoading}
+                    >
+                      Edit Cost Estimate
+                    </Button>
+                  )}
+                  {canSubmitCostEstimate() && !isEditingCostEstimate && (
+                    <Button
+                      variant="contained"
+                      size="small"
+                      startIcon={<SendIcon />}
+                      onClick={handleSubmitCostEstimateForReview}
+                      disabled={isLoading}
+                    >
+                      Submit for Review
+                    </Button>
+                  )}
+                </Stack>
               </Stack>
+              
+              {costEstimateUpdateSuccess && (
+                <Alert severity="success" sx={{ mb: 2 }} onClose={() => setCostEstimateUpdateSuccess(null)}>
+                  {costEstimateUpdateSuccess}
+                </Alert>
+              )}
+              {costEstimateUpdateError && (
+                <Alert severity="error" sx={{ mb: 2 }} onClose={() => setCostEstimateUpdateError(null)}>
+                  {costEstimateUpdateError}
+                </Alert>
+              )}
+
               <Card variant="outlined" sx={{ mb: 2 }}>
                 <CardContent>
-                  <Stack direction="row" spacing={4} mb={3}>
-                    <Box>
-                      <Typography variant="h4" color="primary">
-                        ${cost_estimate_v1.estimated_cost.toLocaleString()}
-                      </Typography>
-                      <Typography variant="body2" color="text.secondary">
-                        Total Cost ({cost_estimate_v1.currency})
-                      </Typography>
-                    </Box>
-                    {cost_estimate_v1.rate_card_used && (
-                      <Box>
-                        <Typography variant="body1" fontWeight="medium">
-                          {cost_estimate_v1.rate_card_used}
-                        </Typography>
-                        <Typography variant="body2" color="text.secondary">
-                          Rate Card Used
-                        </Typography>
-                      </Box>
-                    )}
-                  </Stack>
-                  
-                  <Typography variant="h6" gutterBottom>Cost Breakdown by Role</Typography>
-                  <TableContainer>
-                    <Table size="small">
-                      <TableHead>
-                        <TableRow>
-                          <TableCell><strong>Role</strong></TableCell>
-                          <TableCell align="right"><strong>Hours</strong></TableCell>
-                          <TableCell align="right"><strong>Rate</strong></TableCell>
-                          <TableCell align="right"><strong>Total Cost</strong></TableCell>
-                        </TableRow>
-                      </TableHead>
-                      <TableBody>
-                        {cost_estimate_v1.role_breakdown?.map((role, index) => (
-                          <TableRow key={index}>
-                            <TableCell>{role.role}</TableCell>
-                            <TableCell align="right">{role.hours}</TableCell>
-                            <TableCell align="right">${role.hourly_rate}/hr</TableCell>
-                            <TableCell align="right">${role.total_cost.toLocaleString()}</TableCell>
-                          </TableRow>
-                        ))}
-                      </TableBody>
-                    </Table>
-                  </TableContainer>
-                  
-                  {cost_estimate_v1.notes && (
-                    <Box mt={2}>
-                      <Typography variant="body2" color="text.secondary" sx={{ fontStyle: 'italic' }}>
-                        {cost_estimate_v1.notes}
-                      </Typography>
-                    </Box>
+                  {!isEditingCostEstimate ? (
+                    <>
+                      <Stack direction="row" spacing={4} mb={3}>
+                        <Box>
+                          <Typography variant="h4" color="primary">
+                            ${cost_estimate_v1.estimated_cost.toLocaleString()}
+                          </Typography>
+                          <Typography variant="body2" color="text.secondary">
+                            Total Cost ({cost_estimate_v1.currency})
+                          </Typography>
+                        </Box>
+                        {cost_estimate_v1.rate_card_used && (
+                          <Box>
+                            <Typography variant="body1" fontWeight="medium">
+                              {cost_estimate_v1.rate_card_used}
+                            </Typography>
+                            <Typography variant="body2" color="text.secondary">
+                              Rate Card Used
+                            </Typography>
+                          </Box>
+                        )}
+                      </Stack>
+                      
+                      <Typography variant="h6" gutterBottom>Cost Breakdown by Role</Typography>
+                      <TableContainer>
+                        <Table size="small">
+                          <TableHead>
+                            <TableRow>
+                              <TableCell><strong>Role</strong></TableCell>
+                              <TableCell align="right"><strong>Hours</strong></TableCell>
+                              <TableCell align="right"><strong>Rate</strong></TableCell>
+                              <TableCell align="right"><strong>Total Cost</strong></TableCell>
+                            </TableRow>
+                          </TableHead>
+                          <TableBody>
+                            {cost_estimate_v1.role_breakdown?.map((role, index) => (
+                              <TableRow key={index}>
+                                <TableCell>{role.role}</TableCell>
+                                <TableCell align="right">{role.hours}</TableCell>
+                                <TableCell align="right">${role.hourly_rate}/hr</TableCell>
+                                <TableCell align="right">${role.total_cost.toLocaleString()}</TableCell>
+                              </TableRow>
+                            ))}
+                          </TableBody>
+                        </Table>
+                      </TableContainer>
+                      
+                      {cost_estimate_v1.notes && (
+                        <Box mt={2}>
+                          <Typography variant="body2" color="text.secondary" sx={{ fontStyle: 'italic' }}>
+                            {cost_estimate_v1.notes}
+                          </Typography>
+                        </Box>
+                      )}
+                    </>
+                  ) : (
+                    <>
+                      <Stack direction="row" spacing={2} mb={3}>
+                        <TextField
+                          label="Total Cost"
+                          type="number"
+                          value={editableCostEstimate?.estimated_cost || 0}
+                          onChange={(e) => editableCostEstimate && setEditableCostEstimate({
+                            ...editableCostEstimate,
+                            estimated_cost: parseFloat(e.target.value) || 0
+                          })}
+                          size="small"
+                          sx={{ minWidth: 150 }}
+                          InputProps={{ startAdornment: '$' }}
+                        />
+                        <TextField
+                          label="Currency"
+                          value={editableCostEstimate?.currency || 'USD'}
+                          onChange={(e) => editableCostEstimate && setEditableCostEstimate({
+                            ...editableCostEstimate,
+                            currency: e.target.value
+                          })}
+                          size="small"
+                          sx={{ minWidth: 100 }}
+                        />
+                        <TextField
+                          label="Rate Card Used"
+                          value={editableCostEstimate?.rate_card_used || ''}
+                          onChange={(e) => editableCostEstimate && setEditableCostEstimate({
+                            ...editableCostEstimate,
+                            rate_card_used: e.target.value
+                          })}
+                          size="small"
+                          sx={{ minWidth: 200 }}
+                        />
+                      </Stack>
+
+                      <TextField
+                        label="Calculation Method"
+                        value={editableCostEstimate?.calculation_method || ''}
+                        onChange={(e) => editableCostEstimate && setEditableCostEstimate({
+                          ...editableCostEstimate,
+                          calculation_method: e.target.value
+                        })}
+                        fullWidth
+                        sx={{ mb: 2 }}
+                      />
+
+                      <TextField
+                        label="Notes"
+                        multiline
+                        rows={3}
+                        fullWidth
+                        value={editableCostEstimate?.notes || ''}
+                        onChange={(e) => editableCostEstimate && setEditableCostEstimate({
+                          ...editableCostEstimate,
+                          notes: e.target.value
+                        })}
+                        sx={{ mb: 3 }}
+                      />
+
+                      <Stack direction="row" spacing={2} justifyContent="flex-end">
+                        <Button
+                          variant="outlined"
+                          startIcon={<CancelIcon />}
+                          onClick={handleCancelEditCostEstimate}
+                          disabled={isLoading}
+                        >
+                          Cancel
+                        </Button>
+                        <Button
+                          variant="contained"
+                          startIcon={<SaveIcon />}
+                          onClick={handleSaveCostEstimate}
+                          disabled={isLoading}
+                        >
+                          {isLoading ? 'Saving...' : 'Save Changes'}
+                        </Button>
+                      </Stack>
+                    </>
                   )}
                 </CardContent>
               </Card>
@@ -912,82 +1367,204 @@ const BusinessCaseDetailPage: React.FC = () => {
           <>
             <Divider sx={{ my: 3 }} />
             <Box mb={3}>
-              <Stack direction="row" alignItems="center" spacing={1} mb={2}>
-                <ValueIcon color="primary" />
-                <Typography variant="h5" gutterBottom sx={{ mb: 0 }}>Value/Revenue Projection</Typography>
+              <Stack direction="row" alignItems="center" justifyContent="space-between" mb={2}>
+                <Stack direction="row" alignItems="center" spacing={1}>
+                  <ValueIcon color="primary" />
+                  <Typography variant="h5" gutterBottom sx={{ mb: 0 }}>Value/Revenue Projection</Typography>
+                </Stack>
+                <Stack direction="row" spacing={1}>
+                  {canEditValueProjection() && !isEditingValueProjection && (
+                    <Button
+                      variant="outlined"
+                      size="small"
+                      startIcon={<EditIcon />}
+                      onClick={handleEditValueProjection}
+                      disabled={isLoading}
+                    >
+                      Edit Value Projection
+                    </Button>
+                  )}
+                  {canSubmitValueProjection() && !isEditingValueProjection && (
+                    <Button
+                      variant="contained"
+                      size="small"
+                      startIcon={<SendIcon />}
+                      onClick={handleSubmitValueProjectionForReview}
+                      disabled={isLoading}
+                    >
+                      Submit for Review
+                    </Button>
+                  )}
+                </Stack>
               </Stack>
+              
+              {valueProjectionUpdateSuccess && (
+                <Alert severity="success" sx={{ mb: 2 }} onClose={() => setValueProjectionUpdateSuccess(null)}>
+                  {valueProjectionUpdateSuccess}
+                </Alert>
+              )}
+              {valueProjectionUpdateError && (
+                <Alert severity="error" sx={{ mb: 2 }} onClose={() => setValueProjectionUpdateError(null)}>
+                  {valueProjectionUpdateError}
+                </Alert>
+              )}
+
               <Card variant="outlined" sx={{ mb: 2 }}>
                 <CardContent>
-                  <Stack direction="row" spacing={4} mb={3}>
-                    {value_projection_v1.template_used && (
-                      <Box>
-                        <Typography variant="body1" fontWeight="medium">
-                          {value_projection_v1.template_used}
-                        </Typography>
-                        <Typography variant="body2" color="text.secondary">
-                          Template Used
-                        </Typography>
-                      </Box>
-                    )}
-                    {value_projection_v1.methodology && (
-                      <Box>
-                        <Typography variant="body1" fontWeight="medium">
-                          {value_projection_v1.methodology}
-                        </Typography>
-                        <Typography variant="body2" color="text.secondary">
-                          Methodology
-                        </Typography>
-                      </Box>
-                    )}
-                  </Stack>
-                  
-                  <Typography variant="h6" gutterBottom>Value Scenarios</Typography>
-                  <Stack spacing={2} mb={3}>
-                    {value_projection_v1.scenarios?.map((scenario, index) => (
-                      <Card key={index} variant="outlined" sx={{ backgroundColor: '#f8f9fa' }}>
-                        <CardContent sx={{ py: 2 }}>
-                          <Stack direction="row" justifyContent="space-between" alignItems="center">
-                            <Box>
-                              <Typography variant="h6" color="primary">
-                                {scenario.case} Scenario
-                              </Typography>
-                              {scenario.description && (
-                                <Typography variant="body2" color="text.secondary">
-                                  {scenario.description}
-                                </Typography>
-                              )}
-                            </Box>
-                            <Typography variant="h5" fontWeight="bold" color="success.main">
-                              ${scenario.value.toLocaleString()} {value_projection_v1.currency}
+                  {!isEditingValueProjection ? (
+                    <>
+                      <Stack direction="row" spacing={4} mb={3}>
+                        {value_projection_v1.template_used && (
+                          <Box>
+                            <Typography variant="body1" fontWeight="medium">
+                              {value_projection_v1.template_used}
                             </Typography>
-                          </Stack>
-                        </CardContent>
-                      </Card>
-                    ))}
-                  </Stack>
-                  
-                  {value_projection_v1.assumptions && value_projection_v1.assumptions.length > 0 && (
-                    <Box mb={2}>
-                      <Typography variant="h6" gutterBottom>Key Assumptions</Typography>
-                      <List dense>
-                        {value_projection_v1.assumptions.map((assumption, index) => (
-                          <ListItem key={index} sx={{ py: 0.5 }}>
-                            <ListItemText 
-                              primary={assumption}
-                              primaryTypographyProps={{ variant: 'body2' }}
-                            />
-                          </ListItem>
+                            <Typography variant="body2" color="text.secondary">
+                              Template Used
+                            </Typography>
+                          </Box>
+                        )}
+                        {value_projection_v1.methodology && (
+                          <Box>
+                            <Typography variant="body1" fontWeight="medium">
+                              {value_projection_v1.methodology}
+                            </Typography>
+                            <Typography variant="body2" color="text.secondary">
+                              Methodology
+                            </Typography>
+                          </Box>
+                        )}
+                      </Stack>
+                      
+                      <Typography variant="h6" gutterBottom>Value Scenarios</Typography>
+                      <Stack spacing={2} mb={3}>
+                        {value_projection_v1.scenarios?.map((scenario, index) => (
+                          <Card key={index} variant="outlined" sx={{ backgroundColor: '#f8f9fa' }}>
+                            <CardContent sx={{ py: 2 }}>
+                              <Stack direction="row" justifyContent="space-between" alignItems="center">
+                                <Box>
+                                  <Typography variant="h6" color="primary">
+                                    {scenario.case} Scenario
+                                  </Typography>
+                                  {scenario.description && (
+                                    <Typography variant="body2" color="text.secondary">
+                                      {scenario.description}
+                                    </Typography>
+                                  )}
+                                </Box>
+                                <Typography variant="h5" fontWeight="bold" color="success.main">
+                                  ${scenario.value.toLocaleString()} {value_projection_v1.currency}
+                                </Typography>
+                              </Stack>
+                            </CardContent>
+                          </Card>
                         ))}
-                      </List>
-                    </Box>
-                  )}
-                  
-                  {value_projection_v1.notes && (
-                    <Box mt={2}>
-                      <Typography variant="body2" color="text.secondary" sx={{ fontStyle: 'italic' }}>
-                        {value_projection_v1.notes}
-                      </Typography>
-                    </Box>
+                      </Stack>
+                      
+                      {value_projection_v1.assumptions && value_projection_v1.assumptions.length > 0 && (
+                        <Box mb={2}>
+                          <Typography variant="h6" gutterBottom>Key Assumptions</Typography>
+                          <List dense>
+                            {value_projection_v1.assumptions.map((assumption, index) => (
+                              <ListItem key={index} sx={{ py: 0.5 }}>
+                                <ListItemText 
+                                  primary={assumption}
+                                  primaryTypographyProps={{ variant: 'body2' }}
+                                />
+                              </ListItem>
+                            ))}
+                          </List>
+                        </Box>
+                      )}
+                      
+                      {value_projection_v1.notes && (
+                        <Box mt={2}>
+                          <Typography variant="body2" color="text.secondary" sx={{ fontStyle: 'italic' }}>
+                            {value_projection_v1.notes}
+                          </Typography>
+                        </Box>
+                      )}
+                    </>
+                  ) : (
+                    <>
+                      <Stack direction="row" spacing={2} mb={3}>
+                        <TextField
+                          label="Currency"
+                          value={editableValueProjection?.currency || 'USD'}
+                          onChange={(e) => editableValueProjection && setEditableValueProjection({
+                            ...editableValueProjection,
+                            currency: e.target.value
+                          })}
+                          size="small"
+                          sx={{ minWidth: 100 }}
+                        />
+                        <TextField
+                          label="Template Used"
+                          value={editableValueProjection?.template_used || ''}
+                          onChange={(e) => editableValueProjection && setEditableValueProjection({
+                            ...editableValueProjection,
+                            template_used: e.target.value
+                          })}
+                          size="small"
+                          sx={{ minWidth: 200 }}
+                        />
+                        <TextField
+                          label="Methodology"
+                          value={editableValueProjection?.methodology || ''}
+                          onChange={(e) => editableValueProjection && setEditableValueProjection({
+                            ...editableValueProjection,
+                            methodology: e.target.value
+                          })}
+                          size="small"
+                          sx={{ minWidth: 200 }}
+                        />
+                      </Stack>
+
+                      <TextField
+                        label="Key Assumptions (one per line)"
+                        multiline
+                        rows={4}
+                        fullWidth
+                        value={editableValueProjection?.assumptions?.join('\n') || ''}
+                        onChange={(e) => editableValueProjection && setEditableValueProjection({
+                          ...editableValueProjection,
+                          assumptions: e.target.value.split('\n').filter(line => line.trim())
+                        })}
+                        sx={{ mb: 2 }}
+                      />
+
+                      <TextField
+                        label="Notes"
+                        multiline
+                        rows={3}
+                        fullWidth
+                        value={editableValueProjection?.notes || ''}
+                        onChange={(e) => editableValueProjection && setEditableValueProjection({
+                          ...editableValueProjection,
+                          notes: e.target.value
+                        })}
+                        sx={{ mb: 3 }}
+                      />
+
+                      <Stack direction="row" spacing={2} justifyContent="flex-end">
+                        <Button
+                          variant="outlined"
+                          startIcon={<CancelIcon />}
+                          onClick={handleCancelEditValueProjection}
+                          disabled={isLoading}
+                        >
+                          Cancel
+                        </Button>
+                        <Button
+                          variant="contained"
+                          startIcon={<SaveIcon />}
+                          onClick={handleSaveValueProjection}
+                          disabled={isLoading}
+                        >
+                          {isLoading ? 'Saving...' : 'Save Changes'}
+                        </Button>
+                      </Stack>
+                    </>
                   )}
                 </CardContent>
               </Card>

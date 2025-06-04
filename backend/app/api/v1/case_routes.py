@@ -326,6 +326,29 @@ class SystemDesignUpdateRequest(BaseModel):
 class SystemDesignRejectRequest(BaseModel):
     reason: Optional[str] = None
 
+class EffortEstimateUpdateRequest(BaseModel):
+    roles: List[Dict[str, Any]]
+    total_hours: int
+    estimated_duration_weeks: int
+    complexity_assessment: str
+    notes: Optional[str] = None
+
+class CostEstimateUpdateRequest(BaseModel):
+    estimated_cost: float
+    currency: str
+    rate_card_used: Optional[str] = None
+    role_breakdown: List[Dict[str, Any]]
+    calculation_method: Optional[str] = None
+    notes: Optional[str] = None
+
+class ValueProjectionUpdateRequest(BaseModel):
+    scenarios: List[Dict[str, Any]]
+    currency: str
+    template_used: Optional[str] = None
+    methodology: Optional[str] = None
+    assumptions: Optional[List[str]] = None
+    notes: Optional[str] = None
+
 @router.post("/cases/{case_id}/prd/approve", status_code=200, summary="Approve PRD for a specific business case")
 async def approve_prd(
     case_id: str,
@@ -957,4 +980,531 @@ async def reject_system_design(
         error_details = traceback.format_exc()
         print(f"Error rejecting system design for case {case_id}, user {user_id}: {e}")
         print(f"Full traceback: {error_details}")
-        raise HTTPException(status_code=500, detail=f"Failed to reject system design: {str(e)}") 
+        raise HTTPException(status_code=500, detail=f"Failed to reject system design: {str(e)}")
+
+@router.put("/cases/{case_id}/effort-estimate", status_code=200, summary="Update Effort Estimate for a specific business case")
+async def update_effort_estimate(
+    case_id: str,
+    effort_update_request: EffortEstimateUpdateRequest,
+    current_user: dict = Depends(get_current_active_user)
+):
+    """
+    Updates the Effort Estimate for a specific business case.
+    Ensures the authenticated user is the owner of the case.
+    """
+    user_id = current_user.get("uid")
+    user_email = current_user.get("email", f"User {user_id}")
+    
+    if not user_id:
+        raise HTTPException(status_code=401, detail="User ID not found in token.")
+
+    try:
+        from app.agents.orchestrator_agent import BusinessCaseStatus
+        
+        db = firestore.Client(project=settings.firebase_project_id)
+        case_doc_ref = db.collection("businessCases").document(case_id)
+
+        doc_snapshot = await asyncio.to_thread(case_doc_ref.get)
+        if not doc_snapshot.exists:
+            raise HTTPException(status_code=404, detail=f"Business case {case_id} not found.")
+
+        case_data = doc_snapshot.to_dict()
+        if not case_data:
+            raise HTTPException(status_code=404, detail=f"Business case {case_id} data is empty.")
+
+        if case_data.get("user_id") != user_id:
+            raise HTTPException(status_code=403, detail="You do not have permission to edit this business case.")
+
+        # Check status allows editing
+        current_status = case_data.get("status")
+        if hasattr(current_status, 'value'):
+            current_status_str = current_status.value
+        else:
+            current_status_str = str(current_status)
+
+        allowed_statuses = [
+            BusinessCaseStatus.PLANNING_COMPLETE.value,
+            BusinessCaseStatus.EFFORT_PENDING_REVIEW.value,
+            BusinessCaseStatus.EFFORT_REJECTED.value
+        ]
+
+        if current_status_str not in allowed_statuses:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Cannot edit effort estimate from current status: {current_status_str}"
+            )
+
+        # Construct the effort estimate object
+        updated_effort_estimate = {
+            "roles": effort_update_request.roles,
+            "total_hours": effort_update_request.total_hours,
+            "estimated_duration_weeks": effort_update_request.estimated_duration_weeks,
+            "complexity_assessment": effort_update_request.complexity_assessment,
+            "notes": effort_update_request.notes
+        }
+
+        # Prepare history entry
+        history_entry = {
+            "timestamp": datetime.now(timezone.utc),
+            "source": "USER",
+            "messageType": "EFFORT_ESTIMATE_UPDATE",
+            "content": f"Effort Estimate updated by {user_email}"
+        }
+
+        # Update effort estimate and add history entry
+        update_data = {
+            "effort_estimate_v1": updated_effort_estimate,
+            "updated_at": datetime.now(timezone.utc),
+            "history": firestore.ArrayUnion([history_entry])
+        }
+
+        await asyncio.to_thread(case_doc_ref.update, update_data)
+
+        return {
+            "message": "Effort Estimate updated successfully",
+            "updated_effort_estimate": updated_effort_estimate
+        }
+
+    except HTTPException as http_exc:
+        raise http_exc
+    except Exception as e:
+        import traceback
+        error_details = traceback.format_exc()
+        print(f"Error updating effort estimate for case {case_id}, user {user_id}: {e}")
+        print(f"Full traceback: {error_details}")
+        raise HTTPException(status_code=500, detail=f"Failed to update effort estimate: {str(e)}")
+
+@router.post("/cases/{case_id}/effort-estimate/submit", status_code=200, summary="Submit Effort Estimate for review")
+async def submit_effort_estimate_for_review(
+    case_id: str,
+    current_user: dict = Depends(get_current_active_user)
+):
+    """
+    Submits the Effort Estimate for review, updating the case status to EFFORT_PENDING_REVIEW.
+    Ensures the authenticated user is the owner of the case.
+    """
+    user_id = current_user.get("uid")
+    user_email = current_user.get("email", f"User {user_id}")
+    
+    if not user_id:
+        raise HTTPException(status_code=401, detail="User ID not found in token.")
+
+    try:
+        from app.agents.orchestrator_agent import BusinessCaseStatus
+        
+        db = firestore.Client(project=settings.firebase_project_id)
+        case_doc_ref = db.collection("businessCases").document(case_id)
+
+        doc_snapshot = await asyncio.to_thread(case_doc_ref.get)
+        if not doc_snapshot.exists:
+            raise HTTPException(status_code=404, detail=f"Business case {case_id} not found.")
+
+        case_data = doc_snapshot.to_dict()
+        if not case_data:
+            raise HTTPException(status_code=404, detail=f"Business case {case_id} data is empty.")
+
+        if case_data.get("user_id") != user_id:
+            raise HTTPException(status_code=403, detail="You do not have permission to submit this business case.")
+
+        # Check if effort estimate exists
+        if not case_data.get("effort_estimate_v1"):
+            raise HTTPException(status_code=400, detail="No effort estimate found to submit.")
+
+        # Check status allows submission
+        current_status = case_data.get("status")
+        if hasattr(current_status, 'value'):
+            current_status_str = current_status.value
+        else:
+            current_status_str = str(current_status)
+
+        allowed_statuses = [BusinessCaseStatus.PLANNING_COMPLETE.value, BusinessCaseStatus.EFFORT_REJECTED.value]
+
+        if current_status_str not in allowed_statuses:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Cannot submit effort estimate from current status: {current_status_str}"
+            )
+
+        # Prepare history entry
+        history_entry = {
+            "timestamp": datetime.now(timezone.utc),
+            "source": "USER",
+            "messageType": "EFFORT_ESTIMATE_SUBMISSION",
+            "content": f"Effort Estimate submitted for review by {user_email}"
+        }
+
+        # Update case status and add history entry
+        update_data = {
+            "status": BusinessCaseStatus.EFFORT_PENDING_REVIEW.value,
+            "updated_at": datetime.now(timezone.utc),
+            "history": firestore.ArrayUnion([history_entry])
+        }
+
+        await asyncio.to_thread(case_doc_ref.update, update_data)
+
+        return {
+            "message": "Effort Estimate submitted for review successfully",
+            "new_status": BusinessCaseStatus.EFFORT_PENDING_REVIEW.value,
+            "case_id": case_id
+        }
+
+    except HTTPException as http_exc:
+        raise http_exc
+    except Exception as e:
+        import traceback
+        error_details = traceback.format_exc()
+        print(f"Error submitting effort estimate for case {case_id}, user {user_id}: {e}")
+        print(f"Full traceback: {error_details}")
+        raise HTTPException(status_code=500, detail=f"Failed to submit effort estimate: {str(e)}")
+
+@router.put("/cases/{case_id}/cost-estimate", status_code=200, summary="Update Cost Estimate for a specific business case")
+async def update_cost_estimate(
+    case_id: str,
+    cost_update_request: CostEstimateUpdateRequest,
+    current_user: dict = Depends(get_current_active_user)
+):
+    """
+    Updates the Cost Estimate for a specific business case.
+    Ensures the authenticated user is the owner of the case.
+    """
+    user_id = current_user.get("uid")
+    user_email = current_user.get("email", f"User {user_id}")
+    
+    if not user_id:
+        raise HTTPException(status_code=401, detail="User ID not found in token.")
+
+    try:
+        from app.agents.orchestrator_agent import BusinessCaseStatus
+        
+        db = firestore.Client(project=settings.firebase_project_id)
+        case_doc_ref = db.collection("businessCases").document(case_id)
+
+        doc_snapshot = await asyncio.to_thread(case_doc_ref.get)
+        if not doc_snapshot.exists:
+            raise HTTPException(status_code=404, detail=f"Business case {case_id} not found.")
+
+        case_data = doc_snapshot.to_dict()
+        if not case_data:
+            raise HTTPException(status_code=404, detail=f"Business case {case_id} data is empty.")
+
+        if case_data.get("user_id") != user_id:
+            raise HTTPException(status_code=403, detail="You do not have permission to edit this business case.")
+
+        # Check status allows editing
+        current_status = case_data.get("status")
+        if hasattr(current_status, 'value'):
+            current_status_str = current_status.value
+        else:
+            current_status_str = str(current_status)
+
+        allowed_statuses = [
+            BusinessCaseStatus.COSTING_COMPLETE.value,
+            BusinessCaseStatus.COSTING_PENDING_REVIEW.value,
+            BusinessCaseStatus.COSTING_REJECTED.value
+        ]
+
+        if current_status_str not in allowed_statuses:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Cannot edit cost estimate from current status: {current_status_str}"
+            )
+
+        # Construct the cost estimate object
+        updated_cost_estimate = {
+            "estimated_cost": cost_update_request.estimated_cost,
+            "currency": cost_update_request.currency,
+            "rate_card_used": cost_update_request.rate_card_used,
+            "role_breakdown": cost_update_request.role_breakdown,
+            "calculation_method": cost_update_request.calculation_method,
+            "notes": cost_update_request.notes
+        }
+
+        # Prepare history entry
+        history_entry = {
+            "timestamp": datetime.now(timezone.utc),
+            "source": "USER",
+            "messageType": "COST_ESTIMATE_UPDATE",
+            "content": f"Cost Estimate updated by {user_email}"
+        }
+
+        # Update cost estimate and add history entry
+        update_data = {
+            "cost_estimate_v1": updated_cost_estimate,
+            "updated_at": datetime.now(timezone.utc),
+            "history": firestore.ArrayUnion([history_entry])
+        }
+
+        await asyncio.to_thread(case_doc_ref.update, update_data)
+
+        return {
+            "message": "Cost Estimate updated successfully",
+            "updated_cost_estimate": updated_cost_estimate
+        }
+
+    except HTTPException as http_exc:
+        raise http_exc
+    except Exception as e:
+        import traceback
+        error_details = traceback.format_exc()
+        print(f"Error updating cost estimate for case {case_id}, user {user_id}: {e}")
+        print(f"Full traceback: {error_details}")
+        raise HTTPException(status_code=500, detail=f"Failed to update cost estimate: {str(e)}")
+
+@router.post("/cases/{case_id}/cost-estimate/submit", status_code=200, summary="Submit Cost Estimate for review")
+async def submit_cost_estimate_for_review(
+    case_id: str,
+    current_user: dict = Depends(get_current_active_user)
+):
+    """
+    Submits the Cost Estimate for review, updating the case status to COSTING_PENDING_REVIEW.
+    Ensures the authenticated user is the owner of the case.
+    """
+    user_id = current_user.get("uid")
+    user_email = current_user.get("email", f"User {user_id}")
+    
+    if not user_id:
+        raise HTTPException(status_code=401, detail="User ID not found in token.")
+
+    try:
+        from app.agents.orchestrator_agent import BusinessCaseStatus
+        
+        db = firestore.Client(project=settings.firebase_project_id)
+        case_doc_ref = db.collection("businessCases").document(case_id)
+
+        doc_snapshot = await asyncio.to_thread(case_doc_ref.get)
+        if not doc_snapshot.exists:
+            raise HTTPException(status_code=404, detail=f"Business case {case_id} not found.")
+
+        case_data = doc_snapshot.to_dict()
+        if not case_data:
+            raise HTTPException(status_code=404, detail=f"Business case {case_id} data is empty.")
+
+        if case_data.get("user_id") != user_id:
+            raise HTTPException(status_code=403, detail="You do not have permission to submit this business case.")
+
+        # Check if cost estimate exists
+        if not case_data.get("cost_estimate_v1"):
+            raise HTTPException(status_code=400, detail="No cost estimate found to submit.")
+
+        # Check status allows submission
+        current_status = case_data.get("status")
+        if hasattr(current_status, 'value'):
+            current_status_str = current_status.value
+        else:
+            current_status_str = str(current_status)
+
+        allowed_statuses = [BusinessCaseStatus.COSTING_COMPLETE.value, BusinessCaseStatus.COSTING_REJECTED.value]
+
+        if current_status_str not in allowed_statuses:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Cannot submit cost estimate from current status: {current_status_str}"
+            )
+
+        # Prepare history entry
+        history_entry = {
+            "timestamp": datetime.now(timezone.utc),
+            "source": "USER",
+            "messageType": "COST_ESTIMATE_SUBMISSION",
+            "content": f"Cost Estimate submitted for review by {user_email}"
+        }
+
+        # Update case status and add history entry
+        update_data = {
+            "status": BusinessCaseStatus.COSTING_PENDING_REVIEW.value,
+            "updated_at": datetime.now(timezone.utc),
+            "history": firestore.ArrayUnion([history_entry])
+        }
+
+        await asyncio.to_thread(case_doc_ref.update, update_data)
+
+        return {
+            "message": "Cost Estimate submitted for review successfully",
+            "new_status": BusinessCaseStatus.COSTING_PENDING_REVIEW.value,
+            "case_id": case_id
+        }
+
+    except HTTPException as http_exc:
+        raise http_exc
+    except Exception as e:
+        import traceback
+        error_details = traceback.format_exc()
+        print(f"Error submitting cost estimate for case {case_id}, user {user_id}: {e}")
+        print(f"Full traceback: {error_details}")
+        raise HTTPException(status_code=500, detail=f"Failed to submit cost estimate: {str(e)}")
+
+@router.put("/cases/{case_id}/value-projection", status_code=200, summary="Update Value Projection for a specific business case")
+async def update_value_projection(
+    case_id: str,
+    value_update_request: ValueProjectionUpdateRequest,
+    current_user: dict = Depends(get_current_active_user)
+):
+    """
+    Updates the Value Projection for a specific business case.
+    Ensures the authenticated user is the owner of the case.
+    """
+    user_id = current_user.get("uid")
+    user_email = current_user.get("email", f"User {user_id}")
+    
+    if not user_id:
+        raise HTTPException(status_code=401, detail="User ID not found in token.")
+
+    try:
+        from app.agents.orchestrator_agent import BusinessCaseStatus
+        
+        db = firestore.Client(project=settings.firebase_project_id)
+        case_doc_ref = db.collection("businessCases").document(case_id)
+
+        doc_snapshot = await asyncio.to_thread(case_doc_ref.get)
+        if not doc_snapshot.exists:
+            raise HTTPException(status_code=404, detail=f"Business case {case_id} not found.")
+
+        case_data = doc_snapshot.to_dict()
+        if not case_data:
+            raise HTTPException(status_code=404, detail=f"Business case {case_id} data is empty.")
+
+        if case_data.get("user_id") != user_id:
+            raise HTTPException(status_code=403, detail="You do not have permission to edit this business case.")
+
+        # Check status allows editing
+        current_status = case_data.get("status")
+        if hasattr(current_status, 'value'):
+            current_status_str = current_status.value
+        else:
+            current_status_str = str(current_status)
+
+        allowed_statuses = [
+            BusinessCaseStatus.VALUE_ANALYSIS_COMPLETE.value,
+            BusinessCaseStatus.VALUE_PENDING_REVIEW.value,
+            BusinessCaseStatus.VALUE_REJECTED.value
+        ]
+
+        if current_status_str not in allowed_statuses:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Cannot edit value projection from current status: {current_status_str}"
+            )
+
+        # Construct the value projection object
+        updated_value_projection = {
+            "scenarios": value_update_request.scenarios,
+            "currency": value_update_request.currency,
+            "template_used": value_update_request.template_used,
+            "methodology": value_update_request.methodology,
+            "assumptions": value_update_request.assumptions,
+            "notes": value_update_request.notes
+        }
+
+        # Prepare history entry
+        history_entry = {
+            "timestamp": datetime.now(timezone.utc),
+            "source": "USER",
+            "messageType": "VALUE_PROJECTION_UPDATE",
+            "content": f"Value Projection updated by {user_email}"
+        }
+
+        # Update value projection and add history entry
+        update_data = {
+            "value_projection_v1": updated_value_projection,
+            "updated_at": datetime.now(timezone.utc),
+            "history": firestore.ArrayUnion([history_entry])
+        }
+
+        await asyncio.to_thread(case_doc_ref.update, update_data)
+
+        return {
+            "message": "Value Projection updated successfully",
+            "updated_value_projection": updated_value_projection
+        }
+
+    except HTTPException as http_exc:
+        raise http_exc
+    except Exception as e:
+        import traceback
+        error_details = traceback.format_exc()
+        print(f"Error updating value projection for case {case_id}, user {user_id}: {e}")
+        print(f"Full traceback: {error_details}")
+        raise HTTPException(status_code=500, detail=f"Failed to update value projection: {str(e)}")
+
+@router.post("/cases/{case_id}/value-projection/submit", status_code=200, summary="Submit Value Projection for review")
+async def submit_value_projection_for_review(
+    case_id: str,
+    current_user: dict = Depends(get_current_active_user)
+):
+    """
+    Submits the Value Projection for review, updating the case status to VALUE_PENDING_REVIEW.
+    Ensures the authenticated user is the owner of the case.
+    """
+    user_id = current_user.get("uid")
+    user_email = current_user.get("email", f"User {user_id}")
+    
+    if not user_id:
+        raise HTTPException(status_code=401, detail="User ID not found in token.")
+
+    try:
+        from app.agents.orchestrator_agent import BusinessCaseStatus
+        
+        db = firestore.Client(project=settings.firebase_project_id)
+        case_doc_ref = db.collection("businessCases").document(case_id)
+
+        doc_snapshot = await asyncio.to_thread(case_doc_ref.get)
+        if not doc_snapshot.exists:
+            raise HTTPException(status_code=404, detail=f"Business case {case_id} not found.")
+
+        case_data = doc_snapshot.to_dict()
+        if not case_data:
+            raise HTTPException(status_code=404, detail=f"Business case {case_id} data is empty.")
+
+        if case_data.get("user_id") != user_id:
+            raise HTTPException(status_code=403, detail="You do not have permission to submit this business case.")
+
+        # Check if value projection exists
+        if not case_data.get("value_projection_v1"):
+            raise HTTPException(status_code=400, detail="No value projection found to submit.")
+
+        # Check status allows submission
+        current_status = case_data.get("status")
+        if hasattr(current_status, 'value'):
+            current_status_str = current_status.value
+        else:
+            current_status_str = str(current_status)
+
+        allowed_statuses = [BusinessCaseStatus.VALUE_ANALYSIS_COMPLETE.value, BusinessCaseStatus.VALUE_REJECTED.value]
+
+        if current_status_str not in allowed_statuses:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Cannot submit value projection from current status: {current_status_str}"
+            )
+
+        # Prepare history entry
+        history_entry = {
+            "timestamp": datetime.now(timezone.utc),
+            "source": "USER",
+            "messageType": "VALUE_PROJECTION_SUBMISSION",
+            "content": f"Value Projection submitted for review by {user_email}"
+        }
+
+        # Update case status and add history entry
+        update_data = {
+            "status": BusinessCaseStatus.VALUE_PENDING_REVIEW.value,
+            "updated_at": datetime.now(timezone.utc),
+            "history": firestore.ArrayUnion([history_entry])
+        }
+
+        await asyncio.to_thread(case_doc_ref.update, update_data)
+
+        return {
+            "message": "Value Projection submitted for review successfully",
+            "new_status": BusinessCaseStatus.VALUE_PENDING_REVIEW.value,
+            "case_id": case_id
+        }
+
+    except HTTPException as http_exc:
+        raise http_exc
+    except Exception as e:
+        import traceback
+        error_details = traceback.format_exc()
+        print(f"Error submitting value projection for case {case_id}, user {user_id}: {e}")
+        print(f"Full traceback: {error_details}")
+        raise HTTPException(status_code=500, detail=f"Failed to submit value projection: {str(e)}") 

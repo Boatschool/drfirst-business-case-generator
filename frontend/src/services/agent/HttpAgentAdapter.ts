@@ -11,6 +11,9 @@ import {
   UpdatePrdResponse,
   UpdateStatusPayload,
   UpdateStatusResponse,
+  EffortEstimate,
+  CostEstimate,
+  ValueProjection,
 } from './AgentService';
 
 // Use environment variable for API base URL
@@ -187,6 +190,45 @@ export class HttpAgentAdapter implements AgentService {
     return this.fetchWithAuth<{ message: string; new_status: string; case_id: string }>(`/cases/${caseId}/system-design/reject`, {
       method: 'POST',
       body: JSON.stringify(requestBody),
+    });
+  }
+
+  async updateEffortEstimate(caseId: string, data: EffortEstimate): Promise<{ message: string; updated_effort_estimate: EffortEstimate }> {
+    return this.fetchWithAuth<{ message: string; updated_effort_estimate: EffortEstimate }>(`/cases/${caseId}/effort-estimate`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async submitEffortEstimateForReview(caseId: string): Promise<{ message: string; new_status: string; case_id: string }> {
+    return this.fetchWithAuth<{ message: string; new_status: string; case_id: string }>(`/cases/${caseId}/effort-estimate/submit`, {
+      method: 'POST',
+    });
+  }
+
+  async updateCostEstimate(caseId: string, data: CostEstimate): Promise<{ message: string; updated_cost_estimate: CostEstimate }> {
+    return this.fetchWithAuth<{ message: string; updated_cost_estimate: CostEstimate }>(`/cases/${caseId}/cost-estimate`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async submitCostEstimateForReview(caseId: string): Promise<{ message: string; new_status: string; case_id: string }> {
+    return this.fetchWithAuth<{ message: string; new_status: string; case_id: string }>(`/cases/${caseId}/cost-estimate/submit`, {
+      method: 'POST',
+    });
+  }
+
+  async updateValueProjection(caseId: string, data: ValueProjection): Promise<{ message: string; updated_value_projection: ValueProjection }> {
+    return this.fetchWithAuth<{ message: string; updated_value_projection: ValueProjection }>(`/cases/${caseId}/value-projection`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async submitValueProjectionForReview(caseId: string): Promise<{ message: string; new_status: string; case_id: string }> {
+    return this.fetchWithAuth<{ message: string; new_status: string; case_id: string }>(`/cases/${caseId}/value-projection/submit`, {
+      method: 'POST',
     });
   }
 }

@@ -152,26 +152,36 @@ const BusinessCaseDetailPage: React.FC = () => {
     submitPrdForReview,
     approvePrd,
     rejectPrd,
+    updateSystemDesign,
+    submitSystemDesignForReview,
+    approveSystemDesign,
+    rejectSystemDesign,
     isLoading,
     error: agentContextError,
     clearCurrentCaseDetails,
     messages
   } = useAgentContext();
-  const { currentUser } = useAuth();
+  const { currentUser, systemRole } = useAuth();
 
   const [isEditingPrd, setIsEditingPrd] = useState(false);
   const [editablePrdContent, setEditablePrdContent] = useState('');
+  const [isEditingSystemDesign, setIsEditingSystemDesign] = useState(false);
+  const [editableSystemDesignContent, setEditableSystemDesignContent] = useState('');
   const [feedbackMessage, setFeedbackMessage] = useState('');
   const [isSendingFeedback, setIsSendingFeedback] = useState(false);
   const [feedbackSendError, setFeedbackSendError] = useState<string | null>(null);
   const [prdUpdateError, setPrdUpdateError] = useState<string | null>(null);
   const [prdUpdateSuccess, setPrdUpdateSuccess] = useState<string | null>(null);
+  const [systemDesignUpdateError, setSystemDesignUpdateError] = useState<string | null>(null);
+  const [systemDesignUpdateSuccess, setSystemDesignUpdateSuccess] = useState<string | null>(null);
   const [statusUpdateSuccess, setStatusUpdateSuccess] = useState<string | null>(null);
   const [statusUpdateError, setStatusUpdateError] = useState<string | null>(null);
   const [approvalSuccess, setApprovalSuccess] = useState<string | null>(null);
   const [approvalError, setApprovalError] = useState<string | null>(null);
   const [isRejectDialogOpen, setIsRejectDialogOpen] = useState(false);
+  const [isSystemDesignRejectDialogOpen, setIsSystemDesignRejectDialogOpen] = useState(false);
   const [rejectionReason, setRejectionReason] = useState('');
+  const [systemDesignRejectionReason, setSystemDesignRejectionReason] = useState('');
 
   const loadDetails = useCallback(() => {
     if (caseId) {
@@ -191,6 +201,12 @@ const BusinessCaseDetailPage: React.FC = () => {
       setEditablePrdContent(currentCaseDetails.prd_draft.content_markdown);
     }
   }, [currentCaseDetails, isEditingPrd]);
+
+  useEffect(() => {
+    if (currentCaseDetails?.system_design_v1_draft?.content_markdown && !isEditingSystemDesign) {
+      setEditableSystemDesignContent(currentCaseDetails.system_design_v1_draft.content_markdown);
+    }
+  }, [currentCaseDetails, isEditingSystemDesign]);
 
   const handleEditPrd = () => {
     setEditablePrdContent(currentCaseDetails?.prd_draft?.content_markdown || '');
@@ -303,6 +319,94 @@ const BusinessCaseDetailPage: React.FC = () => {
   const handleCloseRejectDialog = () => {
     setIsRejectDialogOpen(false);
     setRejectionReason('');
+  };
+
+  // System Design Handlers
+  const handleEditSystemDesign = () => {
+    setEditableSystemDesignContent(currentCaseDetails?.system_design_v1_draft?.content_markdown || '');
+    setIsEditingSystemDesign(true);
+    setSystemDesignUpdateError(null);
+    setSystemDesignUpdateSuccess(null);
+  };
+
+  const handleCancelEditSystemDesign = () => {
+    setIsEditingSystemDesign(false);
+    setEditableSystemDesignContent(currentCaseDetails?.system_design_v1_draft?.content_markdown || '');
+    setSystemDesignUpdateError(null);
+    setSystemDesignUpdateSuccess(null);
+  };
+
+  const handleSaveSystemDesign = async () => {
+    if (!caseId) return;
+    
+    try {
+      const success = await updateSystemDesign(caseId, editableSystemDesignContent);
+      if (success) {
+        setIsEditingSystemDesign(false);
+        setSystemDesignUpdateSuccess('System Design saved successfully.');
+        setSystemDesignUpdateError(null);
+      }
+    } catch (error: any) {
+      setSystemDesignUpdateError(error.message || 'Failed to save System Design.');
+      setSystemDesignUpdateSuccess(null);
+    }
+  };
+
+  const handleSubmitSystemDesignForReview = async () => {
+    if (!caseId) return;
+    
+    try {
+      const success = await submitSystemDesignForReview(caseId);
+      if (success) {
+        setStatusUpdateSuccess('System Design submitted for review successfully.');
+        setStatusUpdateError(null);
+      }
+    } catch (error: any) {
+      setStatusUpdateError(error.message || 'Failed to submit System Design for review.');
+      setStatusUpdateSuccess(null);
+    }
+  };
+
+  const handleApproveSystemDesign = async () => {
+    if (!caseId) return;
+    
+    try {
+      const success = await approveSystemDesign(caseId);
+      if (success) {
+        setApprovalSuccess('System Design approved successfully.');
+        setApprovalError(null);
+      }
+    } catch (error: any) {
+      setApprovalError(error.message || 'Failed to approve System Design.');
+      setApprovalSuccess(null);
+    }
+  };
+
+  const handleRejectSystemDesign = async () => {
+    if (!caseId) return;
+    
+    try {
+      const success = await rejectSystemDesign(caseId, systemDesignRejectionReason);
+      if (success) {
+        setApprovalSuccess('System Design rejected successfully.');
+        setApprovalError(null);
+        setIsSystemDesignRejectDialogOpen(false);
+        setSystemDesignRejectionReason('');
+      }
+    } catch (error: any) {
+      setApprovalError(error.message || 'Failed to reject System Design.');
+      setApprovalSuccess(null);
+    }
+  };
+
+  const handleOpenSystemDesignRejectDialog = () => {
+    setIsSystemDesignRejectDialogOpen(true);
+    setSystemDesignRejectionReason('');
+  };
+
+  const handleCloseSystemDesignRejectDialog = () => {
+    setIsSystemDesignRejectDialogOpen(false);
+    setSystemDesignRejectionReason('');
   };
 
   if (isLoadingCaseDetails && !currentCaseDetails) {
@@ -531,19 +635,135 @@ const BusinessCaseDetailPage: React.FC = () => {
           <>
             <Divider sx={{ my: 3 }} />
             <Box mb={3}>
-              <Typography variant="h5" gutterBottom>System Design (v1)</Typography>
+              <Stack direction="row" alignItems="center" justifyContent="space-between" mb={2}>
+                <Typography variant="h5">System Design (v1)</Typography>
+                <Stack direction="row" spacing={1}>
+                  {/* Edit System Design Button - Show for owner or DEVELOPER role in appropriate statuses */}
+                  {!isEditingSystemDesign && 
+                   (status === 'SYSTEM_DESIGN_DRAFTED' || status === 'SYSTEM_DESIGN_PENDING_REVIEW') &&
+                   (currentCaseDetails?.user_id === currentUser?.uid || systemRole === 'DEVELOPER') && (
+                    <Button
+                      variant="outlined"
+                      size="small"
+                      startIcon={<EditIcon />}
+                      onClick={handleEditSystemDesign}
+                      disabled={isLoading}
+                    >
+                      Edit System Design
+                    </Button>
+                  )}
+                  
+                  {/* Submit for Review Button - Show for owner or DEVELOPER role when status is SYSTEM_DESIGN_DRAFTED */}
+                  {!isEditingSystemDesign && 
+                   status === 'SYSTEM_DESIGN_DRAFTED' &&
+                   (currentCaseDetails?.user_id === currentUser?.uid || systemRole === 'DEVELOPER') && (
+                    <Button
+                      variant="contained"
+                      size="small"
+                      startIcon={<SendIcon />}
+                      onClick={handleSubmitSystemDesignForReview}
+                      disabled={isLoading}
+                    >
+                      Submit for Review
+                    </Button>
+                  )}
+                  
+                  {/* Approve System Design Button - Show only for DEVELOPER role when status is SYSTEM_DESIGN_PENDING_REVIEW */}
+                  {!isEditingSystemDesign && 
+                   status === 'SYSTEM_DESIGN_PENDING_REVIEW' &&
+                   systemRole === 'DEVELOPER' && (
+                    <Button
+                      variant="contained"
+                      size="small"
+                      color="success"
+                      startIcon={<CheckCircleIcon />}
+                      onClick={handleApproveSystemDesign}
+                      disabled={isLoading}
+                    >
+                      Approve System Design
+                    </Button>
+                  )}
+                  
+                  {/* Reject System Design Button - Show only for DEVELOPER role when status is SYSTEM_DESIGN_PENDING_REVIEW */}
+                  {!isEditingSystemDesign && 
+                   status === 'SYSTEM_DESIGN_PENDING_REVIEW' &&
+                   systemRole === 'DEVELOPER' && (
+                    <Button
+                      variant="outlined"
+                      size="small"
+                      color="error"
+                      startIcon={<RejectIcon />}
+                      onClick={handleOpenSystemDesignRejectDialog}
+                      disabled={isLoading}
+                    >
+                      Reject System Design
+                    </Button>
+                  )}
+                </Stack>
+              </Stack>
+              
               <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
                 Generated by: {system_design_v1_draft.generated_by} • Version: {system_design_v1_draft.version}
+                {system_design_v1_draft.last_edited_by && (
+                  <> • Last edited by: {system_design_v1_draft.last_edited_by}</>
+                )}
               </Typography>
-              <Paper elevation={0} sx={{ 
-                p: 3, 
-                mt: 1, 
-                border: '1px solid #eee', 
-                backgroundColor: '#fafafa',
-                ...markdownStyles
-              }}>
-                <ReactMarkdown>{system_design_v1_draft.content_markdown}</ReactMarkdown>
-              </Paper>
+              
+              {/* System Design Update Success/Error Messages */}
+              {systemDesignUpdateSuccess && (
+                <Alert severity="success" sx={{ mb: 2 }}>
+                  {systemDesignUpdateSuccess}
+                </Alert>
+              )}
+              {systemDesignUpdateError && (
+                <Alert severity="error" sx={{ mb: 2 }}>
+                  {systemDesignUpdateError}
+                </Alert>
+              )}
+              
+              {/* System Design Content - Editable or Read-only */}
+              {isEditingSystemDesign ? (
+                <Box>
+                  <TextField
+                    multiline
+                    fullWidth
+                    rows={20}
+                    value={editableSystemDesignContent}
+                    onChange={(e) => setEditableSystemDesignContent(e.target.value)}
+                    variant="outlined"
+                    placeholder="Edit the system design content..."
+                    sx={{ mb: 2, fontFamily: 'monospace' }}
+                  />
+                  <Stack direction="row" spacing={1}>
+                    <Button
+                      variant="contained"
+                      startIcon={<SaveIcon />}
+                      onClick={handleSaveSystemDesign}
+                      disabled={isLoading}
+                    >
+                      Save Changes
+                    </Button>
+                    <Button
+                      variant="outlined"
+                      startIcon={<CancelIcon />}
+                      onClick={handleCancelEditSystemDesign}
+                      disabled={isLoading}
+                    >
+                      Cancel
+                    </Button>
+                  </Stack>
+                </Box>
+              ) : (
+                <Paper elevation={0} sx={{ 
+                  p: 3, 
+                  mt: 1, 
+                  border: '1px solid #eee', 
+                  backgroundColor: '#fafafa',
+                  ...markdownStyles
+                }}>
+                  <ReactMarkdown>{formatPrdContent(system_design_v1_draft.content_markdown)}</ReactMarkdown>
+                </Paper>
+              )}
             </Box>
           </>
         )}
@@ -783,7 +1003,7 @@ const BusinessCaseDetailPage: React.FC = () => {
 
       </Paper>
 
-      {/* Rejection Dialog */}
+      {/* PRD Rejection Dialog */}
       <Dialog open={isRejectDialogOpen} onClose={handleCloseRejectDialog} maxWidth="sm" fullWidth>
         <DialogTitle>Reject PRD</DialogTitle>
         <DialogContent>
@@ -811,6 +1031,38 @@ const BusinessCaseDetailPage: React.FC = () => {
             disabled={isLoading}
           >
             {isLoading ? 'Rejecting...' : 'Reject PRD'}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* System Design Rejection Dialog */}
+      <Dialog open={isSystemDesignRejectDialogOpen} onClose={handleCloseSystemDesignRejectDialog} maxWidth="sm" fullWidth>
+        <DialogTitle>Reject System Design</DialogTitle>
+        <DialogContent>
+          <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+            Please provide a reason for rejecting this System Design (optional):
+          </Typography>
+          <TextField
+            fullWidth
+            multiline
+            rows={3}
+            value={systemDesignRejectionReason}
+            onChange={(e) => setSystemDesignRejectionReason(e.target.value)}
+            placeholder="Enter reason for rejection..."
+            variant="outlined"
+          />
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={handleCloseSystemDesignRejectDialog} disabled={isLoading}>
+            Cancel
+          </Button>
+          <Button 
+            onClick={handleRejectSystemDesign} 
+            color="error" 
+            variant="contained"
+            disabled={isLoading}
+          >
+            {isLoading ? 'Rejecting...' : 'Reject System Design'}
           </Button>
         </DialogActions>
       </Dialog>

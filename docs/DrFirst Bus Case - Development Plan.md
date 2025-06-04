@@ -295,16 +295,16 @@ The application now provides a professional, persistent chat experience that sup
 **Phase 8: Full HITL for Technical & Financials, FinancialModelAgent**
 
 * **Focus:** Implement HITL (review, edit, approve) for System Design, Cost Estimates, and Revenue Projections. Implement the FinancialModelAgent to consolidate financials.  
-* **Status:** All tasks todo.
+* **Status:** System Design HITL COMPLETE ✅ - All remaining tasks todo.
 
 | Task ID | Title | Status | Priority | Complexity | Dependencies | Notes |
 | :---- | :---- | :---- | :---- | :---- | :---- | :---- |
 | 8.1 | **HITL for System Design** |  |  |  |  |  |
-| 8.1.1 | Orchestrator: Update status to SYSTEM_DESIGN_PENDING_REVIEW after ArchitectAgent runs. Define who can review (e.g., "DEVELOPER" role). | todo | high | low | 5.4.3, 7.3.1 |  |
-| 8.1.2 | BusinessCaseDetailPage.tsx: Allow editing of System Design draft. Add "Submit System Design for Approval" button. | todo | high | low | 5.5.1 | Similar to PRD editing/submission. Backend API: /api/v1/cases/{caseId}/system-design (PUT). |
-| 8.1.3 | Frontend: Show "Approve/Reject System Design" buttons for users with appropriate role (e.g., "DEVELOPER" or a designated tech lead). | todo | high | low | 7.3.3, 8.1.1, 8.1.2 | Update status to SYSTEM_DESIGN_APPROVED or SYSTEM_DESIGN_REJECTED. |
+| 8.1.1 | Orchestrator: Update status to SYSTEM_DESIGN_PENDING_REVIEW after ArchitectAgent runs. Define who can review (e.g., "DEVELOPER" role). | COMPLETE | high | low | 5.4.3, 7.3.1 | ✅ COMPLETE: Status flows implemented with SYSTEM_DESIGN_DRAFTED → SYSTEM_DESIGN_PENDING_REVIEW → SYSTEM_DESIGN_APPROVED/REJECTED. DEVELOPER role authorization implemented. |
+| 8.1.2 | BusinessCaseDetailPage.tsx: Allow editing of System Design draft. Add "Submit System Design for Approval" button. | COMPLETE | high | low | 5.5.1 | ✅ COMPLETE: Full UI implementation with edit functionality, submit button, and backend API PUT /api/v1/cases/{caseId}/system-design. All handlers and state management implemented. |
+| 8.1.3 | Frontend: Show "Approve/Reject System Design" buttons for users with appropriate role (e.g., "DEVELOPER" or a designated tech lead). | COMPLETE | high | low | 7.3.3, 8.1.1, 8.1.2 | ✅ COMPLETE: Role-based UI with conditional buttons for DEVELOPER role. Approve/reject functionality with optional reason, proper status updates, and history logging. |
 | 8.2 | **ArchitectAgent Enhancement** |  |  |  |  |  |
-| 8.2.1 | ArchitectAgent: Refine system design generation prompt (e.g., suggest key components, data stores, APIs based on PRD). | todo | high | low | 5.4.3 | Aim for a more structured output. |
+| 8.2.1 | ArchitectAgent: Refine system design generation prompt (e.g., suggest key components, data stores, APIs based on PRD). | COMPLETE | high | low | 5.4.3 | ✅ COMPLETE: Enhanced ArchitectAgent with PRD analysis, 10-section structured output, specific API/component recommendations, implementation roadmap, and risk assessment. Version upgraded to v2 with comprehensive testing. |
 | 8.3 | **HITL for Cost & Revenue Estimates** |  |  |  |  |  |
 | 8.3.1 | Orchestrator: Update status flows for PLANNING_COMPLETE_PENDING_REVIEW, COSTING_COMPLETE_PENDING_REVIEW, REVENUE_PENDING_REVIEW. | todo | high | low | 6.1.3, 6.1.6, 6.2.3 | Define reviewers (e.g., initiator, sales manager). |
 | 8.3.2 | BusinessCaseDetailPage.tsx: Allow editing of Effort Breakdown, Cost Estimate inputs (e.g., override rates, hours), Revenue Projection inputs. | todo | high | low | 6.3.1 | This might involve more complex forms. Backend APIs needed to save these overrides. |

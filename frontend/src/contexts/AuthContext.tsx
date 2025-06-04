@@ -18,6 +18,10 @@ interface AuthContextType {
   isValidUser: boolean;
   systemRole: string | null;
   isAdmin: boolean;
+  isDeveloper: boolean;
+  isSalesManager: boolean;
+  isFinanceApprover: boolean;
+  isProductOwner: boolean;
 }
 
 // Create the context with a default undefined value to catch consumers not wrapped in a provider
@@ -55,6 +59,12 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const isValidUser = validationResult.isValid;
   const systemRole = currentUser?.systemRole || null;
   const isAdmin = systemRole === 'ADMIN';
+  
+  // Additional role checks for commonly used roles
+  const isDeveloper = systemRole === 'DEVELOPER';
+  const isSalesManager = systemRole === 'SALES_MANAGER';
+  const isFinanceApprover = systemRole === 'FINANCE_APPROVER';
+  const isProductOwner = systemRole === 'PRODUCT_OWNER';
 
   // If validation fails and we have a user, set the error
   useEffect(() => {
@@ -80,6 +90,10 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     isValidUser,
     systemRole,
     isAdmin,
+    isDeveloper,
+    isSalesManager,
+    isFinanceApprover,
+    isProductOwner,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

@@ -161,6 +161,34 @@ export class HttpAgentAdapter implements AgentService {
       body: JSON.stringify(requestBody),
     });
   }
+
+  async updateSystemDesign(caseId: string, content: string): Promise<{ message: string; updated_system_design: any }> {
+    const requestBody = { content_markdown: content };
+    return this.fetchWithAuth<{ message: string; updated_system_design: any }>(`/cases/${caseId}/system-design`, {
+      method: 'PUT',
+      body: JSON.stringify(requestBody),
+    });
+  }
+
+  async submitSystemDesignForReview(caseId: string): Promise<{ message: string; new_status: string; case_id: string }> {
+    return this.fetchWithAuth<{ message: string; new_status: string; case_id: string }>(`/cases/${caseId}/system-design/submit`, {
+      method: 'POST',
+    });
+  }
+
+  async approveSystemDesign(caseId: string): Promise<{ message: string; new_status: string; case_id: string }> {
+    return this.fetchWithAuth<{ message: string; new_status: string; case_id: string }>(`/cases/${caseId}/system-design/approve`, {
+      method: 'POST',
+    });
+  }
+
+  async rejectSystemDesign(caseId: string, reason?: string): Promise<{ message: string; new_status: string; case_id: string }> {
+    const requestBody = reason ? { reason } : {};
+    return this.fetchWithAuth<{ message: string; new_status: string; case_id: string }>(`/cases/${caseId}/system-design/reject`, {
+      method: 'POST',
+      body: JSON.stringify(requestBody),
+    });
+  }
 }
 
 // Export an instance if you prefer a singleton pattern for services

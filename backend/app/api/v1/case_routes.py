@@ -319,6 +319,13 @@ async def submit_prd_for_review(
 class PrdRejectRequest(BaseModel):
     reason: Optional[str] = None
 
+# Pydantic models for System Design workflow
+class SystemDesignUpdateRequest(BaseModel):
+    content_markdown: str
+
+class SystemDesignRejectRequest(BaseModel):
+    reason: Optional[str] = None
+
 @router.post("/cases/{case_id}/prd/approve", status_code=200, summary="Approve PRD for a specific business case")
 async def approve_prd(
     case_id: str,
@@ -597,4 +604,357 @@ async def update_case_status(
         error_details = traceback.format_exc()
         print(f"Error updating status for case {case_id}, user {user_id}: {e}")
         print(f"Full traceback: {error_details}")
-        raise HTTPException(status_code=500, detail=f"Failed to update case status: {str(e)}") 
+        raise HTTPException(status_code=500, detail=f"Failed to update case status: {str(e)}")
+
+# System Design HITL Endpoints
+
+@router.put("/cases/{case_id}/system-design", status_code=200, summary="Update System Design for a specific business case")
+async def update_system_design_draft(
+    case_id: str,
+    system_design_update_request: SystemDesignUpdateRequest,
+    current_user: dict = Depends(get_current_active_user)
+):
+    """
+    Updates the System Design draft for a specific business case.
+    Ensures the authenticated user is the owner/initiator of the case or has DEVELOPER role.
+    """
+    user_id = current_user.get("uid")
+    user_email = current_user.get("email", f"User {user_id}")
+    system_role = current_user.get("systemRole")
+    
+    if not user_id:
+        raise HTTPException(status_code=401, detail="User ID not found in token.")
+
+    try:
+        # Import BusinessCaseStatus from orchestrator_agent
+        from app.agents.orchestrator_agent import BusinessCaseStatus
+        
+        db = firestore.Client(project=settings.firebase_project_id)
+        case_doc_ref = db.collection("businessCases").document(case_id)
+
+        doc_snapshot = await asyncio.to_thread(case_doc_ref.get)
+        if not doc_snapshot.exists:
+            raise HTTPException(status_code=404, detail=f"Business case {case_id} not found.")
+
+        case_data = doc_snapshot.to_dict()
+        if not case_data:
+            raise HTTPException(status_code=404, detail=f"Business case {case_id} data is empty.")
+
+        # Authorization check: owner OR DEVELOPER role
+        is_owner = case_data.get("user_id") == user_id
+        is_developer = system_role == "DEVELOPER"
+        
+        if not (is_owner or is_developer):
+            raise HTTPException(status_code=403, detail="You do not have permission to edit this system design.")
+
+        # Status check: allow editing if SYSTEM_DESIGN_DRAFTED or SYSTEM_DESIGN_PENDING_REVIEW
+        current_status = case_data.get("status")
+        if hasattr(current_status, 'value'):
+            current_status_str = current_status.value
+        else:
+            current_status_str = str(current_status)
+
+        allowed_statuses = [
+            BusinessCaseStatus.SYSTEM_DESIGN_DRAFTED.value,
+            BusinessCaseStatus.SYSTEM_DESIGN_PENDING_REVIEW.value
+        ]
+        
+        if current_status_str not in allowed_statuses:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Cannot edit system design from current status: {current_status_str}"
+            )
+
+        # Update system design content
+        existing_system_design = case_data.get("system_design_v1_draft") or {}
+        updated_system_design = {
+            "content_markdown": system_design_update_request.content_markdown,
+            "generated_by": existing_system_design.get("generated_by", "ArchitectAgent"),
+            "version": existing_system_design.get("version", "1.0.0"),
+            "generated_at": existing_system_design.get("generated_at"),
+            "last_edited_by": user_email,
+            "last_edited_at": datetime.now(timezone.utc).isoformat()
+        }
+
+        # Prepare history entry
+        history_entry = {
+            "timestamp": datetime.now(timezone.utc),
+            "source": "USER",
+            "messageType": "SYSTEM_DESIGN_UPDATE",
+            "content": f"System Design updated by {user_email}"
+        }
+
+        update_data = {
+            "system_design_v1_draft": updated_system_design,
+            "updated_at": datetime.now(timezone.utc),
+            "history": firestore.ArrayUnion([history_entry])
+        }
+
+        await asyncio.to_thread(case_doc_ref.update, update_data)
+
+        return {
+            "message": "System Design updated successfully",
+            "updated_system_design": updated_system_design
+        }
+
+    except HTTPException as http_exc:
+        raise http_exc
+    except Exception as e:
+        import traceback
+        error_details = traceback.format_exc()
+        print(f"Error updating system design for case {case_id}, user {user_id}: {e}")
+        print(f"Full traceback: {error_details}")
+        raise HTTPException(status_code=500, detail=f"Failed to update system design: {str(e)}")
+
+@router.post("/cases/{case_id}/system-design/submit", status_code=200, summary="Submit System Design for review")
+async def submit_system_design_for_review(
+    case_id: str,
+    current_user: dict = Depends(get_current_active_user)
+):
+    """
+    Submits the System Design for review, updating the case status to SYSTEM_DESIGN_PENDING_REVIEW.
+    Ensures the authenticated user is the owner/initiator of the case or has DEVELOPER role.
+    """
+    user_id = current_user.get("uid")
+    user_email = current_user.get("email", f"User {user_id}")
+    system_role = current_user.get("systemRole")
+    
+    if not user_id:
+        raise HTTPException(status_code=401, detail="User ID not found in token.")
+
+    try:
+        # Import BusinessCaseStatus from orchestrator_agent
+        from app.agents.orchestrator_agent import BusinessCaseStatus
+        
+        db = firestore.Client(project=settings.firebase_project_id)
+        case_doc_ref = db.collection("businessCases").document(case_id)
+
+        doc_snapshot = await asyncio.to_thread(case_doc_ref.get)
+        if not doc_snapshot.exists:
+            raise HTTPException(status_code=404, detail=f"Business case {case_id} not found.")
+
+        case_data = doc_snapshot.to_dict()
+        if not case_data:
+            raise HTTPException(status_code=404, detail=f"Business case {case_id} data is empty.")
+
+        # Authorization check: owner OR DEVELOPER role
+        is_owner = case_data.get("user_id") == user_id
+        is_developer = system_role == "DEVELOPER"
+        
+        if not (is_owner or is_developer):
+            raise HTTPException(status_code=403, detail="You do not have permission to submit this system design.")
+
+        # Status check: can only submit from SYSTEM_DESIGN_DRAFTED
+        current_status = case_data.get("status")
+        if hasattr(current_status, 'value'):
+            current_status_str = current_status.value
+        else:
+            current_status_str = str(current_status)
+
+        if current_status_str != BusinessCaseStatus.SYSTEM_DESIGN_DRAFTED.value:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Cannot submit system design from current status: {current_status_str}"
+            )
+
+        # Ensure system design exists
+        if not case_data.get("system_design_v1_draft"):
+            raise HTTPException(status_code=400, detail="No system design draft found to submit.")
+
+        # Prepare history entry
+        history_entry = {
+            "timestamp": datetime.now(timezone.utc),
+            "source": "USER",
+            "messageType": "SYSTEM_DESIGN_SUBMISSION",
+            "content": f"System Design submitted for review by {user_email}"
+        }
+
+        # Update case status and add history entry
+        update_data = {
+            "status": BusinessCaseStatus.SYSTEM_DESIGN_PENDING_REVIEW.value,
+            "updated_at": datetime.now(timezone.utc),
+            "history": firestore.ArrayUnion([history_entry])
+        }
+
+        await asyncio.to_thread(case_doc_ref.update, update_data)
+
+        return {
+            "message": "System Design submitted for review successfully",
+            "new_status": BusinessCaseStatus.SYSTEM_DESIGN_PENDING_REVIEW.value,
+            "case_id": case_id
+        }
+
+    except HTTPException as http_exc:
+        raise http_exc
+    except Exception as e:
+        import traceback
+        error_details = traceback.format_exc()
+        print(f"Error submitting system design for case {case_id}, user {user_id}: {e}")
+        print(f"Full traceback: {error_details}")
+        raise HTTPException(status_code=500, detail=f"Failed to submit system design: {str(e)}")
+
+@router.post("/cases/{case_id}/system-design/approve", status_code=200, summary="Approve System Design for a specific business case")
+async def approve_system_design(
+    case_id: str,
+    current_user: dict = Depends(get_current_active_user)
+):
+    """
+    Approves the System Design for a business case, updating the case status to SYSTEM_DESIGN_APPROVED.
+    Requires DEVELOPER role and case must be in SYSTEM_DESIGN_PENDING_REVIEW status.
+    """
+    user_id = current_user.get("uid")
+    user_email = current_user.get("email", f"User {user_id}")
+    system_role = current_user.get("systemRole")
+    
+    if not user_id:
+        raise HTTPException(status_code=401, detail="User ID not found in token.")
+
+    # Authorization check: Must have DEVELOPER role
+    if system_role != "DEVELOPER":
+        raise HTTPException(status_code=403, detail="Only users with DEVELOPER role can approve system designs.")
+
+    try:
+        # Import BusinessCaseStatus from orchestrator_agent
+        from app.agents.orchestrator_agent import BusinessCaseStatus
+        
+        db = firestore.Client(project=settings.firebase_project_id)
+        case_doc_ref = db.collection("businessCases").document(case_id)
+
+        doc_snapshot = await asyncio.to_thread(case_doc_ref.get)
+        if not doc_snapshot.exists:
+            raise HTTPException(status_code=404, detail=f"Business case {case_id} not found.")
+
+        case_data = doc_snapshot.to_dict()
+        if not case_data:
+            raise HTTPException(status_code=404, detail=f"Business case {case_id} data is empty.")
+
+        # Status check: ensure case is in SYSTEM_DESIGN_PENDING_REVIEW status
+        current_status = case_data.get("status")
+        if hasattr(current_status, 'value'):
+            current_status_str = current_status.value
+        else:
+            current_status_str = str(current_status)
+
+        if current_status_str != BusinessCaseStatus.SYSTEM_DESIGN_PENDING_REVIEW.value:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Cannot approve system design from current status: {current_status_str}. System Design must be pending review."
+            )
+
+        # Prepare history entry
+        history_entry = {
+            "timestamp": datetime.now(timezone.utc),
+            "source": "USER",
+            "messageType": "SYSTEM_DESIGN_APPROVAL",
+            "content": f"System Design approved by {user_email} (DEVELOPER)"
+        }
+
+        # Update case status to SYSTEM_DESIGN_APPROVED and add history entry
+        update_data = {
+            "status": BusinessCaseStatus.SYSTEM_DESIGN_APPROVED.value,
+            "updated_at": datetime.now(timezone.utc),
+            "history": firestore.ArrayUnion([history_entry])
+        }
+
+        await asyncio.to_thread(case_doc_ref.update, update_data)
+
+        return {
+            "message": "System Design approved successfully",
+            "new_status": BusinessCaseStatus.SYSTEM_DESIGN_APPROVED.value,
+            "case_id": case_id
+        }
+
+    except HTTPException as http_exc:
+        raise http_exc
+    except Exception as e:
+        import traceback
+        error_details = traceback.format_exc()
+        print(f"Error approving system design for case {case_id}, user {user_id}: {e}")
+        print(f"Full traceback: {error_details}")
+        raise HTTPException(status_code=500, detail=f"Failed to approve system design: {str(e)}")
+
+@router.post("/cases/{case_id}/system-design/reject", status_code=200, summary="Reject System Design for a specific business case")
+async def reject_system_design(
+    case_id: str,
+    reject_request: SystemDesignRejectRequest = SystemDesignRejectRequest(),
+    current_user: dict = Depends(get_current_active_user)
+):
+    """
+    Rejects the System Design for a business case, updating the case status to SYSTEM_DESIGN_REJECTED.
+    Requires DEVELOPER role and case must be in SYSTEM_DESIGN_PENDING_REVIEW status.
+    Optionally accepts a rejection reason.
+    """
+    user_id = current_user.get("uid")
+    user_email = current_user.get("email", f"User {user_id}")
+    system_role = current_user.get("systemRole")
+    
+    if not user_id:
+        raise HTTPException(status_code=401, detail="User ID not found in token.")
+
+    # Authorization check: Must have DEVELOPER role
+    if system_role != "DEVELOPER":
+        raise HTTPException(status_code=403, detail="Only users with DEVELOPER role can reject system designs.")
+
+    try:
+        # Import BusinessCaseStatus from orchestrator_agent
+        from app.agents.orchestrator_agent import BusinessCaseStatus
+        
+        db = firestore.Client(project=settings.firebase_project_id)
+        case_doc_ref = db.collection("businessCases").document(case_id)
+
+        doc_snapshot = await asyncio.to_thread(case_doc_ref.get)
+        if not doc_snapshot.exists:
+            raise HTTPException(status_code=404, detail=f"Business case {case_id} not found.")
+
+        case_data = doc_snapshot.to_dict()
+        if not case_data:
+            raise HTTPException(status_code=404, detail=f"Business case {case_id} data is empty.")
+
+        # Status check: ensure case is in SYSTEM_DESIGN_PENDING_REVIEW status
+        current_status = case_data.get("status")
+        if hasattr(current_status, 'value'):
+            current_status_str = current_status.value
+        else:
+            current_status_str = str(current_status)
+
+        if current_status_str != BusinessCaseStatus.SYSTEM_DESIGN_PENDING_REVIEW.value:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Cannot reject system design from current status: {current_status_str}. System Design must be pending review."
+            )
+
+        # Prepare history entry with optional reason
+        rejection_content = f"System Design rejected by {user_email} (DEVELOPER)"
+        if reject_request.reason:
+            rejection_content += f". Reason: {reject_request.reason}"
+
+        history_entry = {
+            "timestamp": datetime.now(timezone.utc),
+            "source": "USER",
+            "messageType": "SYSTEM_DESIGN_REJECTION",
+            "content": rejection_content
+        }
+
+        # Update case status to SYSTEM_DESIGN_REJECTED and add history entry
+        update_data = {
+            "status": BusinessCaseStatus.SYSTEM_DESIGN_REJECTED.value,
+            "updated_at": datetime.now(timezone.utc),
+            "history": firestore.ArrayUnion([history_entry])
+        }
+
+        await asyncio.to_thread(case_doc_ref.update, update_data)
+
+        return {
+            "message": "System Design rejected successfully",
+            "new_status": BusinessCaseStatus.SYSTEM_DESIGN_REJECTED.value,
+            "case_id": case_id
+        }
+
+    except HTTPException as http_exc:
+        raise http_exc
+    except Exception as e:
+        import traceback
+        error_details = traceback.format_exc()
+        print(f"Error rejecting system design for case {case_id}, user {user_id}: {e}")
+        print(f"Full traceback: {error_details}")
+        raise HTTPException(status_code=500, detail=f"Failed to reject system design: {str(e)}") 

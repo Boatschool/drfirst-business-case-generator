@@ -35,6 +35,10 @@ interface AgentContextType extends AgentContextState {
   submitPrdForReview: (caseId: string) => Promise<boolean>;
   approvePrd: (caseId: string) => Promise<boolean>;
   rejectPrd: (caseId: string, reason?: string) => Promise<boolean>;
+  updateSystemDesign: (caseId: string, content: string) => Promise<boolean>;
+  submitSystemDesignForReview: (caseId: string) => Promise<boolean>;
+  approveSystemDesign: (caseId: string) => Promise<boolean>;
+  rejectSystemDesign: (caseId: string, reason?: string) => Promise<boolean>;
   clearAgentState: () => void;
   clearCurrentCaseDetails: () => void;
   // TODO: Add a way to subscribe to agent updates via onAgentUpdate from AgentService
@@ -194,6 +198,66 @@ export const AgentProvider: React.FC<AgentProviderProps> = ({ children }) => {
     }
   }, [state.currentCaseId, fetchCaseDetails]);
 
+  const updateSystemDesign = useCallback(async (caseId: string, content: string): Promise<boolean> => {
+    setState(prevState => ({ ...prevState, isLoading: true, error: null }));
+    try {
+      await agentService.updateSystemDesign(caseId, content);
+      setState(prevState => ({ ...prevState, isLoading: false }));
+      if (caseId === state.currentCaseId) {
+        await fetchCaseDetails(caseId);
+      }
+      return true;
+    } catch (err: any) {
+      setState(prevState => ({ ...prevState, isLoading: false, error: err }));
+      return false;
+    }
+  }, [state.currentCaseId, fetchCaseDetails]);
+
+  const submitSystemDesignForReview = useCallback(async (caseId: string): Promise<boolean> => {
+    setState(prevState => ({ ...prevState, isLoading: true, error: null }));
+    try {
+      await agentService.submitSystemDesignForReview(caseId);
+      setState(prevState => ({ ...prevState, isLoading: false }));
+      if (caseId === state.currentCaseId) {
+        await fetchCaseDetails(caseId);
+      }
+      return true;
+    } catch (err: any) {
+      setState(prevState => ({ ...prevState, isLoading: false, error: err }));
+      return false;
+    }
+  }, [state.currentCaseId, fetchCaseDetails]);
+
+  const approveSystemDesign = useCallback(async (caseId: string): Promise<boolean> => {
+    setState(prevState => ({ ...prevState, isLoading: true, error: null }));
+    try {
+      await agentService.approveSystemDesign(caseId);
+      setState(prevState => ({ ...prevState, isLoading: false }));
+      if (caseId === state.currentCaseId) {
+        await fetchCaseDetails(caseId);
+      }
+      return true;
+    } catch (err: any) {
+      setState(prevState => ({ ...prevState, isLoading: false, error: err }));
+      return false;
+    }
+  }, [state.currentCaseId, fetchCaseDetails]);
+
+  const rejectSystemDesign = useCallback(async (caseId: string, reason?: string): Promise<boolean> => {
+    setState(prevState => ({ ...prevState, isLoading: true, error: null }));
+    try {
+      await agentService.rejectSystemDesign(caseId, reason);
+      setState(prevState => ({ ...prevState, isLoading: false }));
+      if (caseId === state.currentCaseId) {
+        await fetchCaseDetails(caseId);
+      }
+      return true;
+    } catch (err: any) {
+      setState(prevState => ({ ...prevState, isLoading: false, error: err }));
+      return false;
+    }
+  }, [state.currentCaseId, fetchCaseDetails]);
+
   const clearCurrentCaseDetails = useCallback(() => {
     setState(prevState => ({
       ...prevState,
@@ -256,6 +320,10 @@ export const AgentProvider: React.FC<AgentProviderProps> = ({ children }) => {
     submitPrdForReview,
     approvePrd,
     rejectPrd,
+    updateSystemDesign,
+    submitSystemDesignForReview,
+    approveSystemDesign,
+    rejectSystemDesign,
     clearAgentState,
     clearCurrentCaseDetails,
   };

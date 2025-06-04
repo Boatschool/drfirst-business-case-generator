@@ -121,6 +121,8 @@ export interface BusinessCaseDetails extends BusinessCaseSummary {
     generated_by: string;
     version: string;
     generated_at?: string;
+    last_edited_by?: string;
+    last_edited_at?: string;
   } | null;
   effort_estimate_v1?: EffortEstimate | null;       // New: Effort estimate from PlannerAgent
   cost_estimate_v1?: CostEstimate | null;           // New: Cost estimate from CostAnalystAgent
@@ -241,6 +243,36 @@ export interface AgentService {
    * @returns A promise that resolves with a confirmation message and the new status.
    */
   rejectPrd(caseId: string, reason?: string): Promise<{ message: string; new_status: string; case_id: string }>;
+
+  /**
+   * Updates the System Design draft for a specific business case.
+   * @param caseId - The ID of the business case to update.
+   * @param content - The new system design content in markdown.
+   * @returns A promise that resolves with a confirmation message and the updated system design.
+   */
+  updateSystemDesign(caseId: string, content: string): Promise<{ message: string; updated_system_design: any }>;
+
+  /**
+   * Submits the System Design for review, updating the case status to SYSTEM_DESIGN_PENDING_REVIEW.
+   * @param caseId - The ID of the business case to submit for review.
+   * @returns A promise that resolves with a confirmation message and the new status.
+   */
+  submitSystemDesignForReview(caseId: string): Promise<{ message: string; new_status: string; case_id: string }>;
+
+  /**
+   * Approves the System Design for a business case.
+   * @param caseId - The ID of the business case to approve.
+   * @returns A promise that resolves with a confirmation message and the new status.
+   */
+  approveSystemDesign(caseId: string): Promise<{ message: string; new_status: string; case_id: string }>;
+
+  /**
+   * Rejects the System Design for a business case with an optional reason.
+   * @param caseId - The ID of the business case to reject.
+   * @param reason - Optional rejection reason.
+   * @returns A promise that resolves with a confirmation message and the new status.
+   */
+  rejectSystemDesign(caseId: string, reason?: string): Promise<{ message: string; new_status: string; case_id: string }>;
 
   // Potential future methods:
   // getCaseHistory(caseId: string): Promise<AgentUpdate[]>;

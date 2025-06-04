@@ -20,8 +20,7 @@ The system follows a microservices-oriented approach where AI agents act as spec
 
      graph TD  
     subgraph User Layer  
-        BrowserExtension\[Browser Extension (Chrome/Edge \- Intake)\] \--\> API\_GW  
-        WebAppUI\[Web Application UI (React/Streamlit \- Main Interface)\] \--\> API\_GW  
+        WebAppUI\[Web Application UI (React \- Complete Interface)\] \--\> API\_GW  
     end
 
     subgraph GCP Backend  
@@ -59,7 +58,6 @@ The system follows a microservices-oriented approach where AI agents act as spec
         FirestoreDB \-- Stores \--\> UserData\[User Data & Roles\]
 
         WebAppUI \-- AG-UI Interactions \--\> AppServer  
-        BrowserExtension \-- AG-UI (Intake) \--\> AppServer  
     end
 
     subgraph DrFirst Ecosystem (Future Deeper Integrations)  
@@ -83,18 +81,16 @@ The system follows a microservices-oriented approach where AI agents act as spec
 
 ### **4.1. Frontend Components**
 
-     \*   \*\*Browser Extension (Chrome/MS Edge):\*\*  
-    \*   \*\*Technology:\*\* Standard web technologies (HTML, CSS, JavaScript).  
-    \*   \*\*Functionality:\*\* Lightweight intake form. Captures initial user prompt, optional links to \*\*Jira/Confluence/SharePoint\*\*, or uploaded documents.  
-    \*   \*\*AG-UI:\*\* Sends structured data to the backend API to initiate a business case. May redirect user to the main Web Application.  
 \*   \*\*Web Application UI:\*\*  
-    \*   \*\*Technology:\*\* React (preferred for complex interactivity) or Streamlit (for rapid development, good for data-heavy views).  
+    \*   \*\*Technology:\*\* React with TypeScript and Material-UI for comprehensive user experience.  
     \*   \*\*Functionality:\*\*  
+        \*   Complete business case intake and creation workflow.  
         \*   Dashboard for viewing and managing business cases.  
         \*   Conversational interface for guided input and agent interaction.  
         \*   Document editor for reviewing and modifying agent-generated content (PRD, System Design, etc.).  
         \*   HITL review and approval workflows.  
         \*   Admin panel for managing users, rate cards, pricing templates, approval rules.  
+        \*   PDF export and sharing capabilities.  
     \*   \*\*AG-UI:\*\* Rich interaction with the backend. Displays agent outputs, collects user feedback/edits, triggers agent revisions, and manages approval steps.  
      
 IGNORE\_WHEN\_COPYING\_START  
@@ -174,7 +170,7 @@ Each agent is a specialized module, likely a Python class/function set within th
 
 ### **6.1. Agent-to-UI (AG-UI)**
 
-* **Mechanism:** RESTful APIs exposed by the Application Server and consumed by the WebAppUI and Browser Extension.  
+* **Mechanism:** RESTful APIs exposed by the Application Server and consumed by the Web Application UI.  
 * **Interaction:**  
   * UI sends user inputs/commands (e.g., start new case, submit feedback, approve).  
   * Backend sends agent-generated content, status updates, and requests for HITL.  
@@ -212,9 +208,7 @@ Each agent is a specialized module, likely a Python class/function set within th
 ## **8\. Deployment on GCP**
 
 * **Frontend (Web Application UI):**  
-  * React: Firebase Hosting (static assets) \+ Cloud Functions (for any BFF logic if needed).  
-  * Streamlit: Cloud Run.  
-* **Frontend (Browser Extension):** Packaged and distributed via Chrome Web Store / MS Edge Add-ons store (internally for DrFirst).  
+  * React: Firebase Hosting (static assets) or Google Cloud Storage with CDN for static hosting.  
 * **Backend (Application Server \- ADK based):** Cloud Run (containerized Python application).  
 * **API Gateway:** Google Cloud API Gateway.  
 * **Database:** Firestore.  

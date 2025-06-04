@@ -6,12 +6,12 @@
 The DrFirst Agentic Business Case Generator follows a microservices architecture with AI agents orchestrated through Google Cloud's Agent Development Kit (ADK).
 
 ```
-┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
-│   Frontend      │    │  Browser Ext    │    │   Mobile App    │
-│  (React/TS)     │    │                 │    │   (Future)      │
-└─────────────────┘    └─────────────────┘    └─────────────────┘
-         │                       │                       │
-         └───────────────────────┼───────────────────────┘
+┌─────────────────┐    ┌─────────────────┐
+│   Web Frontend  │    │   Mobile App    │
+│  (React/TS)     │    │   (Future)      │
+└─────────────────┘    └─────────────────┘
+         │                       │
+         └───────────────────────┘
                                  │
                     ┌─────────────────┐
                     │   API Gateway   │
@@ -40,16 +40,18 @@ The DrFirst Agentic Business Case Generator follows a microservices architecture
 
 ### 2. System Components
 
-#### 2.1 Frontend Application
+#### 2.1 Web Application Frontend
 - **Technology**: React 18 + TypeScript + Vite
 - **UI Framework**: Material-UI (MUI)
 - **State Management**: React Query + Context API
 - **Authentication**: Firebase Auth
 - **Features**:
-  - Real-time collaboration
-  - Rich text editing
-  - Export capabilities
-  - Progress tracking
+  - Complete business case lifecycle management
+  - Real-time collaboration with AI agents
+  - Rich text editing and approval workflows
+  - PDF export capabilities
+  - Progress tracking and status management
+  - Comprehensive admin interface
 
 #### 2.2 Backend Services
 

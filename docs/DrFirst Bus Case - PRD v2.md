@@ -79,7 +79,7 @@ Focuses on internal DrFirst software development projects.
 * Accuracy depends on inputs and HITL.  
 * Agents augment, not replace, DrFirst expertise.  
 * Hosted on GCP, adhering to DrFirst policies.  
-* Browser extension for intake; main application web-based.  
+* Complete web application for intake and business case management.  
 * The effectiveness of A2A and MCP implementations will depend on clear API definitions and state management between agents.
 
 ## **11\. Success Metrics**

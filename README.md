@@ -1,12 +1,12 @@
 # DrFirst Agentic Business Case Generator
 
-An internal tool for DrFirst that leverages AI agents to automatically generate comprehensive business cases.
+A comprehensive web application for DrFirst that leverages AI agents to automatically generate comprehensive business cases with full workflow management.
 
 ## Project Structure
 
 ```
 df-bus-case-generator/
-├── frontend/          # React/Vite Frontend Application
+├── frontend/          # React/Vite Web Application
 ├── backend/           # Python Backend with ADK Agents
 ├── shared/            # Shared TypeScript types
 ├── scripts/           # Helper scripts

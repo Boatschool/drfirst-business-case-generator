@@ -329,7 +329,7 @@ The application now provides a professional, persistent chat experience that sup
 **Phase 9: Final Approval Workflow, Export & Sharing**
 
 * **Focus:** Implement the final business case approval workflow. Add functionality to export the business case as a PDF and generate a shareable link.  
-* **Status:** PARTIALLY COMPLETE ✅ - Final Approval Workflow (Tasks 9.1.1-9.1.3) COMPLETE with production-ready implementation. Export & sharing features (9.2-9.3) remain todo.
+* **Status:** MOSTLY COMPLETE ✅ - Final Approval Workflow (Tasks 9.1.1-9.1.3) COMPLETE with production-ready implementation. PDF Export (Task 9.2) COMPLETE with professional WeasyPrint-based system. Only shareable link feature (9.3) remains todo.
 
 ---
 
@@ -359,9 +359,9 @@ The application now provides a professional, persistent chat experience that sup
 | 9.1.2 | BusinessCaseDetailPage.tsx: Add "Submit for Final Approval" button when all sections are approved and financial model is complete. | COMPLETE | high | low | 8.5.3 (status) | ✅ COMPLETE: Professional submit button for case initiators when status is FINANCIAL_MODEL_COMPLETE. Updates status to PENDING_FINAL_APPROVAL with proper API integration, loading states, and success feedback. Complete UI integration with role-based conditional rendering. |
 | 9.1.3 | Frontend: Show "Approve/Reject Final Business Case" buttons for designated final approvers. | COMPLETE | high | low | 7.3.3, 9.1.1, 9.1.2 | ✅ COMPLETE: Comprehensive approve/reject UI for FINAL_APPROVER users when status is PENDING_FINAL_APPROVAL. Professional Material-UI buttons, rejection dialog with optional reason, status updates to APPROVED or REJECTED, complete audit logging, and success/error feedback. Enterprise-quality workflow implementation. |
 | 9.1.4 | Admin UI: Basic interface to define/view simple approval rules (e.g., map case type/value to approver roles). | todo | medium | low | 6.4.1, 9.1.1 | V2 Enhancement: Current V1 uses simple FINAL_APPROVER role. Future versions can implement complex approval rules via admin interface. |
-| 9.2 | **Export to PDF** |  |  |  |  |  |
-| 9.2.1 | Backend: Implement a service/Cloud Function that takes caseId, fetches data from Firestore, and generates a PDF document. | todo | high | low | 2.3.1 (models) | Use a Python PDF generation library (e.g., ReportLab, WeasyPrint). |
-| 9.2.2 | BusinessCaseDetailPage.tsx: Add "Export to PDF" button that calls the backend PDF generation service and triggers download. | todo | high | low | 9.2.1 |  |
+| 9.2 | **Export to PDF** | **COMPLETE** | **high** | **low** | **2.3.1 (models)** | **✅ COMPLETE PDF EXPORT FUNCTIONALITY** |
+| 9.2.1 | Backend: Implement a service/Cloud Function that takes caseId, fetches data from Firestore, and generates a PDF document. | COMPLETE | high | low | 2.3.1 (models) | ✅ COMPLETE: WeasyPrint-based PDF generation service implemented in backend/app/utils/pdf_generator.py (765 lines). API endpoint GET /api/v1/cases/{case_id}/export-pdf with authentication, authorization, and professional PDF formatting including all business case sections. |
+| 9.2.2 | BusinessCaseDetailPage.tsx: Add "Export to PDF" button that calls the backend PDF generation service and triggers download. | COMPLETE | high | low | 9.2.1 | ✅ COMPLETE: Added prominent "Export PDF" button to BusinessCaseDetailPage_Simplified.tsx (the component actually used by the app). Full frontend integration with AgentContext, loading states, automatic download, and professional UI. Issue resolved: was initially added to wrong component file. |
 | 9.3 | **Shareable Link** |  |  |  |  |  |
 | 9.3.1 | Backend: Create a new type of read-only access token/mechanism for sharing. (Could be a signed URL to a specific view if simple enough). | todo | medium | low | 3.4.1 | For internal DrFirst use, maybe a simpler approach than public share tokens. |
 | 9.3.2 | BusinessCaseDetailPage.tsx: Add "Generate Shareable Link" button. Link should provide a read-only view of the approved business case. | todo | medium | low | 9.3.1 | This might require a separate read-only view/route in the frontend that accepts the share token. |

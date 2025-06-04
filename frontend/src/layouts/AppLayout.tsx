@@ -1,6 +1,11 @@
 import React, { useContext, useState, useCallback } from 'react';
-import { AppBar, Toolbar, Typography, Button, Box, Alert } from '@mui/material';
-import { Link as RouterLink, Outlet, useNavigate, useLocation } from 'react-router-dom';
+import { AppBar, Toolbar, Typography, Button, Box } from '@mui/material';
+import {
+  Link as RouterLink,
+  Outlet,
+  useNavigate,
+  useLocation,
+} from 'react-router-dom';
 import { AuthContext } from '../contexts/AuthContext';
 import { useAgentContext } from '../contexts/AgentContext';
 import FloatingChat from '../components/common/FloatingChat';
@@ -26,45 +31,60 @@ const AppLayout: React.FC = () => {
         await authContext.signOut();
         navigate('/login');
       } catch (error) {
-        console.error("Sign out failed:", error);
+        console.error('Sign out failed:', error);
         // Optionally show an error message to the user
       }
     }
   };
 
-  const handleSendMessage = useCallback(async (message: string) => {
-    if (!currentCaseDetails?.case_id) {
-      setFeedbackError('No active case selected. Please navigate to a specific business case or create a new one to use the chat.');
-      return;
-    }
+  const handleSendMessage = useCallback(
+    async (message: string) => {
+      if (!currentCaseDetails?.case_id) {
+        setFeedbackError(
+          'No active case selected. Please navigate to a specific business case or create a new one to use the chat.'
+        );
+        return;
+      }
 
-    setIsSendingFeedback(true);
-    setFeedbackError(null);
-    
-    try {
-      await sendFeedbackToAgent({
-        caseId: currentCaseDetails.case_id,
-        message: message,
-      });
-    } catch (err: any) {
-      setFeedbackError(err.message || 'Failed to send message. Please try again.');
-    } finally {
-      setIsSendingFeedback(false);
-    }
-  }, [currentCaseDetails, sendFeedbackToAgent]);
+      setIsSendingFeedback(true);
+      setFeedbackError(null);
+
+      try {
+        await sendFeedbackToAgent({
+          caseId: currentCaseDetails.case_id,
+          message: message,
+        });
+      } catch (err: any) {
+        setFeedbackError(
+          err.message || 'Failed to send message. Please try again.'
+        );
+      } finally {
+        setIsSendingFeedback(false);
+      }
+    },
+    [currentCaseDetails, sendFeedbackToAgent]
+  );
 
   // Only show chat on protected pages where user is authenticated
-  const showChat = authContext?.currentUser && 
-                   !['/login', '/signup', '/'].includes(location.pathname);
+  const showChat =
+    authContext?.currentUser &&
+    !['/login', '/signup', '/'].includes(location.pathname);
 
   // Filter out PRD_DRAFT messages for the chat display
-  const displayMessages = (messages || []).filter(msg => msg.messageType !== 'PRD_DRAFT');
+  const displayMessages = (messages || []).filter(
+    (msg) => msg.messageType !== 'PRD_DRAFT'
+  );
 
   return (
     <Box sx={{ display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
       <AppBar position="static">
         <Toolbar>
-          <Typography variant="h6" component={RouterLink} to="/" sx={{ flexGrow: 1, color: 'inherit', textDecoration: 'none' }}>
+          <Typography
+            variant="h6"
+            component={RouterLink}
+            to="/"
+            sx={{ flexGrow: 1, color: 'inherit', textDecoration: 'none' }}
+          >
             DrFirst Business Case Gen
           </Typography>
           {authContext?.currentUser ? (
@@ -89,7 +109,15 @@ const AppLayout: React.FC = () => {
       <Box component="main" sx={{ flexGrow: 1, p: 3 }}>
         <Outlet /> {/* Child routes will render here */}
       </Box>
-      <Box component="footer" sx={{ p: 2, mt: 'auto', backgroundColor: 'grey.200', textAlign: 'center' }}>
+      <Box
+        component="footer"
+        sx={{
+          p: 2,
+          mt: 'auto',
+          backgroundColor: 'grey.200',
+          textAlign: 'center',
+        }}
+      >
         <Typography variant="body2" color="text.secondary">
           © {new Date().getFullYear()} DrFirst
         </Typography>
@@ -111,4 +139,4 @@ const AppLayout: React.FC = () => {
   );
 };
 
-export default AppLayout; 
+export default AppLayout;

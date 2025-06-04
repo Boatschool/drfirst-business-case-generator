@@ -126,7 +126,10 @@ export interface AdminService {
    * @param data Partial rate card data to update
    * @returns Promise<RateCard> Updated rate card
    */
-  updateRateCard(cardId: string, data: UpdateRateCardRequest): Promise<RateCard>;
+  updateRateCard(
+    cardId: string,
+    data: UpdateRateCardRequest
+  ): Promise<RateCard>;
 
   /**
    * Delete a rate card
@@ -146,7 +149,9 @@ export interface AdminService {
    * @param data Pricing template data to create
    * @returns Promise<PricingTemplate> Created pricing template with ID
    */
-  createPricingTemplate(data: CreatePricingTemplateRequest): Promise<PricingTemplate>;
+  createPricingTemplate(
+    data: CreatePricingTemplateRequest
+  ): Promise<PricingTemplate>;
 
   /**
    * Update an existing pricing template
@@ -154,7 +159,10 @@ export interface AdminService {
    * @param data Partial pricing template data to update
    * @returns Promise<PricingTemplate> Updated pricing template
    */
-  updatePricingTemplate(templateId: string, data: UpdatePricingTemplateRequest): Promise<PricingTemplate>;
+  updatePricingTemplate(
+    templateId: string,
+    data: UpdatePricingTemplateRequest
+  ): Promise<PricingTemplate>;
 
   /**
    * Delete a pricing template
@@ -168,4 +176,4 @@ export interface AdminService {
    * @returns Promise<User[]> List of users with their system roles
    */
   listUsers(): Promise<User[]>;
-} 
+}

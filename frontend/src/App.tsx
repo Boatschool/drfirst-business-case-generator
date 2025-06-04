@@ -14,10 +14,20 @@ import SignUpPage from './pages/SignUpPage';
 import MainPage from './pages/MainPage';
 import DashboardPage from './pages/DashboardPage';
 import NewCasePage from './pages/NewCasePage';
-import BusinessCaseDetailPage from './pages/BusinessCaseDetailPage';
+import { ProfilePage } from './pages/ProfilePage';
+
+import BusinessCaseDetailPageSimplified from './pages/BusinessCaseDetailPage_Simplified';
+import ReadOnlyCaseViewPage from './pages/ReadOnlyCaseViewPage';
 import AdminPage from './pages/AdminPage';
 import AppLayout from './layouts/AppLayout';
-import { Container, Typography, Box, Alert, Button, Stack } from '@mui/material';
+import {
+  Container,
+  Typography,
+  Box,
+  Alert,
+  Button,
+  Stack,
+} from '@mui/material';
 import { Link as RouterLink } from 'react-router-dom';
 
 // Smart Home Page component that redirects based on auth status
@@ -30,7 +40,14 @@ const HomePage: React.FC = () => {
 
   if (authContext.loading) {
     return (
-      <Container sx={{display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh'}}>
+      <Container
+        sx={{
+          display: 'flex',
+          justifyContent: 'center',
+          alignItems: 'center',
+          height: '100vh',
+        }}
+      >
         <Typography>Loading authentication status...</Typography>
       </Container>
     );
@@ -52,18 +69,18 @@ const HomePage: React.FC = () => {
           Please log in or sign up to continue.
         </Typography>
         <Stack direction="row" spacing={2} justifyContent="center">
-          <Button 
-            component={RouterLink} 
-            to="/login" 
-            variant="contained" 
+          <Button
+            component={RouterLink}
+            to="/login"
+            variant="contained"
             size="large"
           >
             Sign In
           </Button>
-          <Button 
-            component={RouterLink} 
-            to="/signup" 
-            variant="outlined" 
+          <Button
+            component={RouterLink}
+            to="/signup"
+            variant="outlined"
             size="large"
           >
             Sign Up
@@ -84,12 +101,23 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = () => {
   const location = useLocation();
 
   if (!authContext) {
-    return <Alert severity="error">Auth context not available in ProtectedRoute.</Alert>;
+    return (
+      <Alert severity="error">
+        Auth context not available in ProtectedRoute.
+      </Alert>
+    );
   }
 
   if (authContext.loading) {
     return (
-      <Container sx={{display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh'}}>
+      <Container
+        sx={{
+          display: 'flex',
+          justifyContent: 'center',
+          alignItems: 'center',
+          height: '100vh',
+        }}
+      >
         <Typography>Loading authentication status...</Typography>
       </Container>
     );
@@ -116,12 +144,23 @@ const AdminProtectedRoute: React.FC<AdminProtectedRouteProps> = () => {
   const location = useLocation();
 
   if (!authContext) {
-    return <Alert severity="error">Auth context not available in AdminProtectedRoute.</Alert>;
+    return (
+      <Alert severity="error">
+        Auth context not available in AdminProtectedRoute.
+      </Alert>
+    );
   }
 
   if (authContext.loading) {
     return (
-      <Container sx={{display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh'}}>
+      <Container
+        sx={{
+          display: 'flex',
+          justifyContent: 'center',
+          alignItems: 'center',
+          height: '100vh',
+        }}
+      >
         <Typography>Loading authentication status...</Typography>
       </Container>
     );
@@ -135,7 +174,14 @@ const AdminProtectedRoute: React.FC<AdminProtectedRouteProps> = () => {
   if (!authContext.isAdmin) {
     // Show access denied for non-admin users
     return (
-      <Container sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh' }}>
+      <Container
+        sx={{
+          display: 'flex',
+          justifyContent: 'center',
+          alignItems: 'center',
+          height: '100vh',
+        }}
+      >
         <Box sx={{ textAlign: 'center' }}>
           <Alert severity="error" sx={{ mb: 2 }}>
             <Typography variant="h6" gutterBottom>
@@ -148,9 +194,9 @@ const AdminProtectedRoute: React.FC<AdminProtectedRouteProps> = () => {
               Current role: {authContext.systemRole || 'USER'}
             </Typography>
           </Alert>
-          <Button 
-            component={RouterLink} 
-            to="/dashboard" 
+          <Button
+            component={RouterLink}
+            to="/dashboard"
             variant="contained"
             sx={{ mt: 2 }}
           >
@@ -170,24 +216,32 @@ function App() {
       <AgentProvider>
         <Router>
           <Routes>
-            <Route element={<AppLayout />}> {/* AppLayout wraps all pages */}
+            <Route element={<AppLayout />}>
+              {' '}
+              {/* AppLayout wraps all pages */}
               <Route path="/login" element={<LoginPage />} />
               <Route path="/signup" element={<SignUpPage />} />
               <Route path="/" element={<HomePage />} />
-              
               {/* Protected Routes */}
               <Route element={<ProtectedRoute />}>
                 <Route path="/main" element={<MainPage />} />
                 <Route path="/dashboard" element={<DashboardPage />} />
                 <Route path="/new-case" element={<NewCasePage />} />
-                <Route path="/cases/:caseId" element={<BusinessCaseDetailPage />} />
+                <Route path="/profile" element={<ProfilePage />} />
+                <Route
+                  path="/cases/:caseId"
+                  element={<BusinessCaseDetailPageSimplified />}
+                />
+                <Route
+                  path="/cases/:caseId/view"
+                  element={<ReadOnlyCaseViewPage />}
+                />
                 <Route path="/admin" element={<AdminProtectedRoute />}>
                   <Route index element={<AdminPage />} />
                   <Route path=":adminAction" element={<AdminPage />} />
                 </Route>
                 {/* Add other protected routes here */}
               </Route>
-              
               {/* Catch-all for unmatched routes (optional) */}
               <Route path="*" element={<Navigate to="/" replace />} />
             </Route>
@@ -198,4 +252,4 @@ function App() {
   );
 }
 
-export default App; 
+export default App;

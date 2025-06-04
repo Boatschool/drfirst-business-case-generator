@@ -19,7 +19,6 @@ import {
   TableHead,
   TableRow,
   Chip,
-  Divider,
   Card,
   CardContent,
   Grid,
@@ -37,8 +36,6 @@ import {
   Snackbar,
   List,
   ListItem,
-  ListItemText,
-  ListItemSecondaryAction,
 } from '@mui/material';
 import {
   AdminPanelSettings,
@@ -52,7 +49,15 @@ import {
   Cancel as CancelIcon,
 } from '@mui/icons-material';
 import { AuthContext } from '../contexts/AuthContext';
-import { RateCard, PricingTemplate, CreateRateCardRequest, UpdateRateCardRequest, CreatePricingTemplateRequest, UpdatePricingTemplateRequest, User } from '../services/admin/AdminService';
+import {
+  RateCard,
+  PricingTemplate,
+  CreateRateCardRequest,
+  UpdateRateCardRequest,
+  CreatePricingTemplateRequest,
+  UpdatePricingTemplateRequest,
+  User,
+} from '../services/admin/AdminService';
 import { HttpAdminAdapter } from '../services/admin/HttpAdminAdapter';
 
 interface RoleFormData {
@@ -91,19 +96,24 @@ interface PricingTemplateFormErrors {
 
 const AdminPage: React.FC = () => {
   const authContext = useContext(AuthContext);
-  
+
   // Admin service instance
   const [adminService] = useState(() => new HttpAdminAdapter());
-  
+
   // Rate Cards state
   const [rateCards, setRateCards] = useState<RateCard[]>([]);
   const [isLoadingRateCards, setIsLoadingRateCards] = useState(false);
   const [rateCardsError, setRateCardsError] = useState<string | null>(null);
-  
+
   // Pricing Templates state
-  const [pricingTemplates, setPricingTemplates] = useState<PricingTemplate[]>([]);
-  const [isLoadingPricingTemplates, setIsLoadingPricingTemplates] = useState(false);
-  const [pricingTemplatesError, setPricingTemplatesError] = useState<string | null>(null);
+  const [pricingTemplates, setPricingTemplates] = useState<PricingTemplate[]>(
+    []
+  );
+  const [isLoadingPricingTemplates, setIsLoadingPricingTemplates] =
+    useState(false);
+  const [pricingTemplatesError, setPricingTemplatesError] = useState<
+    string | null
+  >(null);
 
   // Users state
   const [users, setUsers] = useState<User[]>([]);
@@ -114,13 +124,17 @@ const AdminPage: React.FC = () => {
   const [createModalOpen, setCreateModalOpen] = useState(false);
   const [editModalOpen, setEditModalOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
-  const [selectedRateCard, setSelectedRateCard] = useState<RateCard | null>(null);
-  
+  const [selectedRateCard, setSelectedRateCard] = useState<RateCard | null>(
+    null
+  );
+
   // Modal states for Pricing Templates
   const [createTemplateModalOpen, setCreateTemplateModalOpen] = useState(false);
   const [editTemplateModalOpen, setEditTemplateModalOpen] = useState(false);
-  const [deleteTemplateDialogOpen, setDeleteTemplateDialogOpen] = useState(false);
-  const [selectedPricingTemplate, setSelectedPricingTemplate] = useState<PricingTemplate | null>(null);
+  const [deleteTemplateDialogOpen, setDeleteTemplateDialogOpen] =
+    useState(false);
+  const [selectedPricingTemplate, setSelectedPricingTemplate] =
+    useState<PricingTemplate | null>(null);
 
   // Form states for Rate Cards
   const [formData, setFormData] = useState<RateCardFormData>({
@@ -128,26 +142,32 @@ const AdminPage: React.FC = () => {
     description: '',
     isActive: true,
     defaultOverallRate: 100,
-    roles: []
+    roles: [],
   });
   const [formErrors, setFormErrors] = useState<RateCardFormErrors>({});
-  
+
   // Form states for Pricing Templates
-  const [templateFormData, setTemplateFormData] = useState<PricingTemplateFormData>({
-    name: '',
-    description: '',
-    version: '1.0',
-    structureDefinition: JSON.stringify({
-      type: 'LowBaseHigh',
-      scenarios: [
-        { case: 'low', value: 5000, description: 'Conservative estimate' },
-        { case: 'base', value: 15000, description: 'Most likely scenario' },
-        { case: 'high', value: 30000, description: 'Optimistic scenario' }
-      ]
-    }, null, 2)
-  });
-  const [templateFormErrors, setTemplateFormErrors] = useState<PricingTemplateFormErrors>({});
-  
+  const [templateFormData, setTemplateFormData] =
+    useState<PricingTemplateFormData>({
+      name: '',
+      description: '',
+      version: '1.0',
+      structureDefinition: JSON.stringify(
+        {
+          type: 'LowBaseHigh',
+          scenarios: [
+            { case: 'low', value: 5000, description: 'Conservative estimate' },
+            { case: 'base', value: 15000, description: 'Most likely scenario' },
+            { case: 'high', value: 30000, description: 'Optimistic scenario' },
+          ],
+        },
+        null,
+        2
+      ),
+    });
+  const [templateFormErrors, setTemplateFormErrors] =
+    useState<PricingTemplateFormErrors>({});
+
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Notification states
@@ -158,7 +178,7 @@ const AdminPage: React.FC = () => {
   }>({
     open: false,
     message: '',
-    severity: 'success'
+    severity: 'success',
   });
 
   // Simple admin check (placeholder for full RBAC in Task 7.3)
@@ -171,24 +191,25 @@ const AdminPage: React.FC = () => {
   // Show admin role information and access status
   const userRole = authContext.systemRole || 'USER';
   const isAdminUser = authContext.isAdmin;
-  
+
   console.log('AdminPage - User role info:', {
     email: authContext.currentUser?.email,
     systemRole: authContext.systemRole,
     isAdmin: authContext.isAdmin,
-    hasAdminAccess: isAdminUser
+    hasAdminAccess: isAdminUser,
   });
 
   // Fetch rate cards
   const fetchRateCards = useCallback(async () => {
     setIsLoadingRateCards(true);
     setRateCardsError(null);
-    
+
     try {
       const cards = await adminService.listRateCards();
       setRateCards(cards);
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Failed to fetch rate cards';
+      const errorMessage =
+        error instanceof Error ? error.message : 'Failed to fetch rate cards';
       setRateCardsError(errorMessage);
       console.error('Error fetching rate cards:', error);
     } finally {
@@ -200,12 +221,15 @@ const AdminPage: React.FC = () => {
   const fetchPricingTemplates = useCallback(async () => {
     setIsLoadingPricingTemplates(true);
     setPricingTemplatesError(null);
-    
+
     try {
       const templates = await adminService.listPricingTemplates();
       setPricingTemplates(templates);
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Failed to fetch pricing templates';
+      const errorMessage =
+        error instanceof Error
+          ? error.message
+          : 'Failed to fetch pricing templates';
       setPricingTemplatesError(errorMessage);
       console.error('Error fetching pricing templates:', error);
     } finally {
@@ -217,12 +241,13 @@ const AdminPage: React.FC = () => {
   const fetchUsers = useCallback(async () => {
     setIsLoadingUsers(true);
     setUsersError(null);
-    
+
     try {
       const usersList = await adminService.listUsers();
       setUsers(usersList);
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Failed to fetch users';
+      const errorMessage =
+        error instanceof Error ? error.message : 'Failed to fetch users';
       setUsersError(errorMessage);
       console.error('Error fetching users:', error);
     } finally {
@@ -238,13 +263,16 @@ const AdminPage: React.FC = () => {
   }, [fetchRateCards, fetchPricingTemplates, fetchUsers]);
 
   // Show notification
-  const showNotification = (message: string, severity: 'success' | 'error' | 'info' | 'warning' = 'success') => {
+  const showNotification = (
+    message: string,
+    severity: 'success' | 'error' | 'info' | 'warning' = 'success'
+  ) => {
     setSnackbar({ open: true, message, severity });
   };
 
   // Close notification
   const closeNotification = () => {
-    setSnackbar(prev => ({ ...prev, open: false }));
+    setSnackbar((prev) => ({ ...prev, open: false }));
   };
 
   // Reset form data for Rate Cards
@@ -254,7 +282,7 @@ const AdminPage: React.FC = () => {
       description: '',
       isActive: true,
       defaultOverallRate: 100,
-      roles: []
+      roles: [],
     });
     setFormErrors({});
   };
@@ -265,14 +293,18 @@ const AdminPage: React.FC = () => {
       name: '',
       description: '',
       version: '1.0',
-      structureDefinition: JSON.stringify({
-        type: 'LowBaseHigh',
-        scenarios: [
-          { case: 'low', value: 5000, description: 'Conservative estimate' },
-          { case: 'base', value: 15000, description: 'Most likely scenario' },
-          { case: 'high', value: 30000, description: 'Optimistic scenario' }
-        ]
-      }, null, 2)
+      structureDefinition: JSON.stringify(
+        {
+          type: 'LowBaseHigh',
+          scenarios: [
+            { case: 'low', value: 5000, description: 'Conservative estimate' },
+            { case: 'base', value: 15000, description: 'Most likely scenario' },
+            { case: 'high', value: 30000, description: 'Optimistic scenario' },
+          ],
+        },
+        null,
+        2
+      ),
     });
     setTemplateFormErrors({});
   };
@@ -332,7 +364,7 @@ const AdminPage: React.FC = () => {
       description: rateCard.description,
       isActive: rateCard.isActive,
       defaultOverallRate: rateCard.defaultOverallRate,
-      roles: rateCard.roles.map(role => ({ ...role }))
+      roles: rateCard.roles.map((role) => ({ ...role })),
     });
     setFormErrors({});
     setEditModalOpen(true);
@@ -360,7 +392,7 @@ const AdminPage: React.FC = () => {
         description: formData.description,
         isActive: formData.isActive,
         defaultOverallRate: formData.defaultOverallRate,
-        roles: formData.roles
+        roles: formData.roles,
       };
 
       await adminService.createRateCard(createData);
@@ -369,7 +401,8 @@ const AdminPage: React.FC = () => {
       resetFormData();
       await fetchRateCards(); // Refresh the list
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Failed to create rate card';
+      const errorMessage =
+        error instanceof Error ? error.message : 'Failed to create rate card';
       showNotification(errorMessage, 'error');
     } finally {
       setIsSubmitting(false);
@@ -394,7 +427,7 @@ const AdminPage: React.FC = () => {
         description: formData.description,
         isActive: formData.isActive,
         defaultOverallRate: formData.defaultOverallRate,
-        roles: formData.roles
+        roles: formData.roles,
       };
 
       await adminService.updateRateCard(selectedRateCard.id, updateData);
@@ -404,7 +437,8 @@ const AdminPage: React.FC = () => {
       resetFormData();
       await fetchRateCards(); // Refresh the list
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Failed to update rate card';
+      const errorMessage =
+        error instanceof Error ? error.message : 'Failed to update rate card';
       showNotification(errorMessage, 'error');
     } finally {
       setIsSubmitting(false);
@@ -418,12 +452,15 @@ const AdminPage: React.FC = () => {
     setIsSubmitting(true);
     try {
       await adminService.deleteRateCard(selectedRateCard.id);
-      showNotification(`Rate card "${selectedRateCard.name}" deleted successfully!`);
+      showNotification(
+        `Rate card "${selectedRateCard.name}" deleted successfully!`
+      );
       setDeleteDialogOpen(false);
       setSelectedRateCard(null);
       await fetchRateCards(); // Refresh the list
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Failed to delete rate card';
+      const errorMessage =
+        error instanceof Error ? error.message : 'Failed to delete rate card';
       showNotification(errorMessage, 'error');
     } finally {
       setIsSubmitting(false);
@@ -432,25 +469,29 @@ const AdminPage: React.FC = () => {
 
   // Handle role changes
   const handleAddRole = () => {
-    setFormData(prev => ({
+    setFormData((prev) => ({
       ...prev,
-      roles: [...prev.roles, { roleName: '', hourlyRate: 100 }]
+      roles: [...prev.roles, { roleName: '', hourlyRate: 100 }],
     }));
   };
 
   const handleRemoveRole = (index: number) => {
-    setFormData(prev => ({
+    setFormData((prev) => ({
       ...prev,
-      roles: prev.roles.filter((_, i) => i !== index)
+      roles: prev.roles.filter((_, i) => i !== index),
     }));
   };
 
-  const handleRoleChange = (index: number, field: keyof RoleFormData, value: string | number) => {
-    setFormData(prev => ({
+  const handleRoleChange = (
+    index: number,
+    field: keyof RoleFormData,
+    value: string | number
+  ) => {
+    setFormData((prev) => ({
       ...prev,
-      roles: prev.roles.map((role, i) => 
+      roles: prev.roles.map((role, i) =>
         i === index ? { ...role, [field]: value } : role
-      )
+      ),
     }));
   };
 
@@ -472,7 +513,9 @@ const AdminPage: React.FC = () => {
   };
 
   // Validate form data for Pricing Templates
-  const validateTemplateFormData = (data: PricingTemplateFormData): PricingTemplateFormErrors => {
+  const validateTemplateFormData = (
+    data: PricingTemplateFormData
+  ): PricingTemplateFormErrors => {
     const errors: PricingTemplateFormErrors = {};
 
     if (!data.name.trim()) {
@@ -518,7 +561,11 @@ const AdminPage: React.FC = () => {
       name: template.name,
       description: template.description,
       version: template.version,
-      structureDefinition: JSON.stringify(template.structureDefinition, null, 2)
+      structureDefinition: JSON.stringify(
+        template.structureDefinition,
+        null,
+        2
+      ),
     });
     setTemplateFormErrors({});
     setEditTemplateModalOpen(true);
@@ -543,7 +590,7 @@ const AdminPage: React.FC = () => {
         name: templateFormData.name,
         description: templateFormData.description,
         version: templateFormData.version,
-        structureDefinition: JSON.parse(templateFormData.structureDefinition)
+        structureDefinition: JSON.parse(templateFormData.structureDefinition),
       };
 
       await adminService.createPricingTemplate(createData);
@@ -552,7 +599,10 @@ const AdminPage: React.FC = () => {
       resetTemplateFormData();
       await fetchPricingTemplates(); // Refresh the list
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Failed to create pricing template';
+      const errorMessage =
+        error instanceof Error
+          ? error.message
+          : 'Failed to create pricing template';
       showNotification(errorMessage, 'error');
     } finally {
       setIsSubmitting(false);
@@ -575,17 +625,23 @@ const AdminPage: React.FC = () => {
         name: templateFormData.name,
         description: templateFormData.description,
         version: templateFormData.version,
-        structureDefinition: JSON.parse(templateFormData.structureDefinition)
+        structureDefinition: JSON.parse(templateFormData.structureDefinition),
       };
 
-      await adminService.updatePricingTemplate(selectedPricingTemplate.id, updateData);
+      await adminService.updatePricingTemplate(
+        selectedPricingTemplate.id,
+        updateData
+      );
       showNotification('Pricing template updated successfully!');
       setEditTemplateModalOpen(false);
       setSelectedPricingTemplate(null);
       resetTemplateFormData();
       await fetchPricingTemplates(); // Refresh the list
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Failed to update pricing template';
+      const errorMessage =
+        error instanceof Error
+          ? error.message
+          : 'Failed to update pricing template';
       showNotification(errorMessage, 'error');
     } finally {
       setIsSubmitting(false);
@@ -598,12 +654,17 @@ const AdminPage: React.FC = () => {
     setIsSubmitting(true);
     try {
       await adminService.deletePricingTemplate(selectedPricingTemplate.id);
-      showNotification(`Pricing template "${selectedPricingTemplate.name}" deleted successfully!`);
+      showNotification(
+        `Pricing template "${selectedPricingTemplate.name}" deleted successfully!`
+      );
       setDeleteTemplateDialogOpen(false);
       setSelectedPricingTemplate(null);
       await fetchPricingTemplates(); // Refresh the list
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Failed to delete pricing template';
+      const errorMessage =
+        error instanceof Error
+          ? error.message
+          : 'Failed to delete pricing template';
       showNotification(errorMessage, 'error');
     } finally {
       setIsSubmitting(false);
@@ -638,33 +699,40 @@ const AdminPage: React.FC = () => {
         </Box>
 
         {/* Admin Role Status */}
-        <Alert 
-          severity={isAdminUser ? "success" : "warning"} 
-          sx={{ mb: 3 }}
-        >
+        <Alert severity={isAdminUser ? 'success' : 'warning'} sx={{ mb: 3 }}>
           <Typography variant="body2">
-            <strong>Access Status:</strong> {isAdminUser ? "✅ Admin Access Granted" : "⚠️ Limited Access"} 
-            &nbsp;|&nbsp; 
+            <strong>Access Status:</strong>{' '}
+            {isAdminUser ? '✅ Admin Access Granted' : '⚠️ Limited Access'}
+            &nbsp;|&nbsp;
             <strong>Role:</strong> {userRole}
-            &nbsp;|&nbsp; 
+            &nbsp;|&nbsp;
             <strong>User:</strong> {authContext.currentUser?.email}
           </Typography>
           {!isAdminUser && (
             <Typography variant="body2" sx={{ mt: 1 }}>
-              Note: Some admin features may be restricted. Contact an administrator to request ADMIN role assignment.
+              Note: Some admin features may be restricted. Contact an
+              administrator to request ADMIN role assignment.
             </Typography>
           )}
         </Alert>
 
         <Typography variant="body1" color="text.secondary" sx={{ mb: 4 }}>
-          Manage rate cards and pricing templates for business case financial calculations.
+          Manage rate cards and pricing templates for business case financial
+          calculations.
         </Typography>
 
         <Grid container spacing={4}>
           {/* Rate Cards Section */}
           <Grid item xs={12}>
             <Paper sx={{ p: 3 }}>
-              <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 3 }}>
+              <Box
+                sx={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  mb: 3,
+                }}
+              >
                 <Box sx={{ display: 'flex', alignItems: 'center' }}>
                   <AccountBalanceWallet sx={{ mr: 2, color: 'primary.main' }} />
                   <Typography variant="h5" component="h2">
@@ -693,97 +761,124 @@ const AdminPage: React.FC = () => {
                 </Alert>
               )}
 
-              {!isLoadingRateCards && !rateCardsError && rateCards.length === 0 && (
-                <Alert severity="info">
-                  No rate cards found. Create your first rate card to get started with project cost calculations.
-                </Alert>
-              )}
+              {!isLoadingRateCards &&
+                !rateCardsError &&
+                rateCards.length === 0 && (
+                  <Alert severity="info">
+                    No rate cards found. Create your first rate card to get
+                    started with project cost calculations.
+                  </Alert>
+                )}
 
-              {!isLoadingRateCards && !rateCardsError && rateCards.length > 0 && (
-                <TableContainer>
-                  <Table>
-                    <TableHead>
-                      <TableRow>
-                        <TableCell>Name</TableCell>
-                        <TableCell>Description</TableCell>
-                        <TableCell>Status</TableCell>
-                        <TableCell>Default Rate</TableCell>
-                        <TableCell>Roles</TableCell>
-                        <TableCell>Last Updated</TableCell>
-                        <TableCell align="center">Actions</TableCell>
-                      </TableRow>
-                    </TableHead>
-                    <TableBody>
-                      {rateCards.map((rateCard) => (
-                        <TableRow key={rateCard.id}>
-                          <TableCell>
-                            <Typography variant="subtitle2" fontWeight="bold">
-                              {rateCard.name}
-                            </Typography>
-                          </TableCell>
-                          <TableCell>
-                            <Typography variant="body2" color="text.secondary">
-                              {rateCard.description}
-                            </Typography>
-                          </TableCell>
-                          <TableCell>
-                            <Chip
-                              label={rateCard.isActive ? 'Active' : 'Inactive'}
-                              color={rateCard.isActive ? 'success' : 'default'}
-                              size="small"
-                            />
-                          </TableCell>
-                          <TableCell>
-                            <Typography variant="body2">
-                              ${rateCard.defaultOverallRate}/hour
-                            </Typography>
-                          </TableCell>
-                          <TableCell>
-                            <Typography variant="body2">
-                              {rateCard.roles.length} role{rateCard.roles.length !== 1 ? 's' : ''}
-                            </Typography>
-                          </TableCell>
-                          <TableCell>
-                            <Typography variant="body2" color="text.secondary">
-                              {new Date(rateCard.updated_at).toLocaleDateString()}
-                            </Typography>
-                          </TableCell>
-                          <TableCell align="center">
-                            <Stack direction="row" spacing={1}>
-                              <Tooltip title="Edit rate card">
-                                <IconButton
-                                  size="small"
-                                  onClick={() => handleEditRateCard(rateCard)}
-                                  disabled={isSubmitting}
-                                >
-                                  <EditIcon />
-                                </IconButton>
-                              </Tooltip>
-                              <Tooltip title="Delete rate card">
-                                <IconButton
-                                  size="small"
-                                  onClick={() => handleDeleteRateCard(rateCard)}
-                                  disabled={isSubmitting}
-                                  color="error"
-                                >
-                                  <DeleteIcon />
-                                </IconButton>
-                              </Tooltip>
-                            </Stack>
-                          </TableCell>
+              {!isLoadingRateCards &&
+                !rateCardsError &&
+                rateCards.length > 0 && (
+                  <TableContainer>
+                    <Table>
+                      <TableHead>
+                        <TableRow>
+                          <TableCell>Name</TableCell>
+                          <TableCell>Description</TableCell>
+                          <TableCell>Status</TableCell>
+                          <TableCell>Default Rate</TableCell>
+                          <TableCell>Roles</TableCell>
+                          <TableCell>Last Updated</TableCell>
+                          <TableCell align="center">Actions</TableCell>
                         </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                </TableContainer>
-              )}
+                      </TableHead>
+                      <TableBody>
+                        {rateCards.map((rateCard) => (
+                          <TableRow key={rateCard.id}>
+                            <TableCell>
+                              <Typography variant="subtitle2" fontWeight="bold">
+                                {rateCard.name}
+                              </Typography>
+                            </TableCell>
+                            <TableCell>
+                              <Typography
+                                variant="body2"
+                                color="text.secondary"
+                              >
+                                {rateCard.description}
+                              </Typography>
+                            </TableCell>
+                            <TableCell>
+                              <Chip
+                                label={
+                                  rateCard.isActive ? 'Active' : 'Inactive'
+                                }
+                                color={
+                                  rateCard.isActive ? 'success' : 'default'
+                                }
+                                size="small"
+                              />
+                            </TableCell>
+                            <TableCell>
+                              <Typography variant="body2">
+                                ${rateCard.defaultOverallRate}/hour
+                              </Typography>
+                            </TableCell>
+                            <TableCell>
+                              <Typography variant="body2">
+                                {rateCard.roles.length} role
+                                {rateCard.roles.length !== 1 ? 's' : ''}
+                              </Typography>
+                            </TableCell>
+                            <TableCell>
+                              <Typography
+                                variant="body2"
+                                color="text.secondary"
+                              >
+                                {new Date(
+                                  rateCard.updated_at
+                                ).toLocaleDateString()}
+                              </Typography>
+                            </TableCell>
+                            <TableCell align="center">
+                              <Stack direction="row" spacing={1}>
+                                <Tooltip title="Edit rate card">
+                                  <IconButton
+                                    size="small"
+                                    onClick={() => handleEditRateCard(rateCard)}
+                                    disabled={isSubmitting}
+                                  >
+                                    <EditIcon />
+                                  </IconButton>
+                                </Tooltip>
+                                <Tooltip title="Delete rate card">
+                                  <IconButton
+                                    size="small"
+                                    onClick={() =>
+                                      handleDeleteRateCard(rateCard)
+                                    }
+                                    disabled={isSubmitting}
+                                    color="error"
+                                  >
+                                    <DeleteIcon />
+                                  </IconButton>
+                                </Tooltip>
+                              </Stack>
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </TableContainer>
+                )}
             </Paper>
           </Grid>
 
           {/* Pricing Templates Section */}
           <Grid item xs={12}>
             <Paper sx={{ p: 3 }}>
-              <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 3 }}>
+              <Box
+                sx={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  mb: 3,
+                }}
+              >
                 <Box sx={{ display: 'flex', alignItems: 'center' }}>
                   <PriceCheck sx={{ mr: 2, color: 'primary.main' }} />
                   <Typography variant="h5" component="h2">
@@ -812,95 +907,157 @@ const AdminPage: React.FC = () => {
                 </Alert>
               )}
 
-              {!isLoadingPricingTemplates && !pricingTemplatesError && pricingTemplates.length === 0 && (
-                <Alert severity="info">
-                  No pricing templates found. Pricing templates are used to estimate business value and revenue projections.
-                </Alert>
-              )}
+              {!isLoadingPricingTemplates &&
+                !pricingTemplatesError &&
+                pricingTemplates.length === 0 && (
+                  <Alert severity="info">
+                    No pricing templates found. Pricing templates are used to
+                    estimate business value and revenue projections.
+                  </Alert>
+                )}
 
-              {!isLoadingPricingTemplates && !pricingTemplatesError && pricingTemplates.length > 0 && (
-                <Grid container spacing={2}>
-                  {pricingTemplates.map((template) => (
-                    <Grid item xs={12} md={6} key={template.id}>
-                      <Card variant="outlined">
-                        <CardContent>
-                          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 2 }}>
-                            <Typography variant="h6" component="h3" gutterBottom>
-                              {template.name}
-                            </Typography>
-                            <Stack direction="row" spacing={1}>
-                              <Tooltip title="Edit pricing template">
-                                <IconButton
-                                  size="small"
-                                  onClick={() => handleEditPricingTemplate(template)}
-                                  disabled={isSubmitting}
-                                >
-                                  <EditIcon />
-                                </IconButton>
-                              </Tooltip>
-                              <Tooltip title="Delete pricing template">
-                                <IconButton
-                                  size="small"
-                                  onClick={() => handleDeletePricingTemplate(template)}
-                                  disabled={isSubmitting}
-                                  color="error"
-                                >
-                                  <DeleteIcon />
-                                </IconButton>
-                              </Tooltip>
-                            </Stack>
-                          </Box>
-                          <Typography variant="body2" color="text.secondary" paragraph>
-                            {template.description}
-                          </Typography>
-                          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
-                            <Typography variant="body2" color="text.secondary">
-                              Version: {template.version}
-                            </Typography>
-                            <Typography variant="body2" color="text.secondary">
-                              Type: {template.structureDefinition.type}
-                            </Typography>
-                          </Box>
-                          {template.structureDefinition.scenarios && (
-                            <Box sx={{ mt: 2 }}>
-                              <Typography variant="body2" fontWeight="bold" gutterBottom>
-                                Scenarios: {template.structureDefinition.scenarios.length}
+              {!isLoadingPricingTemplates &&
+                !pricingTemplatesError &&
+                pricingTemplates.length > 0 && (
+                  <Grid container spacing={2}>
+                    {pricingTemplates.map((template) => (
+                      <Grid item xs={12} md={6} key={template.id}>
+                        <Card variant="outlined">
+                          <CardContent>
+                            <Box
+                              sx={{
+                                display: 'flex',
+                                justifyContent: 'space-between',
+                                alignItems: 'flex-start',
+                                mb: 2,
+                              }}
+                            >
+                              <Typography
+                                variant="h6"
+                                component="h3"
+                                gutterBottom
+                              >
+                                {template.name}
                               </Typography>
-                              <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
-                                {template.structureDefinition.scenarios.map((scenario, index) => (
-                                  <Chip
-                                    key={index}
-                                    label={`${scenario.case}: $${scenario.value.toLocaleString()}`}
+                              <Stack direction="row" spacing={1}>
+                                <Tooltip title="Edit pricing template">
+                                  <IconButton
                                     size="small"
-                                    variant="outlined"
-                                  />
-                                ))}
-                              </Box>
+                                    onClick={() =>
+                                      handleEditPricingTemplate(template)
+                                    }
+                                    disabled={isSubmitting}
+                                  >
+                                    <EditIcon />
+                                  </IconButton>
+                                </Tooltip>
+                                <Tooltip title="Delete pricing template">
+                                  <IconButton
+                                    size="small"
+                                    onClick={() =>
+                                      handleDeletePricingTemplate(template)
+                                    }
+                                    disabled={isSubmitting}
+                                    color="error"
+                                  >
+                                    <DeleteIcon />
+                                  </IconButton>
+                                </Tooltip>
+                              </Stack>
                             </Box>
-                          )}
-                          <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 2 }}>
-                            Last updated: {new Date(template.updated_at).toLocaleDateString()}
-                          </Typography>
-                        </CardContent>
-                      </Card>
-                    </Grid>
-                  ))}
-                </Grid>
-              )}
+                            <Typography
+                              variant="body2"
+                              color="text.secondary"
+                              paragraph
+                            >
+                              {template.description}
+                            </Typography>
+                            <Box
+                              sx={{
+                                display: 'flex',
+                                justifyContent: 'space-between',
+                                alignItems: 'center',
+                                mb: 1,
+                              }}
+                            >
+                              <Typography
+                                variant="body2"
+                                color="text.secondary"
+                              >
+                                Version: {template.version}
+                              </Typography>
+                              <Typography
+                                variant="body2"
+                                color="text.secondary"
+                              >
+                                Type: {template.structureDefinition.type}
+                              </Typography>
+                            </Box>
+                            {template.structureDefinition.scenarios && (
+                              <Box sx={{ mt: 2 }}>
+                                <Typography
+                                  variant="body2"
+                                  fontWeight="bold"
+                                  gutterBottom
+                                >
+                                  Scenarios:{' '}
+                                  {
+                                    template.structureDefinition.scenarios
+                                      .length
+                                  }
+                                </Typography>
+                                <Box
+                                  sx={{
+                                    display: 'flex',
+                                    gap: 1,
+                                    flexWrap: 'wrap',
+                                  }}
+                                >
+                                  {template.structureDefinition.scenarios.map(
+                                    (scenario, index) => (
+                                      <Chip
+                                        key={index}
+                                        label={`${
+                                          scenario.case
+                                        }: $${scenario.value.toLocaleString()}`}
+                                        size="small"
+                                        variant="outlined"
+                                      />
+                                    )
+                                  )}
+                                </Box>
+                              </Box>
+                            )}
+                            <Typography
+                              variant="caption"
+                              color="text.secondary"
+                              sx={{ display: 'block', mt: 2 }}
+                            >
+                              Last updated:{' '}
+                              {new Date(
+                                template.updated_at
+                              ).toLocaleDateString()}
+                            </Typography>
+                          </CardContent>
+                        </Card>
+                      </Grid>
+                    ))}
+                  </Grid>
+                )}
             </Paper>
           </Grid>
 
           {/* Users Section */}
           <Grid item xs={12}>
             <Paper sx={{ p: 3 }}>
-                             <Box sx={{ display: 'flex', alignItems: 'center', mb: 3 }}>
-                 <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                   <PeopleIcon sx={{ mr: 2, color: 'primary.main' }} />
-                   <Typography variant="h5" component="h2">
-                     User Management
-                   </Typography>
-                 </Box>
-               </Box>
+              <Box sx={{ display: 'flex', alignItems: 'center', mb: 3 }}>
+                <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                  <PeopleIcon sx={{ mr: 2, color: 'primary.main' }} />
+                  <Typography variant="h5" component="h2">
+                    User Management
+                  </Typography>
+                </Box>
+              </Box>
 
               {isLoadingUsers && (
                 <Box sx={{ display: 'flex', justifyContent: 'center', p: 4 }}>
@@ -915,9 +1072,7 @@ const AdminPage: React.FC = () => {
               )}
 
               {!isLoadingUsers && !usersError && users.length === 0 && (
-                <Alert severity="info">
-                  No users found in the system.
-                </Alert>
+                <Alert severity="info">No users found in the system.</Alert>
               )}
 
               {!isLoadingUsers && !usersError && users.length > 0 && (
@@ -937,7 +1092,10 @@ const AdminPage: React.FC = () => {
                       {users.map((user) => (
                         <TableRow key={user.uid}>
                           <TableCell>
-                            <Typography variant="body2" sx={{ fontFamily: 'monospace' }}>
+                            <Typography
+                              variant="body2"
+                              sx={{ fontFamily: 'monospace' }}
+                            >
                               {user.uid}
                             </Typography>
                           </TableCell>
@@ -955,28 +1113,38 @@ const AdminPage: React.FC = () => {
                             {user.systemRole ? (
                               <Chip
                                 label={user.systemRole}
-                                color={user.systemRole === 'ADMIN' ? 'primary' : 'default'}
+                                color={
+                                  user.systemRole === 'ADMIN'
+                                    ? 'primary'
+                                    : 'default'
+                                }
                                 size="small"
                               />
                             ) : (
-                              <Typography variant="body2" color="text.secondary">
+                              <Typography
+                                variant="body2"
+                                color="text.secondary"
+                              >
                                 No Role Assigned
                               </Typography>
                             )}
                           </TableCell>
                           <TableCell>
                             <Chip
-                              label={user.is_active !== false ? 'Active' : 'Inactive'}
-                              color={user.is_active !== false ? 'success' : 'default'}
+                              label={
+                                user.is_active !== false ? 'Active' : 'Inactive'
+                              }
+                              color={
+                                user.is_active !== false ? 'success' : 'default'
+                              }
                               size="small"
                             />
                           </TableCell>
                           <TableCell>
                             <Typography variant="body2" color="text.secondary">
-                              {user.last_login 
+                              {user.last_login
                                 ? new Date(user.last_login).toLocaleDateString()
-                                : 'Never'
-                              }
+                                : 'Never'}
                             </Typography>
                           </TableCell>
                         </TableRow>
@@ -1004,7 +1172,9 @@ const AdminPage: React.FC = () => {
             <TextField
               label="Name"
               value={formData.name}
-              onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
+              onChange={(e) =>
+                setFormData((prev) => ({ ...prev, name: e.target.value }))
+              }
               error={!!formErrors.name}
               helperText={formErrors.name}
               fullWidth
@@ -1013,7 +1183,12 @@ const AdminPage: React.FC = () => {
             <TextField
               label="Description"
               value={formData.description}
-              onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
+              onChange={(e) =>
+                setFormData((prev) => ({
+                  ...prev,
+                  description: e.target.value,
+                }))
+              }
               error={!!formErrors.description}
               helperText={formErrors.description}
               fullWidth
@@ -1026,7 +1201,12 @@ const AdminPage: React.FC = () => {
                 label="Default Overall Rate"
                 type="number"
                 value={formData.defaultOverallRate}
-                onChange={(e) => setFormData(prev => ({ ...prev, defaultOverallRate: parseFloat(e.target.value) || 0 }))}
+                onChange={(e) =>
+                  setFormData((prev) => ({
+                    ...prev,
+                    defaultOverallRate: parseFloat(e.target.value) || 0,
+                  }))
+                }
                 error={!!formErrors.defaultOverallRate}
                 helperText={formErrors.defaultOverallRate}
                 InputProps={{ inputProps: { min: 0.01, step: 0.01 } }}
@@ -1036,35 +1216,61 @@ const AdminPage: React.FC = () => {
                 control={
                   <Switch
                     checked={formData.isActive}
-                    onChange={(e) => setFormData(prev => ({ ...prev, isActive: e.target.checked }))}
+                    onChange={(e) =>
+                      setFormData((prev) => ({
+                        ...prev,
+                        isActive: e.target.checked,
+                      }))
+                    }
                   />
                 }
                 label="Active"
               />
             </Box>
-            
+
             <Box>
-              <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2 }}>
+              <Box
+                sx={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  mb: 2,
+                }}
+              >
                 <Typography variant="h6">Roles</Typography>
                 <Button variant="outlined" size="small" onClick={handleAddRole}>
                   Add Role
                 </Button>
               </Box>
-              
+
               {formData.roles.length === 0 && (
-                <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-                  No roles defined. Add roles to specify different hourly rates for different team members.
+                <Typography
+                  variant="body2"
+                  color="text.secondary"
+                  sx={{ mb: 2 }}
+                >
+                  No roles defined. Add roles to specify different hourly rates
+                  for different team members.
                 </Typography>
               )}
-              
+
               <List dense>
                 {formData.roles.map((role, index) => (
                   <ListItem key={index} sx={{ px: 0 }}>
-                    <Box sx={{ display: 'flex', gap: 2, width: '100%', alignItems: 'flex-start' }}>
+                    <Box
+                      sx={{
+                        display: 'flex',
+                        gap: 2,
+                        width: '100%',
+                        alignItems: 'flex-start',
+                      }}
+                    >
                       <TextField
                         label="Role Name"
                         value={role.roleName}
-                        onChange={(e) => handleRoleChange(index, 'roleName', e.target.value)}
+                        onChange={(e) =>
+                          handleRoleChange(index, 'roleName', e.target.value)
+                        }
                         size="small"
                         sx={{ flex: 1 }}
                       />
@@ -1072,7 +1278,13 @@ const AdminPage: React.FC = () => {
                         label="Hourly Rate"
                         type="number"
                         value={role.hourlyRate}
-                        onChange={(e) => handleRoleChange(index, 'hourlyRate', parseFloat(e.target.value) || 0)}
+                        onChange={(e) =>
+                          handleRoleChange(
+                            index,
+                            'hourlyRate',
+                            parseFloat(e.target.value) || 0
+                          )
+                        }
                         InputProps={{ inputProps: { min: 0.01, step: 0.01 } }}
                         size="small"
                         sx={{ width: 120 }}
@@ -1088,7 +1300,7 @@ const AdminPage: React.FC = () => {
                   </ListItem>
                 ))}
               </List>
-              
+
               {formErrors.roles && (
                 <Typography variant="body2" color="error" sx={{ mt: 1 }}>
                   Please check role data for errors
@@ -1109,7 +1321,9 @@ const AdminPage: React.FC = () => {
             onClick={handleSubmitCreate}
             variant="contained"
             disabled={isSubmitting}
-            startIcon={isSubmitting ? <CircularProgress size={20} /> : <SaveIcon />}
+            startIcon={
+              isSubmitting ? <CircularProgress size={20} /> : <SaveIcon />
+            }
           >
             {isSubmitting ? 'Creating...' : 'Create Rate Card'}
           </Button>
@@ -1130,7 +1344,9 @@ const AdminPage: React.FC = () => {
             <TextField
               label="Name"
               value={formData.name}
-              onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
+              onChange={(e) =>
+                setFormData((prev) => ({ ...prev, name: e.target.value }))
+              }
               error={!!formErrors.name}
               helperText={formErrors.name}
               fullWidth
@@ -1139,7 +1355,12 @@ const AdminPage: React.FC = () => {
             <TextField
               label="Description"
               value={formData.description}
-              onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
+              onChange={(e) =>
+                setFormData((prev) => ({
+                  ...prev,
+                  description: e.target.value,
+                }))
+              }
               error={!!formErrors.description}
               helperText={formErrors.description}
               fullWidth
@@ -1152,7 +1373,12 @@ const AdminPage: React.FC = () => {
                 label="Default Overall Rate"
                 type="number"
                 value={formData.defaultOverallRate}
-                onChange={(e) => setFormData(prev => ({ ...prev, defaultOverallRate: parseFloat(e.target.value) || 0 }))}
+                onChange={(e) =>
+                  setFormData((prev) => ({
+                    ...prev,
+                    defaultOverallRate: parseFloat(e.target.value) || 0,
+                  }))
+                }
                 error={!!formErrors.defaultOverallRate}
                 helperText={formErrors.defaultOverallRate}
                 InputProps={{ inputProps: { min: 0.01, step: 0.01 } }}
@@ -1162,35 +1388,61 @@ const AdminPage: React.FC = () => {
                 control={
                   <Switch
                     checked={formData.isActive}
-                    onChange={(e) => setFormData(prev => ({ ...prev, isActive: e.target.checked }))}
+                    onChange={(e) =>
+                      setFormData((prev) => ({
+                        ...prev,
+                        isActive: e.target.checked,
+                      }))
+                    }
                   />
                 }
                 label="Active"
               />
             </Box>
-            
+
             <Box>
-              <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2 }}>
+              <Box
+                sx={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  mb: 2,
+                }}
+              >
                 <Typography variant="h6">Roles</Typography>
                 <Button variant="outlined" size="small" onClick={handleAddRole}>
                   Add Role
                 </Button>
               </Box>
-              
+
               {formData.roles.length === 0 && (
-                <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-                  No roles defined. Add roles to specify different hourly rates for different team members.
+                <Typography
+                  variant="body2"
+                  color="text.secondary"
+                  sx={{ mb: 2 }}
+                >
+                  No roles defined. Add roles to specify different hourly rates
+                  for different team members.
                 </Typography>
               )}
-              
+
               <List dense>
                 {formData.roles.map((role, index) => (
                   <ListItem key={index} sx={{ px: 0 }}>
-                    <Box sx={{ display: 'flex', gap: 2, width: '100%', alignItems: 'flex-start' }}>
+                    <Box
+                      sx={{
+                        display: 'flex',
+                        gap: 2,
+                        width: '100%',
+                        alignItems: 'flex-start',
+                      }}
+                    >
                       <TextField
                         label="Role Name"
                         value={role.roleName}
-                        onChange={(e) => handleRoleChange(index, 'roleName', e.target.value)}
+                        onChange={(e) =>
+                          handleRoleChange(index, 'roleName', e.target.value)
+                        }
                         size="small"
                         sx={{ flex: 1 }}
                       />
@@ -1198,7 +1450,13 @@ const AdminPage: React.FC = () => {
                         label="Hourly Rate"
                         type="number"
                         value={role.hourlyRate}
-                        onChange={(e) => handleRoleChange(index, 'hourlyRate', parseFloat(e.target.value) || 0)}
+                        onChange={(e) =>
+                          handleRoleChange(
+                            index,
+                            'hourlyRate',
+                            parseFloat(e.target.value) || 0
+                          )
+                        }
                         InputProps={{ inputProps: { min: 0.01, step: 0.01 } }}
                         size="small"
                         sx={{ width: 120 }}
@@ -1214,7 +1472,7 @@ const AdminPage: React.FC = () => {
                   </ListItem>
                 ))}
               </List>
-              
+
               {formErrors.roles && (
                 <Typography variant="body2" color="error" sx={{ mt: 1 }}>
                   Please check role data for errors
@@ -1235,7 +1493,9 @@ const AdminPage: React.FC = () => {
             onClick={handleSubmitEdit}
             variant="contained"
             disabled={isSubmitting}
-            startIcon={isSubmitting ? <CircularProgress size={20} /> : <SaveIcon />}
+            startIcon={
+              isSubmitting ? <CircularProgress size={20} /> : <SaveIcon />
+            }
           >
             {isSubmitting ? 'Updating...' : 'Update Rate Card'}
           </Button>
@@ -1251,17 +1511,16 @@ const AdminPage: React.FC = () => {
         <DialogTitle>Confirm Delete</DialogTitle>
         <DialogContent>
           <Typography>
-            Are you sure you want to delete the rate card "{selectedRateCard?.name}"?
+            Are you sure you want to delete the rate card "
+            {selectedRateCard?.name}"?
           </Typography>
           <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
-            This action cannot be undone. The rate card will be permanently removed from the system.
+            This action cannot be undone. The rate card will be permanently
+            removed from the system.
           </Typography>
         </DialogContent>
         <DialogActions>
-          <Button
-            onClick={handleCloseDeleteDialog}
-            disabled={isSubmitting}
-          >
+          <Button onClick={handleCloseDeleteDialog} disabled={isSubmitting}>
             Cancel
           </Button>
           <Button
@@ -1269,7 +1528,9 @@ const AdminPage: React.FC = () => {
             variant="contained"
             color="error"
             disabled={isSubmitting}
-            startIcon={isSubmitting ? <CircularProgress size={20} /> : <DeleteIcon />}
+            startIcon={
+              isSubmitting ? <CircularProgress size={20} /> : <DeleteIcon />
+            }
           >
             {isSubmitting ? 'Deleting...' : 'Delete'}
           </Button>
@@ -1290,7 +1551,12 @@ const AdminPage: React.FC = () => {
             <TextField
               label="Name"
               value={templateFormData.name}
-              onChange={(e) => setTemplateFormData(prev => ({ ...prev, name: e.target.value }))}
+              onChange={(e) =>
+                setTemplateFormData((prev) => ({
+                  ...prev,
+                  name: e.target.value,
+                }))
+              }
               error={!!templateFormErrors.name}
               helperText={templateFormErrors.name}
               fullWidth
@@ -1299,7 +1565,12 @@ const AdminPage: React.FC = () => {
             <TextField
               label="Description"
               value={templateFormData.description}
-              onChange={(e) => setTemplateFormData(prev => ({ ...prev, description: e.target.value }))}
+              onChange={(e) =>
+                setTemplateFormData((prev) => ({
+                  ...prev,
+                  description: e.target.value,
+                }))
+              }
               error={!!templateFormErrors.description}
               helperText={templateFormErrors.description}
               fullWidth
@@ -1310,7 +1581,12 @@ const AdminPage: React.FC = () => {
             <TextField
               label="Version"
               value={templateFormData.version}
-              onChange={(e) => setTemplateFormData(prev => ({ ...prev, version: e.target.value }))}
+              onChange={(e) =>
+                setTemplateFormData((prev) => ({
+                  ...prev,
+                  version: e.target.value,
+                }))
+              }
               error={!!templateFormErrors.version}
               helperText={templateFormErrors.version}
               fullWidth
@@ -1319,9 +1595,17 @@ const AdminPage: React.FC = () => {
             <TextField
               label="Structure Definition (JSON)"
               value={templateFormData.structureDefinition}
-              onChange={(e) => setTemplateFormData(prev => ({ ...prev, structureDefinition: e.target.value }))}
+              onChange={(e) =>
+                setTemplateFormData((prev) => ({
+                  ...prev,
+                  structureDefinition: e.target.value,
+                }))
+              }
               error={!!templateFormErrors.structureDefinition}
-              helperText={templateFormErrors.structureDefinition || 'Enter a valid JSON structure definition for the pricing template'}
+              helperText={
+                templateFormErrors.structureDefinition ||
+                'Enter a valid JSON structure definition for the pricing template'
+              }
               fullWidth
               required
               multiline
@@ -1342,7 +1626,9 @@ const AdminPage: React.FC = () => {
             onClick={handleSubmitCreateTemplate}
             variant="contained"
             disabled={isSubmitting}
-            startIcon={isSubmitting ? <CircularProgress size={20} /> : <SaveIcon />}
+            startIcon={
+              isSubmitting ? <CircularProgress size={20} /> : <SaveIcon />
+            }
           >
             {isSubmitting ? 'Creating...' : 'Create Pricing Template'}
           </Button>
@@ -1363,7 +1649,12 @@ const AdminPage: React.FC = () => {
             <TextField
               label="Name"
               value={templateFormData.name}
-              onChange={(e) => setTemplateFormData(prev => ({ ...prev, name: e.target.value }))}
+              onChange={(e) =>
+                setTemplateFormData((prev) => ({
+                  ...prev,
+                  name: e.target.value,
+                }))
+              }
               error={!!templateFormErrors.name}
               helperText={templateFormErrors.name}
               fullWidth
@@ -1372,7 +1663,12 @@ const AdminPage: React.FC = () => {
             <TextField
               label="Description"
               value={templateFormData.description}
-              onChange={(e) => setTemplateFormData(prev => ({ ...prev, description: e.target.value }))}
+              onChange={(e) =>
+                setTemplateFormData((prev) => ({
+                  ...prev,
+                  description: e.target.value,
+                }))
+              }
               error={!!templateFormErrors.description}
               helperText={templateFormErrors.description}
               fullWidth
@@ -1383,7 +1679,12 @@ const AdminPage: React.FC = () => {
             <TextField
               label="Version"
               value={templateFormData.version}
-              onChange={(e) => setTemplateFormData(prev => ({ ...prev, version: e.target.value }))}
+              onChange={(e) =>
+                setTemplateFormData((prev) => ({
+                  ...prev,
+                  version: e.target.value,
+                }))
+              }
               error={!!templateFormErrors.version}
               helperText={templateFormErrors.version}
               fullWidth
@@ -1392,9 +1693,17 @@ const AdminPage: React.FC = () => {
             <TextField
               label="Structure Definition (JSON)"
               value={templateFormData.structureDefinition}
-              onChange={(e) => setTemplateFormData(prev => ({ ...prev, structureDefinition: e.target.value }))}
+              onChange={(e) =>
+                setTemplateFormData((prev) => ({
+                  ...prev,
+                  structureDefinition: e.target.value,
+                }))
+              }
               error={!!templateFormErrors.structureDefinition}
-              helperText={templateFormErrors.structureDefinition || 'Enter a valid JSON structure definition for the pricing template'}
+              helperText={
+                templateFormErrors.structureDefinition ||
+                'Enter a valid JSON structure definition for the pricing template'
+              }
               fullWidth
               required
               multiline
@@ -1415,7 +1724,9 @@ const AdminPage: React.FC = () => {
             onClick={handleSubmitEditTemplate}
             variant="contained"
             disabled={isSubmitting}
-            startIcon={isSubmitting ? <CircularProgress size={20} /> : <SaveIcon />}
+            startIcon={
+              isSubmitting ? <CircularProgress size={20} /> : <SaveIcon />
+            }
           >
             {isSubmitting ? 'Updating...' : 'Update Pricing Template'}
           </Button>
@@ -1431,10 +1742,12 @@ const AdminPage: React.FC = () => {
         <DialogTitle>Confirm Delete</DialogTitle>
         <DialogContent>
           <Typography>
-            Are you sure you want to delete the pricing template "{selectedPricingTemplate?.name}"?
+            Are you sure you want to delete the pricing template "
+            {selectedPricingTemplate?.name}"?
           </Typography>
           <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
-            This action cannot be undone. The pricing template will be permanently removed from the system.
+            This action cannot be undone. The pricing template will be
+            permanently removed from the system.
           </Typography>
         </DialogContent>
         <DialogActions>
@@ -1449,7 +1762,9 @@ const AdminPage: React.FC = () => {
             variant="contained"
             color="error"
             disabled={isSubmitting}
-            startIcon={isSubmitting ? <CircularProgress size={20} /> : <DeleteIcon />}
+            startIcon={
+              isSubmitting ? <CircularProgress size={20} /> : <DeleteIcon />
+            }
           >
             {isSubmitting ? 'Deleting...' : 'Delete'}
           </Button>
@@ -1471,4 +1786,4 @@ const AdminPage: React.FC = () => {
   );
 };
 
-export default AdminPage; 
+export default AdminPage;

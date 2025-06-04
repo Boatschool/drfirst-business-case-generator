@@ -1,5 +1,5 @@
-import '@testing-library/jest-dom'
-import { vi } from 'vitest'
+import '@testing-library/jest-dom';
+import { vi } from 'vitest';
 
 // Mock environment variables for testing
 Object.defineProperty(window, 'ENV', {
@@ -11,9 +11,9 @@ Object.defineProperty(window, 'ENV', {
     VITE_FIREBASE_PROJECT_ID: 'test-project',
     VITE_FIREBASE_STORAGE_BUCKET: 'test-project.appspot.com',
     VITE_FIREBASE_MESSAGING_SENDER_ID: '123456789',
-    VITE_FIREBASE_APP_ID: '1:123456789:web:abcdef123456'
-  }
-})
+    VITE_FIREBASE_APP_ID: '1:123456789:web:abcdef123456',
+  },
+});
 
 // Mock Firebase Auth
 const mockAuth = {
@@ -21,8 +21,8 @@ const mockAuth = {
   onAuthStateChanged: vi.fn(),
   signInWithEmailAndPassword: vi.fn(),
   signOut: vi.fn(),
-  createUserWithEmailAndPassword: vi.fn()
-}
+  createUserWithEmailAndPassword: vi.fn(),
+};
 
 vi.mock('firebase/auth', () => ({
   getAuth: () => mockAuth,
@@ -30,8 +30,8 @@ vi.mock('firebase/auth', () => ({
   signInWithEmailAndPassword: mockAuth.signInWithEmailAndPassword,
   signOut: mockAuth.signOut,
   createUserWithEmailAndPassword: mockAuth.createUserWithEmailAndPassword,
-  GoogleAuthProvider: vi.fn()
-}))
+  GoogleAuthProvider: vi.fn(),
+}));
 
 // Mock Firebase Firestore
 vi.mock('firebase/firestore', () => ({
@@ -45,27 +45,27 @@ vi.mock('firebase/firestore', () => ({
   query: vi.fn(),
   where: vi.fn(),
   orderBy: vi.fn(),
-  getDocs: vi.fn()
-}))
+  getDocs: vi.fn(),
+}));
 
 // Global test utilities
 global.ResizeObserver = vi.fn().mockImplementation(() => ({
   observe: vi.fn(),
   unobserve: vi.fn(),
   disconnect: vi.fn(),
-}))
+}));
 
 // Mock IntersectionObserver
 global.IntersectionObserver = vi.fn().mockImplementation(() => ({
   observe: vi.fn(),
   unobserve: vi.fn(),
   disconnect: vi.fn(),
-}))
+}));
 
 // Mock matchMedia
 Object.defineProperty(window, 'matchMedia', {
   writable: true,
-  value: vi.fn().mockImplementation(query => ({
+  value: vi.fn().mockImplementation((query) => ({
     matches: false,
     media: query,
     onchange: null,
@@ -75,4 +75,4 @@ Object.defineProperty(window, 'matchMedia', {
     removeEventListener: vi.fn(),
     dispatchEvent: vi.fn(),
   })),
-}); 
+});

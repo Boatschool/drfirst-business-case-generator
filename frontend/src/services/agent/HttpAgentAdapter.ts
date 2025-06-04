@@ -17,7 +17,9 @@ import {
 } from './AgentService';
 
 // Use environment variable for API base URL
-const API_BASE_URL = `${import.meta.env.VITE_API_BASE_URL}/api/${import.meta.env.VITE_API_VERSION}`;
+const API_BASE_URL = `${import.meta.env.VITE_API_BASE_URL}/api/${
+  import.meta.env.VITE_API_VERSION
+}`;
 
 console.log('🔗 HttpAgentAdapter using API_BASE_URL:', API_BASE_URL);
 
@@ -25,14 +27,17 @@ export class HttpAgentAdapter implements AgentService {
   private async getAuthHeaders(): Promise<HeadersInit> {
     console.log('🔑 Getting auth headers...');
     const token = await authService.getIdToken();
-    console.log('🎫 Token received:', token ? `${token.substring(0, 20)}...` : 'NULL');
-    
+    console.log(
+      '🎫 Token received:',
+      token ? `${token.substring(0, 20)}...` : 'NULL'
+    );
+
     if (!token) {
       throw new Error('User not authenticated. Cannot make API call.');
     }
     return {
       'Content-Type': 'application/json',
-      'Authorization': `Bearer ${token}`,
+      Authorization: `Bearer ${token}`,
     };
   }
 
@@ -58,13 +63,17 @@ export class HttpAgentAdapter implements AgentService {
         errorData = { detail: response.statusText };
       }
       throw new Error(
-        `API request failed with status ${response.status}: ${errorData?.detail || 'Unknown error'}`
+        `API request failed with status ${response.status}: ${
+          errorData?.detail || 'Unknown error'
+        }`
       );
     }
     return response.json() as Promise<T>;
   }
 
-  async initiateCase(payload: InitiateCasePayload): Promise<InitiateCaseResponse> {
+  async initiateCase(
+    payload: InitiateCasePayload
+  ): Promise<InitiateCaseResponse> {
     // The backend /invoke endpoint expects a generic request_type and payload structure
     const requestPayload = {
       request_type: 'initiate_case', // This type needs to be handled by OrchestratorAgent
@@ -137,7 +146,9 @@ export class HttpAgentAdapter implements AgentService {
     });
   }
 
-  async updateStatus(payload: UpdateStatusPayload): Promise<UpdateStatusResponse> {
+  async updateStatus(
+    payload: UpdateStatusPayload
+  ): Promise<UpdateStatusResponse> {
     const { caseId, ...requestBody } = payload;
     return this.fetchWithAuth<UpdateStatusResponse>(`/cases/${caseId}/status`, {
       method: 'PUT',
@@ -145,130 +156,249 @@ export class HttpAgentAdapter implements AgentService {
     });
   }
 
-  async submitPrdForReview(caseId: string): Promise<{ message: string; new_status: string; case_id: string }> {
-    return this.fetchWithAuth<{ message: string; new_status: string; case_id: string }>(`/cases/${caseId}/submit-prd`, {
+  async submitPrdForReview(
+    caseId: string
+  ): Promise<{ message: string; new_status: string; case_id: string }> {
+    return this.fetchWithAuth<{
+      message: string;
+      new_status: string;
+      case_id: string;
+    }>(`/cases/${caseId}/submit-prd`, {
       method: 'POST',
     });
   }
 
-  async approvePrd(caseId: string): Promise<{ message: string; new_status: string; case_id: string }> {
-    return this.fetchWithAuth<{ message: string; new_status: string; case_id: string }>(`/cases/${caseId}/prd/approve`, {
+  async approvePrd(
+    caseId: string
+  ): Promise<{ message: string; new_status: string; case_id: string }> {
+    return this.fetchWithAuth<{
+      message: string;
+      new_status: string;
+      case_id: string;
+    }>(`/cases/${caseId}/prd/approve`, {
       method: 'POST',
     });
   }
 
-  async rejectPrd(caseId: string, reason?: string): Promise<{ message: string; new_status: string; case_id: string }> {
+  async rejectPrd(
+    caseId: string,
+    reason?: string
+  ): Promise<{ message: string; new_status: string; case_id: string }> {
     const requestBody = reason ? { reason } : {};
-    return this.fetchWithAuth<{ message: string; new_status: string; case_id: string }>(`/cases/${caseId}/prd/reject`, {
+    return this.fetchWithAuth<{
+      message: string;
+      new_status: string;
+      case_id: string;
+    }>(`/cases/${caseId}/prd/reject`, {
       method: 'POST',
       body: JSON.stringify(requestBody),
     });
   }
 
-  async updateSystemDesign(caseId: string, content: string): Promise<{ message: string; updated_system_design: any }> {
+  async updateSystemDesign(
+    caseId: string,
+    content: string
+  ): Promise<{ message: string; updated_system_design: any }> {
     const requestBody = { content_markdown: content };
-    return this.fetchWithAuth<{ message: string; updated_system_design: any }>(`/cases/${caseId}/system-design`, {
-      method: 'PUT',
-      body: JSON.stringify(requestBody),
-    });
+    return this.fetchWithAuth<{ message: string; updated_system_design: any }>(
+      `/cases/${caseId}/system-design`,
+      {
+        method: 'PUT',
+        body: JSON.stringify(requestBody),
+      }
+    );
   }
 
-  async submitSystemDesignForReview(caseId: string): Promise<{ message: string; new_status: string; case_id: string }> {
-    return this.fetchWithAuth<{ message: string; new_status: string; case_id: string }>(`/cases/${caseId}/system-design/submit`, {
+  async submitSystemDesignForReview(
+    caseId: string
+  ): Promise<{ message: string; new_status: string; case_id: string }> {
+    return this.fetchWithAuth<{
+      message: string;
+      new_status: string;
+      case_id: string;
+    }>(`/cases/${caseId}/system-design/submit`, {
       method: 'POST',
     });
   }
 
-  async approveSystemDesign(caseId: string): Promise<{ message: string; new_status: string; case_id: string }> {
-    return this.fetchWithAuth<{ message: string; new_status: string; case_id: string }>(`/cases/${caseId}/system-design/approve`, {
+  async approveSystemDesign(
+    caseId: string
+  ): Promise<{ message: string; new_status: string; case_id: string }> {
+    return this.fetchWithAuth<{
+      message: string;
+      new_status: string;
+      case_id: string;
+    }>(`/cases/${caseId}/system-design/approve`, {
       method: 'POST',
     });
   }
 
-  async rejectSystemDesign(caseId: string, reason?: string): Promise<{ message: string; new_status: string; case_id: string }> {
+  async rejectSystemDesign(
+    caseId: string,
+    reason?: string
+  ): Promise<{ message: string; new_status: string; case_id: string }> {
     const requestBody = reason ? { reason } : {};
-    return this.fetchWithAuth<{ message: string; new_status: string; case_id: string }>(`/cases/${caseId}/system-design/reject`, {
+    return this.fetchWithAuth<{
+      message: string;
+      new_status: string;
+      case_id: string;
+    }>(`/cases/${caseId}/system-design/reject`, {
       method: 'POST',
       body: JSON.stringify(requestBody),
     });
   }
 
-  async updateEffortEstimate(caseId: string, data: EffortEstimate): Promise<{ message: string; updated_effort_estimate: EffortEstimate }> {
-    return this.fetchWithAuth<{ message: string; updated_effort_estimate: EffortEstimate }>(`/cases/${caseId}/effort-estimate`, {
+  async updateEffortEstimate(
+    caseId: string,
+    data: EffortEstimate
+  ): Promise<{ message: string; updated_effort_estimate: EffortEstimate }> {
+    return this.fetchWithAuth<{
+      message: string;
+      updated_effort_estimate: EffortEstimate;
+    }>(`/cases/${caseId}/effort-estimate`, {
       method: 'PUT',
       body: JSON.stringify(data),
     });
   }
 
-  async submitEffortEstimateForReview(caseId: string): Promise<{ message: string; new_status: string; case_id: string }> {
-    return this.fetchWithAuth<{ message: string; new_status: string; case_id: string }>(`/cases/${caseId}/effort-estimate/submit`, {
+  async submitEffortEstimateForReview(
+    caseId: string
+  ): Promise<{ message: string; new_status: string; case_id: string }> {
+    return this.fetchWithAuth<{
+      message: string;
+      new_status: string;
+      case_id: string;
+    }>(`/cases/${caseId}/effort-estimate/submit`, {
       method: 'POST',
     });
   }
 
-  async updateCostEstimate(caseId: string, data: CostEstimate): Promise<{ message: string; updated_cost_estimate: CostEstimate }> {
-    return this.fetchWithAuth<{ message: string; updated_cost_estimate: CostEstimate }>(`/cases/${caseId}/cost-estimate`, {
+  async updateCostEstimate(
+    caseId: string,
+    data: CostEstimate
+  ): Promise<{ message: string; updated_cost_estimate: CostEstimate }> {
+    return this.fetchWithAuth<{
+      message: string;
+      updated_cost_estimate: CostEstimate;
+    }>(`/cases/${caseId}/cost-estimate`, {
       method: 'PUT',
       body: JSON.stringify(data),
     });
   }
 
-  async submitCostEstimateForReview(caseId: string): Promise<{ message: string; new_status: string; case_id: string }> {
-    return this.fetchWithAuth<{ message: string; new_status: string; case_id: string }>(`/cases/${caseId}/cost-estimate/submit`, {
+  async submitCostEstimateForReview(
+    caseId: string
+  ): Promise<{ message: string; new_status: string; case_id: string }> {
+    return this.fetchWithAuth<{
+      message: string;
+      new_status: string;
+      case_id: string;
+    }>(`/cases/${caseId}/cost-estimate/submit`, {
       method: 'POST',
     });
   }
 
-  async updateValueProjection(caseId: string, data: ValueProjection): Promise<{ message: string; updated_value_projection: ValueProjection }> {
-    return this.fetchWithAuth<{ message: string; updated_value_projection: ValueProjection }>(`/cases/${caseId}/value-projection`, {
+  async updateValueProjection(
+    caseId: string,
+    data: ValueProjection
+  ): Promise<{ message: string; updated_value_projection: ValueProjection }> {
+    return this.fetchWithAuth<{
+      message: string;
+      updated_value_projection: ValueProjection;
+    }>(`/cases/${caseId}/value-projection`, {
       method: 'PUT',
       body: JSON.stringify(data),
     });
   }
 
-  async submitValueProjectionForReview(caseId: string): Promise<{ message: string; new_status: string; case_id: string }> {
-    return this.fetchWithAuth<{ message: string; new_status: string; case_id: string }>(`/cases/${caseId}/value-projection/submit`, {
+  async submitValueProjectionForReview(
+    caseId: string
+  ): Promise<{ message: string; new_status: string; case_id: string }> {
+    return this.fetchWithAuth<{
+      message: string;
+      new_status: string;
+      case_id: string;
+    }>(`/cases/${caseId}/value-projection/submit`, {
       method: 'POST',
     });
   }
 
-  async approveEffortEstimate(caseId: string): Promise<{ message: string; new_status: string; case_id: string }> {
-    return this.fetchWithAuth<{ message: string; new_status: string; case_id: string }>(`/cases/${caseId}/effort-estimate/approve`, {
+  async approveEffortEstimate(
+    caseId: string
+  ): Promise<{ message: string; new_status: string; case_id: string }> {
+    return this.fetchWithAuth<{
+      message: string;
+      new_status: string;
+      case_id: string;
+    }>(`/cases/${caseId}/effort-estimate/approve`, {
       method: 'POST',
     });
   }
 
-  async rejectEffortEstimate(caseId: string, reason?: string): Promise<{ message: string; new_status: string; case_id: string }> {
+  async rejectEffortEstimate(
+    caseId: string,
+    reason?: string
+  ): Promise<{ message: string; new_status: string; case_id: string }> {
     const requestBody = reason ? { reason } : {};
-    return this.fetchWithAuth<{ message: string; new_status: string; case_id: string }>(`/cases/${caseId}/effort-estimate/reject`, {
+    return this.fetchWithAuth<{
+      message: string;
+      new_status: string;
+      case_id: string;
+    }>(`/cases/${caseId}/effort-estimate/reject`, {
       method: 'POST',
       body: JSON.stringify(requestBody),
     });
   }
 
-  async approveCostEstimate(caseId: string): Promise<{ message: string; new_status: string; case_id: string }> {
-    return this.fetchWithAuth<{ message: string; new_status: string; case_id: string }>(`/cases/${caseId}/cost-estimate/approve`, {
+  async approveCostEstimate(
+    caseId: string
+  ): Promise<{ message: string; new_status: string; case_id: string }> {
+    return this.fetchWithAuth<{
+      message: string;
+      new_status: string;
+      case_id: string;
+    }>(`/cases/${caseId}/cost-estimate/approve`, {
       method: 'POST',
     });
   }
 
-  async rejectCostEstimate(caseId: string, reason?: string): Promise<{ message: string; new_status: string; case_id: string }> {
+  async rejectCostEstimate(
+    caseId: string,
+    reason?: string
+  ): Promise<{ message: string; new_status: string; case_id: string }> {
     const requestBody = reason ? { reason } : {};
-    return this.fetchWithAuth<{ message: string; new_status: string; case_id: string }>(`/cases/${caseId}/cost-estimate/reject`, {
+    return this.fetchWithAuth<{
+      message: string;
+      new_status: string;
+      case_id: string;
+    }>(`/cases/${caseId}/cost-estimate/reject`, {
       method: 'POST',
       body: JSON.stringify(requestBody),
     });
   }
 
-  async approveValueProjection(caseId: string): Promise<{ message: string; new_status: string; case_id: string }> {
-    return this.fetchWithAuth<{ message: string; new_status: string; case_id: string }>(`/cases/${caseId}/value-projection/approve`, {
+  async approveValueProjection(
+    caseId: string
+  ): Promise<{ message: string; new_status: string; case_id: string }> {
+    return this.fetchWithAuth<{
+      message: string;
+      new_status: string;
+      case_id: string;
+    }>(`/cases/${caseId}/value-projection/approve`, {
       method: 'POST',
     });
   }
 
-  async rejectValueProjection(caseId: string, reason?: string): Promise<{ message: string; new_status: string; case_id: string }> {
+  async rejectValueProjection(
+    caseId: string,
+    reason?: string
+  ): Promise<{ message: string; new_status: string; case_id: string }> {
     const requestBody = reason ? { reason } : {};
-    return this.fetchWithAuth<{ message: string; new_status: string; case_id: string }>(`/cases/${caseId}/value-projection/reject`, {
+    return this.fetchWithAuth<{
+      message: string;
+      new_status: string;
+      case_id: string;
+    }>(`/cases/${caseId}/value-projection/reject`, {
       method: 'POST',
       body: JSON.stringify(requestBody),
     });
@@ -278,26 +408,75 @@ export class HttpAgentAdapter implements AgentService {
   // FINAL BUSINESS CASE APPROVAL METHODS
   // ============================
 
-  async submitCaseForFinalApproval(caseId: string): Promise<{ message: string; new_status: string; case_id: string }> {
-    return this.fetchWithAuth<{ message: string; new_status: string; case_id: string }>(`/cases/${caseId}/submit-final`, {
+  async submitCaseForFinalApproval(
+    caseId: string
+  ): Promise<{ message: string; new_status: string; case_id: string }> {
+    return this.fetchWithAuth<{
+      message: string;
+      new_status: string;
+      case_id: string;
+    }>(`/cases/${caseId}/submit-final`, {
       method: 'POST',
     });
   }
 
-  async approveFinalCase(caseId: string): Promise<{ message: string; new_status: string; case_id: string }> {
-    return this.fetchWithAuth<{ message: string; new_status: string; case_id: string }>(`/cases/${caseId}/approve-final`, {
+  async approveFinalCase(
+    caseId: string
+  ): Promise<{ message: string; new_status: string; case_id: string }> {
+    return this.fetchWithAuth<{
+      message: string;
+      new_status: string;
+      case_id: string;
+    }>(`/cases/${caseId}/approve-final`, {
       method: 'POST',
     });
   }
 
-  async rejectFinalCase(caseId: string, reason?: string): Promise<{ message: string; new_status: string; case_id: string }> {
+  async rejectFinalCase(
+    caseId: string,
+    reason?: string
+  ): Promise<{ message: string; new_status: string; case_id: string }> {
     const requestBody = reason ? { reason } : {};
-    return this.fetchWithAuth<{ message: string; new_status: string; case_id: string }>(`/cases/${caseId}/reject-final`, {
+    return this.fetchWithAuth<{
+      message: string;
+      new_status: string;
+      case_id: string;
+    }>(`/cases/${caseId}/reject-final`, {
       method: 'POST',
       body: JSON.stringify(requestBody),
     });
   }
+
+  async exportCaseToPdf(caseId: string): Promise<Blob> {
+    console.log('🔄 Requesting PDF export for case:', caseId);
+
+    const authHeaders = await this.getAuthHeaders();
+    const response = await fetch(`${API_BASE_URL}/cases/${caseId}/export-pdf`, {
+      method: 'GET',
+      headers: {
+        Authorization: (authHeaders as any)['Authorization'],
+      },
+    });
+
+    if (!response.ok) {
+      let errorData;
+      try {
+        errorData = await response.json();
+      } catch (e) {
+        // If response is not JSON, use status text
+        errorData = { detail: response.statusText };
+      }
+      throw new Error(
+        `PDF export failed with status ${response.status}: ${
+          errorData?.detail || 'Unknown error'
+        }`
+      );
+    }
+
+    console.log('✅ PDF export successful, returning blob');
+    return response.blob();
+  }
 }
 
 // Export an instance if you prefer a singleton pattern for services
-// export const httpAgentService = new HttpAgentAdapter(); 
+// export const httpAgentService = new HttpAgentAdapter();

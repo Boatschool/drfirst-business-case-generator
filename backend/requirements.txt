@@ -25,6 +25,10 @@ requests==2.32.3
 # Web scraping and HTML parsing
 beautifulsoup4==4.12.3
 
+# PDF generation
+weasyprint==62.3
+markdown==3.7
+
 # Data processing
 pandas==2.2.3
 numpy==2.2.0

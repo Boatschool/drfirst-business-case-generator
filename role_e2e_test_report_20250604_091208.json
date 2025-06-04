@@ -1,0 +1,351 @@
+{
+  "role_assignment": {
+    "admin@test.drfirst.com": {
+      "status": "success",
+      "role": "ADMIN",
+      "timestamp": "2025-06-04T09:12:08.504091"
+    },
+    "developer@test.drfirst.com": {
+      "status": "success",
+      "role": "DEVELOPER",
+      "timestamp": "2025-06-04T09:12:08.504104"
+    },
+    "sales@test.drfirst.com": {
+      "status": "success",
+      "role": "SALES_MANAGER",
+      "timestamp": "2025-06-04T09:12:08.504108"
+    },
+    "finance@test.drfirst.com": {
+      "status": "success",
+      "role": "FINANCE_APPROVER",
+      "timestamp": "2025-06-04T09:12:08.504111"
+    },
+    "product@test.drfirst.com": {
+      "status": "success",
+      "role": "PRODUCT_OWNER",
+      "timestamp": "2025-06-04T09:12:08.504114"
+    },
+    "legal@test.drfirst.com": {
+      "status": "success",
+      "role": "LEGAL_APPROVER",
+      "timestamp": "2025-06-04T09:12:08.504116"
+    },
+    "architect@test.drfirst.com": {
+      "status": "success",
+      "role": "TECHNICAL_ARCHITECT",
+      "timestamp": "2025-06-04T09:12:08.504118"
+    },
+    "analyst@test.drfirst.com": {
+      "status": "success",
+      "role": "BUSINESS_ANALYST",
+      "timestamp": "2025-06-04T09:12:08.504121"
+    },
+    "salesrep@test.drfirst.com": {
+      "status": "success",
+      "role": "SALES_REP",
+      "timestamp": "2025-06-04T09:12:08.504123"
+    },
+    "user@test.drfirst.com": {
+      "status": "success",
+      "role": "USER",
+      "timestamp": "2025-06-04T09:12:08.504125"
+    },
+    "viewer@test.drfirst.com": {
+      "status": "success",
+      "role": "VIEWER",
+      "timestamp": "2025-06-04T09:12:08.504127"
+    }
+  },
+  "api_access": {
+    "/admin/rate-cards": {
+      "admin@test.drfirst.com": {
+        "expected_access": true,
+        "actual_access": true,
+        "status_code": 200,
+        "test_passed": true
+      },
+      "developer@test.drfirst.com": {
+        "expected_access": false,
+        "actual_access": false,
+        "status_code": 403,
+        "test_passed": true
+      },
+      "sales@test.drfirst.com": {
+        "expected_access": false,
+        "actual_access": false,
+        "status_code": 403,
+        "test_passed": true
+      },
+      "finance@test.drfirst.com": {
+        "expected_access": false,
+        "actual_access": false,
+        "status_code": 403,
+        "test_passed": true
+      },
+      "product@test.drfirst.com": {
+        "expected_access": false,
+        "actual_access": false,
+        "status_code": 403,
+        "test_passed": true
+      },
+      "legal@test.drfirst.com": {
+        "expected_access": false,
+        "actual_access": false,
+        "status_code": 403,
+        "test_passed": true
+      },
+      "architect@test.drfirst.com": {
+        "expected_access": false,
+        "actual_access": false,
+        "status_code": 403,
+        "test_passed": true
+      },
+      "analyst@test.drfirst.com": {
+        "expected_access": false,
+        "actual_access": false,
+        "status_code": 403,
+        "test_passed": true
+      },
+      "salesrep@test.drfirst.com": {
+        "expected_access": false,
+        "actual_access": false,
+        "status_code": 403,
+        "test_passed": true
+      },
+      "user@test.drfirst.com": {
+        "expected_access": false,
+        "actual_access": false,
+        "status_code": 403,
+        "test_passed": true
+      },
+      "viewer@test.drfirst.com": {
+        "expected_access": false,
+        "actual_access": false,
+        "status_code": 403,
+        "test_passed": true
+      }
+    },
+    "/admin/pricing-templates": {
+      "admin@test.drfirst.com": {
+        "expected_access": true,
+        "actual_access": true,
+        "status_code": 200,
+        "test_passed": true
+      },
+      "developer@test.drfirst.com": {
+        "expected_access": false,
+        "actual_access": false,
+        "status_code": 403,
+        "test_passed": true
+      },
+      "sales@test.drfirst.com": {
+        "expected_access": false,
+        "actual_access": false,
+        "status_code": 403,
+        "test_passed": true
+      },
+      "finance@test.drfirst.com": {
+        "expected_access": false,
+        "actual_access": false,
+        "status_code": 403,
+        "test_passed": true
+      },
+      "product@test.drfirst.com": {
+        "expected_access": false,
+        "actual_access": false,
+        "status_code": 403,
+        "test_passed": true
+      },
+      "legal@test.drfirst.com": {
+        "expected_access": false,
+        "actual_access": false,
+        "status_code": 403,
+        "test_passed": true
+      },
+      "architect@test.drfirst.com": {
+        "expected_access": false,
+        "actual_access": false,
+        "status_code": 403,
+        "test_passed": true
+      },
+      "analyst@test.drfirst.com": {
+        "expected_access": false,
+        "actual_access": false,
+        "status_code": 403,
+        "test_passed": true
+      },
+      "salesrep@test.drfirst.com": {
+        "expected_access": false,
+        "actual_access": false,
+        "status_code": 403,
+        "test_passed": true
+      },
+      "user@test.drfirst.com": {
+        "expected_access": false,
+        "actual_access": false,
+        "status_code": 403,
+        "test_passed": true
+      },
+      "viewer@test.drfirst.com": {
+        "expected_access": false,
+        "actual_access": false,
+        "status_code": 403,
+        "test_passed": true
+      }
+    },
+    "/admin/users": {
+      "admin@test.drfirst.com": {
+        "expected_access": true,
+        "actual_access": true,
+        "status_code": 200,
+        "test_passed": true
+      },
+      "developer@test.drfirst.com": {
+        "expected_access": false,
+        "actual_access": false,
+        "status_code": 403,
+        "test_passed": true
+      },
+      "sales@test.drfirst.com": {
+        "expected_access": false,
+        "actual_access": false,
+        "status_code": 403,
+        "test_passed": true
+      },
+      "finance@test.drfirst.com": {
+        "expected_access": false,
+        "actual_access": false,
+        "status_code": 403,
+        "test_passed": true
+      },
+      "product@test.drfirst.com": {
+        "expected_access": false,
+        "actual_access": false,
+        "status_code": 403,
+        "test_passed": true
+      },
+      "legal@test.drfirst.com": {
+        "expected_access": false,
+        "actual_access": false,
+        "status_code": 403,
+        "test_passed": true
+      },
+      "architect@test.drfirst.com": {
+        "expected_access": false,
+        "actual_access": false,
+        "status_code": 403,
+        "test_passed": true
+      },
+      "analyst@test.drfirst.com": {
+        "expected_access": false,
+        "actual_access": false,
+        "status_code": 403,
+        "test_passed": true
+      },
+      "salesrep@test.drfirst.com": {
+        "expected_access": false,
+        "actual_access": false,
+        "status_code": 403,
+        "test_passed": true
+      },
+      "user@test.drfirst.com": {
+        "expected_access": false,
+        "actual_access": false,
+        "status_code": 403,
+        "test_passed": true
+      },
+      "viewer@test.drfirst.com": {
+        "expected_access": false,
+        "actual_access": false,
+        "status_code": 403,
+        "test_passed": true
+      }
+    },
+    "/cases": {
+      "admin@test.drfirst.com": {
+        "expected_access": true,
+        "actual_access": true,
+        "status_code": 200,
+        "test_passed": true
+      },
+      "developer@test.drfirst.com": {
+        "expected_access": true,
+        "actual_access": true,
+        "status_code": 200,
+        "test_passed": true
+      },
+      "sales@test.drfirst.com": {
+        "expected_access": true,
+        "actual_access": true,
+        "status_code": 200,
+        "test_passed": true
+      },
+      "finance@test.drfirst.com": {
+        "expected_access": true,
+        "actual_access": true,
+        "status_code": 200,
+        "test_passed": true
+      },
+      "product@test.drfirst.com": {
+        "expected_access": true,
+        "actual_access": true,
+        "status_code": 200,
+        "test_passed": true
+      },
+      "legal@test.drfirst.com": {
+        "expected_access": true,
+        "actual_access": true,
+        "status_code": 200,
+        "test_passed": true
+      },
+      "architect@test.drfirst.com": {
+        "expected_access": true,
+        "actual_access": true,
+        "status_code": 200,
+        "test_passed": true
+      },
+      "analyst@test.drfirst.com": {
+        "expected_access": true,
+        "actual_access": true,
+        "status_code": 200,
+        "test_passed": true
+      },
+      "salesrep@test.drfirst.com": {
+        "expected_access": true,
+        "actual_access": true,
+        "status_code": 200,
+        "test_passed": true
+      },
+      "user@test.drfirst.com": {
+        "expected_access": true,
+        "actual_access": true,
+        "status_code": 200,
+        "test_passed": true
+      },
+      "viewer@test.drfirst.com": {
+        "expected_access": false,
+        "actual_access": true,
+        "status_code": 200,
+        "test_passed": false
+      }
+    }
+  },
+  "frontend_access": {},
+  "workflow_testing": {
+    "PRD Approval by Product Owner": {
+      "case_id": "test_case_user_20250604_091208",
+      "approval_result": true,
+      "status": "success"
+    },
+    "System Design Approval by Developer": {
+      "case_id": "test_case_user_20250604_091208",
+      "approval_result": true,
+      "status": "success"
+    },
+    "Financial Approval by Finance Approver": {
+      "case_id": "test_case_user_20250604_091208",
+      "approval_result": true,
+      "status": "success"
+    }
+  }
+}

@@ -1,12 +1,12 @@
 import React, { useContext } from 'react';
-import { 
-  Container, 
-  Typography, 
-  Box, 
-  Card, 
-  CardContent, 
-  Grid, 
-  Button, 
+import {
+  Container,
+  Typography,
+  Box,
+  Card,
+  CardContent,
+  Grid,
+  Button,
   Stack,
   Chip,
   List,
@@ -14,15 +14,15 @@ import {
   ListItemText,
   ListItemIcon,
   Divider,
-  Paper
+  Paper,
 } from '@mui/material';
-import { 
+import {
   Add as AddIcon,
   Dashboard as DashboardIcon,
   Assignment as AssignmentIcon,
   TrendingUp as TrendingUpIcon,
   Speed as SpeedIcon,
-  CheckCircle as CheckCircleIcon
+  CheckCircle as CheckCircleIcon,
 } from '@mui/icons-material';
 import { Link as RouterLink } from 'react-router-dom';
 import { AuthContext } from '../contexts/AuthContext';
@@ -39,19 +39,25 @@ const MainPage: React.FC = () => {
 
   // Calculate some quick stats
   const totalCases = cases.length;
-  const draftCases = cases.filter(c => c.status === 'INTAKE' || c.status === 'PRD_DRAFTING').length;
-  const reviewCases = cases.filter(c => c.status === 'PRD_REVIEW').length;
-  const approvedCases = cases.filter(c => c.status === 'PRD_APPROVED').length;
+  const draftCases = cases.filter(
+    (c) => c.status === 'INTAKE' || c.status === 'PRD_DRAFTING'
+  ).length;
+  const reviewCases = cases.filter((c) => c.status === 'PRD_REVIEW').length;
+  const approvedCases = cases.filter((c) => c.status === 'PRD_APPROVED').length;
 
   return (
     <Container maxWidth="lg" sx={{ py: 4 }}>
       {/* Welcome Header */}
       <Box sx={{ mb: 4 }}>
         <Typography variant="h4" component="h1" gutterBottom>
-          Welcome back, {authContext?.currentUser?.displayName || authContext?.currentUser?.email}!
+          Welcome back,{' '}
+          {authContext?.currentUser?.displayName ||
+            authContext?.currentUser?.email}
+          !
         </Typography>
         <Typography variant="body1" color="text.secondary">
-          Generate comprehensive business cases with AI-powered analysis and collaboration
+          Generate comprehensive business cases with AI-powered analysis and
+          collaboration
         </Typography>
       </Box>
 
@@ -70,7 +76,7 @@ const MainPage: React.FC = () => {
             </CardContent>
           </Card>
         </Grid>
-        
+
         <Grid item xs={12} sm={6} md={3}>
           <Card>
             <CardContent>
@@ -84,7 +90,7 @@ const MainPage: React.FC = () => {
             </CardContent>
           </Card>
         </Grid>
-        
+
         <Grid item xs={12} sm={6} md={3}>
           <Card>
             <CardContent>
@@ -98,7 +104,7 @@ const MainPage: React.FC = () => {
             </CardContent>
           </Card>
         </Grid>
-        
+
         <Grid item xs={12} sm={6} md={3}>
           <Card>
             <CardContent>
@@ -200,27 +206,39 @@ const MainPage: React.FC = () => {
                   <ListItem
                     component={RouterLink}
                     to={`/cases/${businessCase.case_id}`}
-                    sx={{ 
-                      textDecoration: 'none', 
+                    sx={{
+                      textDecoration: 'none',
                       color: 'inherit',
-                      '&:hover': { backgroundColor: 'action.hover' }
+                      '&:hover': { backgroundColor: 'action.hover' },
                     }}
                   >
                     <ListItemText
                       primary={businessCase.title}
                       secondary={
-                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mt: 1 }}>
+                        <Box
+                          sx={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: 1,
+                            mt: 1,
+                          }}
+                        >
                           <Chip
                             label={businessCase.status.replace('_', ' ')}
                             size="small"
                             color={
-                              businessCase.status === 'PRD_APPROVED' ? 'success' :
-                              businessCase.status === 'PRD_REVIEW' ? 'warning' :
-                              'default'
+                              businessCase.status === 'PRD_APPROVED'
+                                ? 'success'
+                                : businessCase.status === 'PRD_REVIEW'
+                                ? 'warning'
+                                : 'default'
                             }
                           />
                           <Typography variant="caption" color="text.secondary">
-                            Updated: {new Date(businessCase.updated_at).toLocaleDateString()}
+                            Updated:{' '}
+                            {new Date(
+                              businessCase.updated_at
+                            ).toLocaleDateString()}
                           </Typography>
                         </Box>
                       }
@@ -232,11 +250,7 @@ const MainPage: React.FC = () => {
             </List>
             {cases.length > 3 && (
               <Box sx={{ textAlign: 'center', mt: 2 }}>
-                <Button
-                  component={RouterLink}
-                  to="/dashboard"
-                  variant="text"
-                >
+                <Button component={RouterLink} to="/dashboard" variant="text">
                   View All Cases ({cases.length})
                 </Button>
               </Box>
@@ -248,4 +262,4 @@ const MainPage: React.FC = () => {
   );
 };
 
-export default MainPage; 
+export default MainPage;

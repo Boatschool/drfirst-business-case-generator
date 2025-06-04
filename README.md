@@ -8,9 +8,9 @@ An internal tool for DrFirst that leverages AI agents to automatically generate 
 df-bus-case-generator/
 ├── frontend/          # React/Vite Frontend Application
 ├── backend/           # Python Backend with ADK Agents
-├── browser-extension/ # Future Chrome/Edge Extension
 ├── shared/            # Shared TypeScript types
 ├── scripts/           # Helper scripts
+├── archive/           # Archived/deprecated components
 └── docs/              # Project documentation
 ```
 

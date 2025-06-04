@@ -28,7 +28,7 @@ const SignUpPage: React.FC = () => {
 
   useEffect(() => {
     if (currentUser && !loading) {
-      navigate('/dashboard');
+      navigate('/main');
     }
   }, [currentUser, loading, navigate]);
 
@@ -54,21 +54,24 @@ const SignUpPage: React.FC = () => {
     setIsLoading(true);
     try {
       await signUp(email, password);
-      navigate('/login', { state: { message: 'Sign up successful! Please log in.' } });
+      navigate('/login', {
+        state: { message: 'Sign up successful! Please log in.' },
+      });
     } catch (err: any) {
       console.error('Sign up error:', err);
       let errorMessage = 'Failed to sign up. Please try again.';
-      
+
       if (err.code === 'auth/email-already-in-use') {
         errorMessage = 'An account with this email already exists.';
       } else if (err.code === 'auth/invalid-email') {
         errorMessage = 'Invalid email address.';
       } else if (err.code === 'auth/weak-password') {
-        errorMessage = 'Password is too weak. Please use at least 6 characters.';
+        errorMessage =
+          'Password is too weak. Please use at least 6 characters.';
       } else if (err.message) {
         errorMessage = err.message;
       }
-      
+
       setError(errorMessage);
     } finally {
       setIsLoading(false);
@@ -78,13 +81,13 @@ const SignUpPage: React.FC = () => {
   const handleGoogleSignUp = async () => {
     setIsLoading(true);
     setError(null);
-    
+
     try {
       await signInWithGoogle();
     } catch (err: any) {
       console.error('Google sign up error:', err);
       let errorMessage = 'Failed to sign up with Google. Please try again.';
-      
+
       if (err.code === 'auth/popup-closed-by-user') {
         errorMessage = 'Sign-up was cancelled.';
       } else if (err.code === 'auth/unauthorized-domain') {
@@ -92,7 +95,7 @@ const SignUpPage: React.FC = () => {
       } else if (err.message) {
         errorMessage = err.message;
       }
-      
+
       setError(errorMessage);
     } finally {
       setIsLoading(false);
@@ -102,12 +105,14 @@ const SignUpPage: React.FC = () => {
   if (loading) {
     return (
       <Container component="main" maxWidth="xs">
-        <Box sx={{ 
-          marginTop: 8, 
-          display: 'flex', 
-          flexDirection: 'column', 
-          alignItems: 'center' 
-        }}>
+        <Box
+          sx={{
+            marginTop: 8,
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+          }}
+        >
           <CircularProgress />
           <Typography sx={{ mt: 2 }}>Loading...</Typography>
         </Box>
@@ -117,24 +122,31 @@ const SignUpPage: React.FC = () => {
 
   return (
     <Container component="main" maxWidth="xs">
-      <Box sx={{
-        marginTop: 8,
-        display: 'flex',
-        flexDirection: 'column',
-        alignItems: 'center',
-      }}>
+      <Box
+        sx={{
+          marginTop: 8,
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+        }}
+      >
         <Paper elevation={3} sx={{ padding: 4, width: '100%' }}>
           <Typography component="h1" variant="h4" align="center" gutterBottom>
             Sign Up
           </Typography>
-          
+
           {error && (
             <Alert severity="error" sx={{ mb: 2 }}>
               {error}
             </Alert>
           )}
-          
-          <Box component="form" onSubmit={handleEmailSignUp} noValidate sx={{ mt: 1 }}>
+
+          <Box
+            component="form"
+            onSubmit={handleEmailSignUp}
+            noValidate
+            sx={{ mt: 1 }}
+          >
             <TextField
               margin="normal"
               required
@@ -174,13 +186,18 @@ const SignUpPage: React.FC = () => {
               onChange={(e) => setConfirmPassword(e.target.value)}
               disabled={isLoading}
             />
-            
+
             <Button
               type="submit"
               fullWidth
               variant="contained"
               sx={{ mt: 3, mb: 2 }}
-              disabled={isLoading || !email.trim() || !password.trim() || !confirmPassword.trim()}
+              disabled={
+                isLoading ||
+                !email.trim() ||
+                !password.trim() ||
+                !confirmPassword.trim()
+              }
             >
               {isLoading ? <CircularProgress size={24} /> : 'Sign Up'}
             </Button>
@@ -202,10 +219,13 @@ const SignUpPage: React.FC = () => {
               Sign up with Google
             </Button>
 
-            <Stack direction="row" justifyContent="center" spacing={1} sx={{ mt: 2 }}>
-              <Typography variant="body2">
-                Already have an account?
-              </Typography>
+            <Stack
+              direction="row"
+              justifyContent="center"
+              spacing={1}
+              sx={{ mt: 2 }}
+            >
+              <Typography variant="body2">Already have an account?</Typography>
               <MuiLink component={RouterLink} to="/login" variant="body2">
                 Sign In
               </MuiLink>
@@ -217,4 +237,4 @@ const SignUpPage: React.FC = () => {
   );
 };
 
-export default SignUpPage; 
+export default SignUpPage;

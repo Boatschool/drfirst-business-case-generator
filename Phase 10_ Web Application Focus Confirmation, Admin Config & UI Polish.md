@@ -2,12 +2,12 @@
 
 * **Focus:** Confirm and solidify the web application as the sole primary interface by performing audit-driven cleanup. Implement basic admin configuration for final approvals. Then, polish the web application's usability, intake flow, and review initial deployment considerations.  
 * **Prerequisite:** Task 10.0 (Codebase Audit for Web Application Focus) is COMPLETE, and its summary report is available.  
-* **Status:** All tasks todo unless otherwise specified.
+* **Status:** Audit cleanup tasks (10.0.1, 10.0.2) COMPLETE ✅. Remaining tasks todo unless otherwise specified.
 
 | Task ID | Title | Status | Priority | Complexity | Dependencies | Notes |
 | :---- | :---- | :---- | :---- | :---- | :---- | :---- |
 | **10.0.1** | **Execute Code & Script Cleanup based on Audit Report** | ✅ COMPLETE | highest | low | Task 10.0 (Audit Report) | **COMPLETED.** Commented out extension setup in scripts/setup\_dev\_env.sh. Moved browser-extension/ to archive/browser-extension/. Updated README.md structure. Git: feature/cleanup-audit-10.0.1 commit 2876432. |
-| **10.0.2** | **Execute Documentation Cleanup based on Audit Report** | todo | highest | low | Task 10.0 (Audit Report) | **NEW.** Update README.md, SystemDesign.md, architecture diagrams, and DrFirst Bus Case \- Development Plan.md (Phase 10 section) to reflect web-first focus and remove extension references. |
+| **10.0.2** | **Execute Documentation Cleanup based on Audit Report** | ✅ COMPLETE | highest | low | Task 10.0 (Audit Report) | **COMPLETED.** Updated README.md, SystemDesign.md, architecture diagrams, and DrFirst Bus Case \- Development Plan.md (Phase 10 section) to reflect web-first focus and remove extension references. Git: feature/cleanup-audit-10.0.1 commit 9f207d8. |
 | **9.1.4** | **(Simplified V1) Implement Admin UI to Designate Global Final Approver Role** | todo | highest | medium | Task 10.0.1, 10.0.2, (Phases 1-7, 9.1.1-9.1.3 for backend approval logic) | **DEFERRED TASK.** Backend logic reads this config; Admin UI sets it. Involves Firestore systemConfiguration and admin UI changes. |
 | **10.1** **Review and Refine Web Application Intake Flow** |  |  |  |  |  |  |
 | 10.1.1 | Review the "New Business Case" creation flow (NewCasePage.tsx) for clarity, ease of use, and completeness. | todo | high | low | Task 4.4.3, 10.0.1, 10.0.2 | Ensure it's a smooth primary entry point. |

@@ -36,6 +36,10 @@ import {
   Snackbar,
   List,
   ListItem,
+  FormControl,
+  InputLabel,
+  Select,
+  MenuItem,
 } from '@mui/material';
 import {
   AdminPanelSettings,
@@ -47,6 +51,7 @@ import {
   Delete as DeleteIcon,
   Save as SaveIcon,
   Cancel as CancelIcon,
+  Settings as SettingsIcon,
 } from '@mui/icons-material';
 import { AuthContext } from '../contexts/AuthContext';
 import {
@@ -181,6 +186,13 @@ const AdminPage: React.FC = () => {
     severity: 'success',
   });
 
+  // Global Approver Configuration state
+  const [finalApproverRoleName, setFinalApproverRoleName] = useState<string>('FINAL_APPROVER');
+  const [isLoadingApproverConfig, setIsLoadingApproverConfig] = useState(false);
+  const [approverConfigError, setApproverConfigError] = useState<string | null>(null);
+  const [selectedApproverRole, setSelectedApproverRole] = useState<string>('FINAL_APPROVER');
+  const [isSavingApproverConfig, setIsSavingApproverConfig] = useState(false);
+
   // Simple admin check (placeholder for full RBAC in Task 7.3)
   // For now, allow any authenticated user to access admin page
   // TODO: Replace with proper role-based access control
@@ -255,12 +267,32 @@ const AdminPage: React.FC = () => {
     }
   }, [adminService]);
 
+  // Fetch global approver configuration
+  const fetchApproverConfig = useCallback(async () => {
+    setIsLoadingApproverConfig(true);
+    setApproverConfigError(null);
+
+    try {
+      const config = await adminService.getFinalApproverRoleSetting();
+      setFinalApproverRoleName(config.finalApproverRoleName);
+      setSelectedApproverRole(config.finalApproverRoleName);
+    } catch (error) {
+      const errorMessage =
+        error instanceof Error ? error.message : 'Failed to fetch approver configuration';
+      setApproverConfigError(errorMessage);
+      console.error('Error fetching approver configuration:', error);
+    } finally {
+      setIsLoadingApproverConfig(false);
+    }
+  }, [adminService]);
+
   // Load data on component mount
   useEffect(() => {
     fetchRateCards();
     fetchPricingTemplates();
     fetchUsers();
-  }, [fetchRateCards, fetchPricingTemplates, fetchUsers]);
+    fetchApproverConfig();
+  }, [fetchRateCards, fetchPricingTemplates, fetchUsers, fetchApproverConfig]);
 
   // Show notification
   const showNotification = (
@@ -687,6 +719,34 @@ const AdminPage: React.FC = () => {
     setSelectedPricingTemplate(null);
   };
 
+  // Global Approver Configuration handlers
+  const handleSaveApproverConfig = async () => {
+    if (selectedApproverRole === finalApproverRoleName) {
+      showNotification('No changes to save', 'info');
+      return;
+    }
+
+    setIsSavingApproverConfig(true);
+    setApproverConfigError(null);
+
+    try {
+      await adminService.setFinalApproverRoleSetting(selectedApproverRole);
+      setFinalApproverRoleName(selectedApproverRole);
+      showNotification(`Final approver role updated to '${selectedApproverRole}' successfully`, 'success');
+    } catch (error) {
+      const errorMessage =
+        error instanceof Error ? error.message : 'Failed to update final approver role';
+      setApproverConfigError(errorMessage);
+      showNotification(errorMessage, 'error');
+    } finally {
+      setIsSavingApproverConfig(false);
+    }
+  };
+
+  const handleApproverRoleChange = (event: React.ChangeEvent<{ value: unknown }>) => {
+    setSelectedApproverRole(event.target.value as string);
+  };
+
   return (
     <Container maxWidth="lg">
       <Box sx={{ my: 4 }}>
@@ -722,6 +782,85 @@ const AdminPage: React.FC = () => {
         </Typography>
 
         <Grid container spacing={4}>
+          {/* Global Approval Settings Section */}
+          <Grid item xs={12}>
+            <Paper sx={{ p: 3, mb: 2 }}>
+              <Box sx={{ display: 'flex', alignItems: 'center', mb: 3 }}>
+                <SettingsIcon sx={{ mr: 2, color: 'primary.main' }} />
+                <Typography variant="h5" component="h2">
+                  Global Approval Settings
+                </Typography>
+              </Box>
+
+              <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
+                Configure which system role is used for final business case approvals across the application.
+              </Typography>
+
+              {isLoadingApproverConfig && (
+                <Box sx={{ display: 'flex', justifyContent: 'center', p: 2 }}>
+                  <CircularProgress size={24} />
+                </Box>
+              )}
+
+              {approverConfigError && (
+                <Alert severity="error" sx={{ mb: 2 }}>
+                  {approverConfigError}
+                </Alert>
+              )}
+
+              {!isLoadingApproverConfig && (
+                <Box>
+                  <Typography variant="body2" sx={{ mb: 2 }}>
+                    <strong>Current Final Approver Role:</strong>{' '}
+                    <Chip
+                      label={finalApproverRoleName}
+                      color="primary"
+                      size="small"
+                      sx={{ ml: 1 }}
+                    />
+                  </Typography>
+
+                  <Stack direction="row" spacing={2} alignItems="center" sx={{ mt: 2 }}>
+                    <FormControl sx={{ minWidth: 200 }}>
+                      <InputLabel id="approver-role-select-label">Final Approver Role</InputLabel>
+                      <Select
+                        labelId="approver-role-select-label"
+                        value={selectedApproverRole}
+                        label="Final Approver Role"
+                        onChange={(e) => setSelectedApproverRole(e.target.value as string)}
+                        disabled={isSavingApproverConfig}
+                      >
+                        <MenuItem value="ADMIN">ADMIN</MenuItem>
+                        <MenuItem value="DEVELOPER">DEVELOPER</MenuItem>
+                        <MenuItem value="SALES_MANAGER_APPROVER">SALES_MANAGER_APPROVER</MenuItem>
+                        <MenuItem value="FINAL_APPROVER">FINAL_APPROVER</MenuItem>
+                        <MenuItem value="CASE_INITIATOR">CASE_INITIATOR</MenuItem>
+                      </Select>
+                    </FormControl>
+
+                    <Button
+                      variant="contained"
+                      onClick={handleSaveApproverConfig}
+                      disabled={
+                        isSavingApproverConfig ||
+                        selectedApproverRole === finalApproverRoleName
+                      }
+                      startIcon={<SaveIcon />}
+                    >
+                      {isSavingApproverConfig ? 'Saving...' : 'Save Setting'}
+                    </Button>
+                  </Stack>
+
+                  <Alert severity="warning" sx={{ mt: 2 }}>
+                    <Typography variant="body2">
+                      <strong>Important:</strong> Changing this setting affects ALL business case final approvals.
+                      Only users with the selected role will be able to approve or reject final business cases.
+                    </Typography>
+                  </Alert>
+                </Box>
+              )}
+            </Paper>
+          </Grid>
           {/* Rate Cards Section */}
           <Grid item xs={12}>
             <Paper sx={{ p: 3 }}>

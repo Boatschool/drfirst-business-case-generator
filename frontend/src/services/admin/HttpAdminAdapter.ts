@@ -286,4 +286,46 @@ export class HttpAdminAdapter implements AdminService {
       throw error;
     }
   }
+
+  /**
+   * Get the global final approver role setting
+   */
+  async getFinalApproverRoleSetting(): Promise<{ finalApproverRoleName: string; updatedAt?: string; description?: string }> {
+    try {
+      console.log('[HttpAdminAdapter] Fetching final approver role setting...');
+      const config = await this.fetchWithAuth<{ finalApproverRoleName: string; updatedAt?: string; description?: string }>(
+        `${this.apiBaseUrl}/admin/config/final-approver-role`
+      );
+      console.log(
+        `[HttpAdminAdapter] Successfully fetched final approver role: ${config.finalApproverRoleName}`
+      );
+      return config;
+    } catch (error) {
+      console.error('[HttpAdminAdapter] Error fetching final approver role setting:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Set the global final approver role setting
+   */
+  async setFinalApproverRoleSetting(roleName: string): Promise<{ finalApproverRoleName: string; updatedAt?: string; description?: string }> {
+    try {
+      console.log('[HttpAdminAdapter] Setting final approver role to:', roleName);
+      const config = await this.fetchWithAuth<{ finalApproverRoleName: string; updatedAt?: string; description?: string }>(
+        `${this.apiBaseUrl}/admin/config/final-approver-role`,
+        {
+          method: 'PUT',
+          body: JSON.stringify({ finalApproverRoleName: roleName }),
+        }
+      );
+      console.log(
+        `[HttpAdminAdapter] Successfully set final approver role to: ${config.finalApproverRoleName}`
+      );
+      return config;
+    } catch (error) {
+      console.error('[HttpAdminAdapter] Error setting final approver role:', error);
+      throw error;
+    }
+  }
 }

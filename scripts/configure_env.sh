@@ -9,19 +9,19 @@ echo "🔧 Configuring environment files..."
 echo "📱 Configuring frontend/.env..."
 sed -i '' 's|VITE_API_BASE_URL=http://localhost:8000|VITE_API_BASE_URL=https://drfirst-gateway-6jgi3xc.uc.gateway.dev|g' frontend/.env
 sed -i '' 's|VITE_FIREBASE_API_KEY=your_firebase_api_key_here|VITE_FIREBASE_API_KEY=placeholder_need_real_key|g' frontend/.env
-sed -i '' 's|VITE_FIREBASE_AUTH_DOMAIN=your_project_id.firebaseapp.com|VITE_FIREBASE_AUTH_DOMAIN=df-bus-case-generator.firebaseapp.com|g' frontend/.env
-sed -i '' 's|VITE_FIREBASE_PROJECT_ID=your_project_id_here|VITE_FIREBASE_PROJECT_ID=df-bus-case-generator|g' frontend/.env
+sed -i '' 's|VITE_FIREBASE_AUTH_DOMAIN=your_project_id.firebaseapp.com|VITE_FIREBASE_AUTH_DOMAIN=drfirst-business-case-gen.firebaseapp.com|g' frontend/.env
+sed -i '' 's|VITE_FIREBASE_PROJECT_ID=your_project_id_here|VITE_FIREBASE_PROJECT_ID=drfirst-business-case-gen|g' frontend/.env
 
 # Configure Backend .env  
 echo "⚙️ Configuring backend/.env..."
-sed -i '' 's|GOOGLE_CLOUD_PROJECT_ID=your-project-id|GOOGLE_CLOUD_PROJECT_ID=df-bus-case-generator|g' backend/.env
-sed -i '' 's|FIREBASE_PROJECT_ID=your-firebase-project-id|FIREBASE_PROJECT_ID=df-bus-case-generator|g' backend/.env
+sed -i '' 's|GOOGLE_CLOUD_PROJECT_ID=your-project-id|GOOGLE_CLOUD_PROJECT_ID=drfirst-business-case-gen|g' backend/.env
+sed -i '' 's|FIREBASE_PROJECT_ID=your-firebase-project-id|FIREBASE_PROJECT_ID=drfirst-business-case-gen|g' backend/.env
 
 echo "✅ Environment files configured!"
 echo ""
 echo "🚨 NEXT STEPS REQUIRED:"
 echo "1. Get Firebase credentials from: https://console.firebase.google.com/"
-echo "   - Select project: df-bus-case-generator"
+echo "   - Select project: drfirst-business-case-gen"
 echo "   - Go to Project Settings → General → Your apps"
 echo "   - Create/select web app"
 echo "   - Copy the config values"

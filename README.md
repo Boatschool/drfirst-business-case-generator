@@ -5,7 +5,7 @@ A comprehensive web application for DrFirst that leverages AI agents to automati
 ## Project Structure
 
 ```
-df-bus-case-generator/
+drfirst-business-case-gen/
 ├── frontend/          # React/Vite Web Application
 ├── backend/           # Python Backend with ADK Agents
 ├── shared/            # Shared TypeScript types

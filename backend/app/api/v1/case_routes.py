@@ -8,6 +8,7 @@ from pydantic import BaseModel, Field
 import asyncio
 
 from app.auth.firebase_auth import get_current_active_user, require_role
+from app.utils.config_helpers import require_dynamic_final_approver_role
 from google.cloud import firestore
 from app.core.config import settings
 
@@ -2153,7 +2154,7 @@ async def submit_case_for_final_approval(
 @router.post("/cases/{case_id}/approve-final", status_code=200, summary="Approve final business case")
 async def approve_final_case(
     case_id: str,
-    current_user: dict = Depends(require_role("FINAL_APPROVER"))
+    current_user: dict = Depends(lambda: require_dynamic_final_approver_role()())
 ):
     """
     Approves the entire business case by updating status to APPROVED.
@@ -2229,7 +2230,7 @@ async def approve_final_case(
 async def reject_final_case(
     case_id: str,
     reject_request: FinalRejectRequest = FinalRejectRequest(),
-    current_user: dict = Depends(require_role("FINAL_APPROVER"))
+    current_user: dict = Depends(lambda: require_dynamic_final_approver_role()())
 ):
     """
     Rejects the entire business case by updating status to REJECTED.

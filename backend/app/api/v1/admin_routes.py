@@ -87,6 +87,17 @@ class User(BaseModel):
     updated_at: Optional[str] = None
     last_login: Optional[str] = None
 
+# Global Configuration Models
+class FinalApproverRoleConfig(BaseModel):
+    """Final approver role configuration model"""
+    finalApproverRoleName: str
+    updatedAt: Optional[str] = None
+    description: Optional[str] = None
+
+class UpdateFinalApproverRoleRequest(BaseModel):
+    """Request model for updating final approver role"""
+    finalApproverRoleName: str = Field(..., min_length=1, max_length=50, description="System role name to use for final approvals")
+
 # Initialize Firestore client
 db = None
 try:
@@ -522,4 +533,111 @@ async def get_analytics(current_user: dict = Depends(require_admin_role)):
 async def deploy_agent_updates(current_user: dict = Depends(require_admin_role)):
     """Deploy updates to the agent system (admin only)"""
     # TODO: Implement agent deployment logic
-    return {"message": "Agent deployment endpoint - implementation pending"} 
+    return {"message": "Agent deployment endpoint - implementation pending"}
+
+# Global Configuration Endpoints
+
+@router.get("/config/final-approver-role", response_model=FinalApproverRoleConfig, summary="Get global final approver role setting")
+async def get_final_approver_role(current_user: dict = Depends(require_admin_role)):
+    """Get the currently configured global final approver role (admin only)"""
+    if not db:
+        raise HTTPException(
+            status_code=500,
+            detail="Database connection not available"
+        )
+    
+    try:
+        # Fetch configuration from Firestore
+        config_ref = db.collection("systemConfiguration").document("approvalSettings")
+        doc = await asyncio.to_thread(config_ref.get)
+        
+        if not doc.exists:
+            # Return default configuration if not found
+            print(f"[AdminAPI] No final approver configuration found, returning default")
+            return FinalApproverRoleConfig(
+                finalApproverRoleName="FINAL_APPROVER",
+                description="Default final approver role (configuration not yet initialized)"
+            )
+        
+        config_data = doc.to_dict()
+        final_approver_role = config_data.get("finalApproverRoleName", "FINAL_APPROVER")
+        
+        # Convert datetime to string if it exists
+        updated_at = config_data.get("updatedAt")
+        if updated_at and hasattr(updated_at, 'isoformat'):
+            updated_at = updated_at.isoformat()
+        elif updated_at and not isinstance(updated_at, str):
+            updated_at = str(updated_at)
+        
+        print(f"[AdminAPI] Retrieved final approver role configuration: {final_approver_role} for admin: {current_user.get('email', 'unknown')}")
+        
+        return FinalApproverRoleConfig(
+            finalApproverRoleName=final_approver_role,
+            updatedAt=updated_at,
+            description=config_data.get("description")
+        )
+        
+    except Exception as e:
+        print(f"[AdminAPI] Error fetching final approver role configuration: {e}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to fetch final approver role configuration: {str(e)}"
+        )
+
+@router.put("/config/final-approver-role", response_model=FinalApproverRoleConfig, summary="Update global final approver role setting")
+async def update_final_approver_role(
+    config_update: UpdateFinalApproverRoleRequest,
+    current_user: dict = Depends(require_admin_role)
+):
+    """Update the global final approver role configuration (admin only)"""
+    if not db:
+        raise HTTPException(
+            status_code=500,
+            detail="Database connection not available"
+        )
+    
+    try:
+        new_role = config_update.finalApproverRoleName.strip()
+        
+        # Validate role name (basic validation - could be enhanced)
+        valid_roles = ["ADMIN", "DEVELOPER", "SALES_MANAGER_APPROVER", "FINAL_APPROVER", "CASE_INITIATOR"]
+        if new_role not in valid_roles:
+            print(f"[AdminAPI] Invalid role name provided: {new_role}")
+            raise HTTPException(
+                status_code=400,
+                detail=f"Invalid role name. Must be one of: {', '.join(valid_roles)}"
+            )
+        
+        # Prepare update data
+        current_time = datetime.now(timezone.utc).isoformat()
+        update_data = {
+            "finalApproverRoleName": new_role,
+            "updatedAt": current_time,
+            "updatedBy": current_user.get('email', 'unknown'),
+            "description": "Global configuration for which systemRole acts as the final approver for business cases"
+        }
+        
+        # Update or create configuration document
+        config_ref = db.collection("systemConfiguration").document("approvalSettings")
+        await asyncio.to_thread(config_ref.set, update_data, merge=True)
+        
+        # Clear cache to ensure immediate effect
+        from app.utils.config_helpers import clear_final_approver_role_cache
+        clear_final_approver_role_cache()
+        
+        print(f"[AdminAPI] Updated final approver role to '{new_role}' by admin: {current_user.get('email', 'unknown')}")
+        
+        return FinalApproverRoleConfig(
+            finalApproverRoleName=new_role,
+            updatedAt=current_time,
+            description=update_data["description"]
+        )
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"[AdminAPI] Error updating final approver role configuration: {e}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to update final approver role configuration: {str(e)}"
+        ) 

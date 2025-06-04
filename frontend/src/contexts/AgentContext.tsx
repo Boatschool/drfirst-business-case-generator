@@ -54,6 +54,9 @@ interface AgentContextType extends AgentContextState {
   rejectCostEstimate: (caseId: string, reason?: string) => Promise<boolean>;
   approveValueProjection: (caseId: string) => Promise<boolean>;
   rejectValueProjection: (caseId: string, reason?: string) => Promise<boolean>;
+  submitCaseForFinalApproval: (caseId: string) => Promise<boolean>;
+  approveFinalCase: (caseId: string) => Promise<boolean>;
+  rejectFinalCase: (caseId: string, reason?: string) => Promise<boolean>;
   clearAgentState: () => void;
   clearCurrentCaseDetails: () => void;
   // TODO: Add a way to subscribe to agent updates via onAgentUpdate from AgentService
@@ -462,6 +465,51 @@ export const AgentProvider: React.FC<AgentProviderProps> = ({ children }) => {
     }
   }, [state.currentCaseId, fetchCaseDetails]);
 
+  const submitCaseForFinalApproval = useCallback(async (caseId: string): Promise<boolean> => {
+    setState(prevState => ({ ...prevState, isLoading: true, error: null }));
+    try {
+      await agentService.submitCaseForFinalApproval(caseId);
+      setState(prevState => ({ ...prevState, isLoading: false }));
+      if (caseId === state.currentCaseId) {
+        await fetchCaseDetails(caseId);
+      }
+      return true;
+    } catch (err: any) {
+      setState(prevState => ({ ...prevState, isLoading: false, error: err }));
+      return false;
+    }
+  }, [state.currentCaseId, fetchCaseDetails]);
+
+  const approveFinalCase = useCallback(async (caseId: string): Promise<boolean> => {
+    setState(prevState => ({ ...prevState, isLoading: true, error: null }));
+    try {
+      await agentService.approveFinalCase(caseId);
+      setState(prevState => ({ ...prevState, isLoading: false }));
+      if (caseId === state.currentCaseId) {
+        await fetchCaseDetails(caseId);
+      }
+      return true;
+    } catch (err: any) {
+      setState(prevState => ({ ...prevState, isLoading: false, error: err }));
+      return false;
+    }
+  }, [state.currentCaseId, fetchCaseDetails]);
+
+  const rejectFinalCase = useCallback(async (caseId: string, reason?: string): Promise<boolean> => {
+    setState(prevState => ({ ...prevState, isLoading: true, error: null }));
+    try {
+      await agentService.rejectFinalCase(caseId, reason);
+      setState(prevState => ({ ...prevState, isLoading: false }));
+      if (caseId === state.currentCaseId) {
+        await fetchCaseDetails(caseId);
+      }
+      return true;
+    } catch (err: any) {
+      setState(prevState => ({ ...prevState, isLoading: false, error: err }));
+      return false;
+    }
+  }, [state.currentCaseId, fetchCaseDetails]);
+
   const clearAgentState = useCallback(() => {
     setState({
       currentCaseId: null,
@@ -531,6 +579,9 @@ export const AgentProvider: React.FC<AgentProviderProps> = ({ children }) => {
     rejectCostEstimate,
     approveValueProjection,
     rejectValueProjection,
+    submitCaseForFinalApproval,
+    approveFinalCase,
+    rejectFinalCase,
     clearAgentState,
     clearCurrentCaseDetails,
   };

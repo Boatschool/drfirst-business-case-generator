@@ -7,7 +7,7 @@ from datetime import datetime, timezone
 from pydantic import BaseModel, Field
 import asyncio
 
-from app.auth.firebase_auth import get_current_active_user
+from app.auth.firebase_auth import get_current_active_user, require_role
 from google.cloud import firestore
 from app.core.config import settings
 
@@ -2044,4 +2044,248 @@ async def reject_value_projection(
         error_details = traceback.format_exc()
         print(f"Error rejecting value projection for case {case_id}, user {user_id}: {e}")
         print(f"Full traceback: {error_details}")
-        raise HTTPException(status_code=500, detail=f"Failed to reject value projection: {str(e)}") 
+        raise HTTPException(status_code=500, detail=f"Failed to reject value projection: {str(e)}")
+
+# ============================
+# FINAL BUSINESS CASE APPROVAL ENDPOINTS
+# ============================
+
+class FinalRejectRequest(BaseModel):
+    reason: Optional[str] = None
+
+@router.post("/cases/{case_id}/submit-final", status_code=200, summary="Submit business case for final approval")
+async def submit_case_for_final_approval(
+    case_id: str,
+    current_user: dict = Depends(get_current_active_user)
+):
+    """
+    Submits the business case for final approval by updating status to PENDING_FINAL_APPROVAL.
+    Only the case initiator can submit for final approval.
+    Case must be in FINANCIAL_MODEL_COMPLETE status.
+    """
+    user_id = current_user.get("uid")
+    user_email = current_user.get("email", f"User {user_id}")
+    
+    if not user_id:
+        raise HTTPException(status_code=401, detail="User ID not found in token.")
+
+    try:
+        from app.agents.orchestrator_agent import BusinessCaseStatus
+        
+        db = firestore.Client(project=settings.firebase_project_id)
+        case_doc_ref = db.collection("businessCases").document(case_id)
+
+        doc_snapshot = await asyncio.to_thread(case_doc_ref.get)
+        if not doc_snapshot.exists:
+            raise HTTPException(status_code=404, detail=f"Business case {case_id} not found.")
+
+        case_data = doc_snapshot.to_dict()
+        if not case_data:
+            raise HTTPException(status_code=404, detail=f"Business case {case_id} data is empty.")
+
+        # Authorization check: only case initiator can submit for final approval
+        if case_data.get("user_id") != user_id:
+            raise HTTPException(
+                status_code=403,
+                detail="Only the case initiator can submit for final approval."
+            )
+
+        # Status check: must be in FINANCIAL_MODEL_COMPLETE
+        current_status = case_data.get("status")
+        if hasattr(current_status, 'value'):
+            current_status_str = current_status.value
+        else:
+            current_status_str = str(current_status)
+
+        if current_status_str != BusinessCaseStatus.FINANCIAL_MODEL_COMPLETE.value:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Cannot submit for final approval from current status: {current_status_str}. Must be in FINANCIAL_MODEL_COMPLETE status."
+            )
+
+        # Prepare history entry
+        history_entry = {
+            "timestamp": datetime.now(timezone.utc),
+            "source": "USER",
+            "messageType": "FINAL_SUBMISSION",
+            "content": f"Case submitted for final approval by {user_email}"
+        }
+
+        # Update case status and add history entry
+        update_data = {
+            "status": BusinessCaseStatus.PENDING_FINAL_APPROVAL.value,
+            "updated_at": datetime.now(timezone.utc),
+            "history": firestore.ArrayUnion([history_entry])
+        }
+
+        await asyncio.to_thread(case_doc_ref.update, update_data)
+
+        return {
+            "message": "Business case submitted for final approval successfully",
+            "new_status": BusinessCaseStatus.PENDING_FINAL_APPROVAL.value,
+            "case_id": case_id
+        }
+
+    except HTTPException as http_exc:
+        raise http_exc
+    except Exception as e:
+        import traceback
+        error_details = traceback.format_exc()
+        print(f"Error submitting case {case_id} for final approval by user {user_id}: {e}")
+        print(f"Full traceback: {error_details}")
+        raise HTTPException(status_code=500, detail=f"Failed to submit for final approval: {str(e)}")
+
+@router.post("/cases/{case_id}/approve-final", status_code=200, summary="Approve final business case")
+async def approve_final_case(
+    case_id: str,
+    current_user: dict = Depends(require_role("FINAL_APPROVER"))
+):
+    """
+    Approves the entire business case by updating status to APPROVED.
+    Only users with FINAL_APPROVER role can approve.
+    Case must be in PENDING_FINAL_APPROVAL status.
+    """
+    user_id = current_user.get("uid")
+    user_email = current_user.get("email", f"User {user_id}")
+    
+    if not user_id:
+        raise HTTPException(status_code=401, detail="User ID not found in token.")
+
+    try:
+        from app.agents.orchestrator_agent import BusinessCaseStatus
+        
+        db = firestore.Client(project=settings.firebase_project_id)
+        case_doc_ref = db.collection("businessCases").document(case_id)
+
+        doc_snapshot = await asyncio.to_thread(case_doc_ref.get)
+        if not doc_snapshot.exists:
+            raise HTTPException(status_code=404, detail=f"Business case {case_id} not found.")
+
+        case_data = doc_snapshot.to_dict()
+        if not case_data:
+            raise HTTPException(status_code=404, detail=f"Business case {case_id} data is empty.")
+
+        # Status check: must be in PENDING_FINAL_APPROVAL
+        current_status = case_data.get("status")
+        if hasattr(current_status, 'value'):
+            current_status_str = current_status.value
+        else:
+            current_status_str = str(current_status)
+
+        if current_status_str != BusinessCaseStatus.PENDING_FINAL_APPROVAL.value:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Cannot approve from current status: {current_status_str}. Must be in PENDING_FINAL_APPROVAL status."
+            )
+
+        # Prepare history entry
+        history_entry = {
+            "timestamp": datetime.now(timezone.utc),
+            "source": "USER",
+            "messageType": "FINAL_APPROVAL",
+            "content": f"Business Case approved by {user_email}"
+        }
+
+        # Update case status and add history entry
+        update_data = {
+            "status": BusinessCaseStatus.APPROVED.value,
+            "updated_at": datetime.now(timezone.utc),
+            "history": firestore.ArrayUnion([history_entry])
+        }
+
+        await asyncio.to_thread(case_doc_ref.update, update_data)
+
+        return {
+            "message": "Business Case approved successfully",
+            "new_status": BusinessCaseStatus.APPROVED.value,
+            "case_id": case_id
+        }
+
+    except HTTPException as http_exc:
+        raise http_exc
+    except Exception as e:
+        import traceback
+        error_details = traceback.format_exc()
+        print(f"Error approving final case {case_id} by user {user_id}: {e}")
+        print(f"Full traceback: {error_details}")
+        raise HTTPException(status_code=500, detail=f"Failed to approve business case: {str(e)}")
+
+@router.post("/cases/{case_id}/reject-final", status_code=200, summary="Reject final business case")
+async def reject_final_case(
+    case_id: str,
+    reject_request: FinalRejectRequest = FinalRejectRequest(),
+    current_user: dict = Depends(require_role("FINAL_APPROVER"))
+):
+    """
+    Rejects the entire business case by updating status to REJECTED.
+    Only users with FINAL_APPROVER role can reject.
+    Case must be in PENDING_FINAL_APPROVAL status.
+    """
+    user_id = current_user.get("uid")
+    user_email = current_user.get("email", f"User {user_id}")
+    
+    if not user_id:
+        raise HTTPException(status_code=401, detail="User ID not found in token.")
+
+    try:
+        from app.agents.orchestrator_agent import BusinessCaseStatus
+        
+        db = firestore.Client(project=settings.firebase_project_id)
+        case_doc_ref = db.collection("businessCases").document(case_id)
+
+        doc_snapshot = await asyncio.to_thread(case_doc_ref.get)
+        if not doc_snapshot.exists:
+            raise HTTPException(status_code=404, detail=f"Business case {case_id} not found.")
+
+        case_data = doc_snapshot.to_dict()
+        if not case_data:
+            raise HTTPException(status_code=404, detail=f"Business case {case_id} data is empty.")
+
+        # Status check: must be in PENDING_FINAL_APPROVAL
+        current_status = case_data.get("status")
+        if hasattr(current_status, 'value'):
+            current_status_str = current_status.value
+        else:
+            current_status_str = str(current_status)
+
+        if current_status_str != BusinessCaseStatus.PENDING_FINAL_APPROVAL.value:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Cannot reject from current status: {current_status_str}. Must be in PENDING_FINAL_APPROVAL status."
+            )
+
+        # Prepare history entry with optional reason
+        rejection_message = f"Business Case rejected by {user_email}"
+        if reject_request.reason:
+            rejection_message += f". Reason: {reject_request.reason}"
+
+        history_entry = {
+            "timestamp": datetime.now(timezone.utc),
+            "source": "USER",
+            "messageType": "FINAL_REJECTION",
+            "content": rejection_message
+        }
+
+        # Update case status and add history entry
+        update_data = {
+            "status": BusinessCaseStatus.REJECTED.value,
+            "updated_at": datetime.now(timezone.utc),
+            "history": firestore.ArrayUnion([history_entry])
+        }
+
+        await asyncio.to_thread(case_doc_ref.update, update_data)
+
+        return {
+            "message": "Business Case rejected successfully",
+            "new_status": BusinessCaseStatus.REJECTED.value,
+            "case_id": case_id
+        }
+
+    except HTTPException as http_exc:
+        raise http_exc
+    except Exception as e:
+        import traceback
+        error_details = traceback.format_exc()
+        print(f"Error rejecting final case {case_id} by user {user_id}: {e}")
+        print(f"Full traceback: {error_details}")
+        raise HTTPException(status_code=500, detail=f"Failed to reject business case: {str(e)}")

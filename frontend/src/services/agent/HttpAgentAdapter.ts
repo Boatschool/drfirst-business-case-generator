@@ -273,6 +273,30 @@ export class HttpAgentAdapter implements AgentService {
       body: JSON.stringify(requestBody),
     });
   }
+
+  // ============================
+  // FINAL BUSINESS CASE APPROVAL METHODS
+  // ============================
+
+  async submitCaseForFinalApproval(caseId: string): Promise<{ message: string; new_status: string; case_id: string }> {
+    return this.fetchWithAuth<{ message: string; new_status: string; case_id: string }>(`/cases/${caseId}/submit-final`, {
+      method: 'POST',
+    });
+  }
+
+  async approveFinalCase(caseId: string): Promise<{ message: string; new_status: string; case_id: string }> {
+    return this.fetchWithAuth<{ message: string; new_status: string; case_id: string }>(`/cases/${caseId}/approve-final`, {
+      method: 'POST',
+    });
+  }
+
+  async rejectFinalCase(caseId: string, reason?: string): Promise<{ message: string; new_status: string; case_id: string }> {
+    const requestBody = reason ? { reason } : {};
+    return this.fetchWithAuth<{ message: string; new_status: string; case_id: string }>(`/cases/${caseId}/reject-final`, {
+      method: 'POST',
+      body: JSON.stringify(requestBody),
+    });
+  }
 }
 
 // Export an instance if you prefer a singleton pattern for services

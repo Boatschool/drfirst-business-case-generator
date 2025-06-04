@@ -389,6 +389,32 @@ export interface AgentService {
    */
   rejectValueProjection(caseId: string, reason?: string): Promise<{ message: string; new_status: string; case_id: string }>;
 
+  // ============================
+  // FINAL BUSINESS CASE APPROVAL METHODS
+  // ============================
+
+  /**
+   * Submits the business case for final approval.
+   * @param caseId - The ID of the business case to submit for final approval.
+   * @returns A promise that resolves with a confirmation message and the new status.
+   */
+  submitCaseForFinalApproval(caseId: string): Promise<{ message: string; new_status: string; case_id: string }>;
+
+  /**
+   * Approves the final business case.
+   * @param caseId - The ID of the business case to approve.
+   * @returns A promise that resolves with a confirmation message and the new status.
+   */
+  approveFinalCase(caseId: string): Promise<{ message: string; new_status: string; case_id: string }>;
+
+  /**
+   * Rejects the final business case with an optional reason.
+   * @param caseId - The ID of the business case to reject.
+   * @param reason - Optional rejection reason.
+   * @returns A promise that resolves with a confirmation message and the new status.
+   */
+  rejectFinalCase(caseId: string, reason?: string): Promise<{ message: string; new_status: string; case_id: string }>;
+
   // Potential future methods:
   // getCaseHistory(caseId: string): Promise<AgentUpdate[]>;
   // getCaseStatus(caseId: string): Promise<string>; // More detailed status object

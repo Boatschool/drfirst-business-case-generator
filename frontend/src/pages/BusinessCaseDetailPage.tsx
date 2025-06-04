@@ -169,12 +169,15 @@ const BusinessCaseDetailPage: React.FC = () => {
     rejectCostEstimate,
     approveValueProjection,
     rejectValueProjection,
+    submitCaseForFinalApproval,
+    approveFinalCase,
+    rejectFinalCase,
     isLoading,
     error: agentContextError,
     clearCurrentCaseDetails,
     messages
   } = useAgentContext();
-  const { currentUser, systemRole } = useAuth();
+  const { currentUser, systemRole, isFinalApprover } = useAuth();
 
   const [isEditingPrd, setIsEditingPrd] = useState(false);
   const [editablePrdContent, setEditablePrdContent] = useState('');
@@ -202,6 +205,10 @@ const BusinessCaseDetailPage: React.FC = () => {
   const [effortRejectionReason, setEffortRejectionReason] = useState('');
   const [costRejectionReason, setCostRejectionReason] = useState('');
   const [valueRejectionReason, setValueRejectionReason] = useState('');
+
+  // Final approval states
+  const [isFinalRejectDialogOpen, setIsFinalRejectDialogOpen] = useState(false);
+  const [finalRejectionReason, setFinalRejectionReason] = useState('');
 
   // Financial estimate editing states
   const [isEditingEffortEstimate, setIsEditingEffortEstimate] = useState(false);
@@ -723,6 +730,64 @@ const BusinessCaseDetailPage: React.FC = () => {
     setValueRejectionReason('');
   };
 
+  // Final approval handlers
+  const handleSubmitForFinalApproval = async () => {
+    if (!caseId) return;
+    
+    try {
+      const success = await submitCaseForFinalApproval(caseId);
+      if (success) {
+        setStatusUpdateSuccess('Business case submitted for final approval successfully.');
+        setStatusUpdateError(null);
+      }
+    } catch (error: any) {
+      setStatusUpdateError(error.message || 'Failed to submit for final approval.');
+      setStatusUpdateSuccess(null);
+    }
+  };
+
+  const handleApproveFinalCase = async () => {
+    if (!caseId) return;
+    
+    try {
+      const success = await approveFinalCase(caseId);
+      if (success) {
+        setApprovalSuccess('Business case approved successfully.');
+        setApprovalError(null);
+      }
+    } catch (error: any) {
+      setApprovalError(error.message || 'Failed to approve business case.');
+      setApprovalSuccess(null);
+    }
+  };
+
+  const handleRejectFinalCase = async () => {
+    if (!caseId) return;
+    
+    try {
+      const success = await rejectFinalCase(caseId, finalRejectionReason);
+      if (success) {
+        setApprovalSuccess('Business case rejected successfully.');
+        setApprovalError(null);
+        setIsFinalRejectDialogOpen(false);
+        setFinalRejectionReason('');
+      }
+    } catch (error: any) {
+      setApprovalError(error.message || 'Failed to reject business case.');
+      setApprovalSuccess(null);
+    }
+  };
+
+  const handleOpenFinalRejectDialog = () => {
+    setIsFinalRejectDialogOpen(true);
+    setFinalRejectionReason('');
+  };
+
+  const handleCloseFinalRejectDialog = () => {
+    setIsFinalRejectDialogOpen(false);
+    setFinalRejectionReason('');
+  };
+
   // Helper functions to check permissions and status
   const canEditEffortEstimate = () => {
     if (!currentCaseDetails || !currentUser) return false;
@@ -784,6 +849,18 @@ const BusinessCaseDetailPage: React.FC = () => {
     const isInitiator = currentCaseDetails.user_id === currentUser.uid;
     const isSalesManagerApprover = systemRole === 'SALES_MANAGER_APPROVER';
     return (isInitiator || isSalesManagerApprover) && currentCaseDetails.status === 'VALUE_PENDING_REVIEW';
+  };
+
+  // Final approval permission helpers
+  const canSubmitForFinalApproval = () => {
+    if (!currentCaseDetails || !currentUser) return false;
+    const isInitiator = currentCaseDetails.user_id === currentUser.uid;
+    return isInitiator && currentCaseDetails.status === 'FINANCIAL_MODEL_COMPLETE';
+  };
+
+  const canApproveRejectFinalCase = () => {
+    if (!currentCaseDetails || !currentUser) return false;
+    return isFinalApprover && currentCaseDetails.status === 'PENDING_FINAL_APPROVAL';
   };
 
   if (isLoadingCaseDetails && !currentCaseDetails) {
@@ -1947,6 +2024,150 @@ const BusinessCaseDetailPage: React.FC = () => {
             </Box>
           </>
         )}
+
+        {/* Final Business Case Approval Section */}
+        {(canSubmitForFinalApproval() || canApproveRejectFinalCase() || status === 'PENDING_FINAL_APPROVAL' || status === 'APPROVED' || status === 'REJECTED') && (
+          <>
+            <Divider sx={{ my: 3 }} />
+            <Box mb={3}>
+              <Typography variant="h5" gutterBottom sx={{ display: 'flex', alignItems: 'center', mb: 3 }}>
+                <CheckCircleIcon sx={{ mr: 1, color: status === 'APPROVED' ? 'success.main' : status === 'REJECTED' ? 'error.main' : 'primary.main' }} />
+                Final Business Case Approval
+              </Typography>
+
+              {/* Status Display */}
+              {(status === 'PENDING_FINAL_APPROVAL' || status === 'APPROVED' || status === 'REJECTED') && (
+                <Card sx={{ mb: 3 }}>
+                  <CardContent>
+                    <Stack spacing={2}>
+                      <Box>
+                        <Typography variant="h6" gutterBottom>
+                          Current Status: 
+                          <Chip 
+                            label={
+                              status === 'PENDING_FINAL_APPROVAL' ? 'Pending Final Approval' :
+                              status === 'APPROVED' ? 'Approved' :
+                              status === 'REJECTED' ? 'Rejected' : status
+                            }
+                            color={
+                              status === 'APPROVED' ? 'success' :
+                              status === 'REJECTED' ? 'error' :
+                              'warning'
+                            }
+                            sx={{ ml: 1 }}
+                          />
+                        </Typography>
+                      </Box>
+                      
+                      {status === 'APPROVED' && (
+                        <Alert severity="success">
+                          <Typography variant="body1">
+                            🎉 <strong>Congratulations!</strong> This business case has been approved and is ready for implementation.
+                          </Typography>
+                        </Alert>
+                      )}
+                      
+                      {status === 'REJECTED' && (
+                        <Alert severity="error">
+                          <Typography variant="body1">
+                            ❌ This business case has been rejected. Please review the feedback and consider revisions.
+                          </Typography>
+                        </Alert>
+                      )}
+                      
+                      {status === 'PENDING_FINAL_APPROVAL' && (
+                        <Alert severity="info">
+                          <Typography variant="body1">
+                            ⏳ This business case is awaiting final approval from authorized reviewers.
+                          </Typography>
+                        </Alert>
+                      )}
+                    </Stack>
+                  </CardContent>
+                </Card>
+              )}
+
+              {/* Submit for Final Approval */}
+              {canSubmitForFinalApproval() && (
+                <Box sx={{ mt: 3, pt: 2, borderTop: '1px solid #eee' }}>
+                  <Typography variant="h6" gutterBottom>
+                    Ready for Final Approval
+                  </Typography>
+                  <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                    All prerequisite components (PRD, System Design, and Financial Model) have been completed. 
+                    You can now submit this business case for final approval.
+                  </Typography>
+                  <Stack direction="row" spacing={2} alignItems="center">
+                    <Button 
+                      variant="contained" 
+                      color="primary"
+                      onClick={handleSubmitForFinalApproval} 
+                      disabled={isLoading}
+                      startIcon={<SendIcon />}
+                      size="large"
+                    >
+                      Submit for Final Approval
+                    </Button>
+                  </Stack>
+                  {statusUpdateError && (
+                    <Alert severity="error" sx={{ mt: 2 }}>
+                      {statusUpdateError}
+                    </Alert>
+                  )}
+                  {statusUpdateSuccess && (
+                    <Alert severity="success" sx={{ mt: 2 }}>
+                      {statusUpdateSuccess}
+                    </Alert>
+                  )}
+                </Box>
+              )}
+
+              {/* Final Approval Actions (for FINAL_APPROVER role) */}
+              {canApproveRejectFinalCase() && (
+                <Box sx={{ mt: 3, pt: 2, borderTop: '1px solid #eee' }}>
+                  <Typography variant="h6" gutterBottom>
+                    Final Approval Actions
+                  </Typography>
+                  <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                    As a final approver, you can approve or reject this complete business case.
+                  </Typography>
+                  <Stack direction="row" spacing={2} alignItems="center">
+                    <Button 
+                      variant="contained" 
+                      color="success"
+                      onClick={handleApproveFinalCase} 
+                      disabled={isLoading}
+                      startIcon={<CheckCircleIcon />}
+                      size="large"
+                    >
+                      Approve Final Business Case
+                    </Button>
+                    <Button 
+                      variant="outlined" 
+                      color="error"
+                      onClick={handleOpenFinalRejectDialog} 
+                      disabled={isLoading}
+                      startIcon={<RejectIcon />}
+                      size="large"
+                    >
+                      Reject Final Business Case
+                    </Button>
+                  </Stack>
+                  {approvalError && (
+                    <Alert severity="error" sx={{ mt: 2 }}>
+                      {approvalError}
+                    </Alert>
+                  )}
+                  {approvalSuccess && (
+                    <Alert severity="success" sx={{ mt: 2 }}>
+                      {approvalSuccess}
+                    </Alert>
+                  )}
+                </Box>
+              )}
+            </Box>
+          </>
+        )}
         
         {(isLoading && !isSendingFeedback && !isLoadingCaseDetails && !isEditingPrd) && 
           <CircularProgress sx={{display: 'block', margin: '20px auto'}} />
@@ -2114,6 +2335,38 @@ const BusinessCaseDetailPage: React.FC = () => {
             disabled={isLoading}
           >
             {isLoading ? 'Rejecting...' : 'Reject Value Projection'}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Final Business Case Rejection Dialog */}
+      <Dialog open={isFinalRejectDialogOpen} onClose={handleCloseFinalRejectDialog} maxWidth="sm" fullWidth>
+        <DialogTitle>Reject Final Business Case</DialogTitle>
+        <DialogContent>
+          <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+            Please provide a reason for rejecting this business case (optional):
+          </Typography>
+          <TextField
+            fullWidth
+            multiline
+            rows={3}
+            value={finalRejectionReason}
+            onChange={(e) => setFinalRejectionReason(e.target.value)}
+            placeholder="Enter reason for rejection..."
+            variant="outlined"
+          />
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={handleCloseFinalRejectDialog} disabled={isLoading}>
+            Cancel
+          </Button>
+          <Button 
+            onClick={handleRejectFinalCase} 
+            color="error" 
+            variant="contained"
+            disabled={isLoading}
+          >
+            {isLoading ? 'Rejecting...' : 'Reject Business Case'}
           </Button>
         </DialogActions>
       </Dialog>

@@ -179,6 +179,50 @@ paths:
         '500':
           description: Internal Server Error
 
+  /api/v1/admin/rate-cards: # New admin endpoint for rate cards
+    get:
+      summary: List all rate cards (admin only)
+      operationId: listRateCards
+      security:
+        - firebaseIdToken: []
+      produces:
+        - application/json
+      responses:
+        '200':
+          description: Successfully retrieved list of rate cards
+          schema:
+            type: array
+            items:
+              $ref: '#/definitions/RateCard'
+        '401':
+          description: Unauthorized (e.g., invalid token)
+        '403':
+          description: Forbidden (e.g., user does not have admin access)
+        '500':
+          description: Internal Server Error
+
+  /api/v1/admin/pricing-templates: # New admin endpoint for pricing templates
+    get:
+      summary: List all pricing templates (admin only)
+      operationId: listPricingTemplates
+      security:
+        - firebaseIdToken: []
+      produces:
+        - application/json
+      responses:
+        '200':
+          description: Successfully retrieved list of pricing templates
+          schema:
+            type: array
+            items:
+              $ref: '#/definitions/PricingTemplate'
+        '401':
+          description: Unauthorized (e.g., invalid token)
+        '403':
+          description: Forbidden (e.g., user does not have admin access)
+        '500':
+          description: Internal Server Error
+
 # Define data models used in responses or requests
 definitions:
   BusinessCaseSummary:
@@ -298,4 +342,90 @@ definitions:
         description: "The new markdown content for the PRD draft."
       # version: # Optional: if client can suggest a version
       #   type: string
-      #   description: "Optional new version for the PRD draft." 
+      #   description: "Optional new version for the PRD draft."
+
+  RateCard: # Definition for rate card model
+    type: object
+    properties:
+      id:
+        type: string
+        description: "Unique ID of the rate card."
+      name:
+        type: string
+        description: "Name of the rate card."
+      description:
+        type: string
+        description: "Description of the rate card."
+      isActive:
+        type: boolean
+        description: "Whether the rate card is currently active."
+      defaultOverallRate:
+        type: number
+        format: float
+        description: "Default hourly rate for unknown roles."
+      roles:
+        type: array
+        items:
+          type: object
+          properties:
+            roleName:
+              type: string
+            hourlyRate:
+              type: number
+              format: float
+        description: "List of role-specific hourly rates."
+      created_at:
+        type: string
+        format: date-time
+        description: "Timestamp of rate card creation."
+      updated_at:
+        type: string
+        format: date-time
+        description: "Timestamp of last update."
+    required:
+      - id
+      - name
+      - description
+      - isActive
+      - defaultOverallRate
+      - roles
+
+  PricingTemplate: # Definition for pricing template model
+    type: object
+    properties:
+      id:
+        type: string
+        description: "Unique ID of the pricing template."
+      name:
+        type: string
+        description: "Name of the pricing template."
+      description:
+        type: string
+        description: "Description of the pricing template."
+      version:
+        type: string
+        description: "Version of the pricing template."
+      structureDefinition:
+        type: object
+        description: "Structure definition for the pricing template."
+        properties:
+          type:
+            type: string
+          scenarios:
+            type: array
+            items:
+              type: object
+      created_at:
+        type: string
+        format: date-time
+        description: "Timestamp of template creation."
+      updated_at:
+        type: string
+        format: date-time
+        description: "Timestamp of last update."
+    required:
+      - id
+      - name
+      - description
+      - version
+      - structureDefinition 

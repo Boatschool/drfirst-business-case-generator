@@ -15,6 +15,7 @@ import MainPage from './pages/MainPage';
 import DashboardPage from './pages/DashboardPage';
 import NewCasePage from './pages/NewCasePage';
 import BusinessCaseDetailPage from './pages/BusinessCaseDetailPage';
+import AdminPage from './pages/AdminPage';
 import AppLayout from './layouts/AppLayout';
 import { Container, Typography, Box, Alert, Button, Stack } from '@mui/material';
 import { Link as RouterLink } from 'react-router-dom';
@@ -122,6 +123,7 @@ function App() {
                 <Route path="/dashboard" element={<DashboardPage />} />
                 <Route path="/new-case" element={<NewCasePage />} />
                 <Route path="/cases/:caseId" element={<BusinessCaseDetailPage />} />
+                <Route path="/admin" element={<AdminPage />} />
                 {/* Add other protected routes here */}
               </Route>
               

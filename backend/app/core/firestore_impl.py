@@ -2,7 +2,6 @@
 Firestore implementation of the database interface.
 """
 
-import os
 from typing import Any, Dict, List, Optional, Union
 
 from app.core.database import (

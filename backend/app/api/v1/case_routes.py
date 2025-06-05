@@ -1129,6 +1129,7 @@ async def reject_system_design(
     case_id: str,
     reject_request: SystemDesignRejectRequest = SystemDesignRejectRequest(),
     current_user: dict = Depends(get_current_active_user),
+    db: DatabaseClient = Depends(get_db)
 ):
     """
     Rejects the System Design for a business case, updating the case status to SYSTEM_DESIGN_REJECTED.
@@ -1969,6 +1970,7 @@ async def reject_effort_estimate(
     case_id: str,
     reject_request: EffortEstimateRejectRequest = EffortEstimateRejectRequest(),
     current_user: dict = Depends(get_current_active_user),
+    db: DatabaseClient = Depends(get_db)
 ):
     """
     Rejects the Effort Estimate for a specific business case.
@@ -2175,6 +2177,7 @@ async def reject_cost_estimate(
     case_id: str,
     reject_request: CostEstimateRejectRequest = CostEstimateRejectRequest(),
     current_user: dict = Depends(get_current_active_user),
+    db: DatabaseClient = Depends(get_db)
 ):
     """
     Rejects the Cost Estimate for a specific business case.
@@ -2389,6 +2392,7 @@ async def reject_value_projection(
     case_id: str,
     reject_request: ValueProjectionRejectRequest = ValueProjectionRejectRequest(),
     current_user: dict = Depends(get_current_active_user),
+    db: DatabaseClient = Depends(get_db)
 ):
     """
     Rejects the Value Projection for a specific business case.
@@ -2601,6 +2605,7 @@ async def submit_case_for_final_approval(
 async def approve_final_case(
     case_id: str,
     current_user: dict = Depends(lambda: require_dynamic_final_approver_role()()),
+    db: DatabaseClient = Depends(get_db)
 ):
     """
     Approves the entire business case by updating status to APPROVED.
@@ -2689,6 +2694,7 @@ async def reject_final_case(
     case_id: str,
     reject_request: FinalRejectRequest = FinalRejectRequest(),
     current_user: dict = Depends(lambda: require_dynamic_final_approver_role()()),
+    db: DatabaseClient = Depends(get_db)
 ):
     """
     Rejects the entire business case by updating status to REJECTED.

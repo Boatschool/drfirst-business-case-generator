@@ -4,7 +4,6 @@ Mock implementation of the database interface for testing.
 
 import copy
 from typing import Any, Dict, List, Optional, Union
-from datetime import datetime
 
 from app.core.database import (
     DatabaseClient, CollectionReference, DocumentReference, 

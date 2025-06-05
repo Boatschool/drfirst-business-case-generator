@@ -19,6 +19,7 @@ import {
 } from '@mui/icons-material';
 import { useAgentContext } from '../contexts/AgentContext';
 import useDocumentTitle from '../hooks/useDocumentTitle';
+import { STANDARD_STYLES } from '../styles/constants';
 
 import { PRDSection } from '../components/specific/PRDSection';
 import { SystemDesignSection } from '../components/specific/SystemDesignSection';
@@ -124,8 +125,8 @@ const BusinessCaseDetailPageSimplified: React.FC = () => {
   }
 
   return (
-    <Container component="main" maxWidth="lg">
-      <Box sx={{ marginTop: 2, marginBottom: 2 }}>
+    <Container component="main" maxWidth="lg" sx={STANDARD_STYLES.pageContainer}>
+      <Box>
         {/* Header */}
         <Stack
           direction="row"

@@ -27,6 +27,7 @@ import {
 import { Link as RouterLink } from 'react-router-dom';
 import { AuthContext } from '../contexts/AuthContext';
 import { useAgentContext } from '../contexts/AgentContext';
+import { PAPER_ELEVATION, STANDARD_STYLES } from '../styles/constants';
 
 const MainPage: React.FC = () => {
   const authContext = useContext(AuthContext);
@@ -46,7 +47,7 @@ const MainPage: React.FC = () => {
   const approvedCases = cases.filter((c) => c.status === 'PRD_APPROVED').length;
 
   return (
-    <Container maxWidth="lg" sx={{ py: 4 }}>
+    <Container maxWidth="lg" sx={STANDARD_STYLES.pageContainer}>
       {/* Welcome Header */}
       <Box sx={{ mb: 4 }}>
         <Typography variant="h4" component="h1" gutterBottom>
@@ -123,7 +124,7 @@ const MainPage: React.FC = () => {
       <Grid container spacing={3}>
         {/* Quick Actions */}
         <Grid item xs={12} md={6}>
-          <Paper sx={{ p: 3 }}>
+          <Paper elevation={PAPER_ELEVATION.MAIN_CONTENT} sx={STANDARD_STYLES.mainContentPaper}>
             <Typography variant="h6" gutterBottom>
               Quick Actions
             </Typography>
@@ -154,7 +155,7 @@ const MainPage: React.FC = () => {
 
         {/* Recent Activity / System Status */}
         <Grid item xs={12} md={6}>
-          <Paper sx={{ p: 3 }}>
+          <Paper elevation={PAPER_ELEVATION.MAIN_CONTENT} sx={STANDARD_STYLES.mainContentPaper}>
             <Typography variant="h6" gutterBottom>
               System Features
             </Typography>
@@ -199,7 +200,7 @@ const MainPage: React.FC = () => {
           <Typography variant="h6" gutterBottom>
             Recent Business Cases
           </Typography>
-          <Paper sx={{ p: 2 }}>
+          <Paper elevation={PAPER_ELEVATION.SUB_SECTION} sx={STANDARD_STYLES.subSectionPaper}>
             <List>
               {cases.slice(0, 3).map((businessCase, index) => (
                 <React.Fragment key={businessCase.case_id}>

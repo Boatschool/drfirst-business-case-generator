@@ -28,6 +28,7 @@ import StatusBadge from '../components/common/StatusBadge';
 import StatusFilter from '../components/common/StatusFilter';
 import { ALL_BUSINESS_CASE_STATUSES } from '../constants/businessCaseStatuses';
 import useDocumentTitle from '../hooks/useDocumentTitle';
+import { PAPER_ELEVATION, STANDARD_STYLES } from '../styles/constants';
 
 type SortOption = 'title-asc' | 'title-desc' | 'date-newest' | 'date-oldest' | 'status-asc' | 'status-desc';
 
@@ -127,10 +128,9 @@ const DashboardPage: React.FC = () => {
   };
 
   return (
-    <Container component="main" maxWidth="md">
+    <Container component="main" maxWidth="md" sx={STANDARD_STYLES.pageContainer}>
       <Box
         sx={{
-          marginTop: 4,
           display: 'flex',
           flexDirection: 'column',
           alignItems: 'center',
@@ -275,7 +275,7 @@ const DashboardPage: React.FC = () => {
                 No business cases found with the selected status. Try a different filter or select "All Statuses".
               </Typography>
             ) : (
-              <Paper elevation={2} sx={{ width: '100%' }}>
+              <Paper elevation={PAPER_ELEVATION.MAIN_CONTENT} sx={{ width: '100%' }}>
                 <List>
                   {processedCases.map((caseItem: BusinessCaseSummary) => (
                     <ListItem

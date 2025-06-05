@@ -21,6 +21,7 @@ import { useAgentContext } from '../contexts/AgentContext';
 import { InitiateCasePayload } from '../services/agent/AgentService';
 import { isNotEmpty, validateRelevantLink } from '../utils/validation';
 import useDocumentTitle from '../hooks/useDocumentTitle';
+import { PAPER_ELEVATION, STANDARD_STYLES } from '../styles/constants';
 
 interface FormErrors {
   projectTitle: string;
@@ -184,8 +185,8 @@ const NewCasePage: React.FC = () => {
   };
 
   return (
-    <Container component="main" maxWidth="md">
-      <Paper elevation={3} sx={{ mt: 4, p: 3 }}>
+    <Container component="main" maxWidth="md" sx={STANDARD_STYLES.pageContainer}>
+      <Paper elevation={PAPER_ELEVATION.MAIN_CONTENT} sx={STANDARD_STYLES.mainContentPaper}>
         <Typography component="h1" variant="h4" gutterBottom align="center">
           Initiate New Business Case
         </Typography>

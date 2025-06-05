@@ -26,6 +26,7 @@ import ReactMarkdown from 'react-markdown';
 import { BusinessCaseDetails } from '../../services/agent/AgentService';
 import { useAgentContext } from '../../contexts/AgentContext';
 import { useAuth } from '../../contexts/AuthContext';
+import { PAPER_ELEVATION, STANDARD_STYLES } from '../../styles/constants';
 
 interface PRDSectionProps {
   currentCaseDetails: BusinessCaseDetails | null;
@@ -229,7 +230,7 @@ export const PRDSection: React.FC<PRDSectionProps> = ({
 
   return (
     <Box mb={4}>
-      <Paper elevation={2} sx={{ p: 3 }}>
+      <Paper elevation={PAPER_ELEVATION.MAIN_CONTENT} sx={STANDARD_STYLES.mainContentPaper}>
         <Stack
           direction="row"
           alignItems="center"

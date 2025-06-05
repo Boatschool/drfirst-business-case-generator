@@ -53,6 +53,7 @@ import {
 } from '../services/agent/AgentService';
 
 import { useAuth } from '../contexts/AuthContext';
+import { PAPER_ELEVATION, STANDARD_STYLES } from '../styles/constants';
 
 // Helper function to improve text formatting for better readability
 const formatPrdContent = (content: string): string => {
@@ -1077,8 +1078,8 @@ const BusinessCaseDetailPage: React.FC = () => {
   // const displayMessages = (messages || []).filter(msg => msg.messageType !== 'PRD_DRAFT');
 
   return (
-    <Container maxWidth="lg" sx={{ py: 4 }}>
-      <Paper elevation={3} sx={{ p: { xs: 2, md: 4 } }}>
+    <Container maxWidth="lg" sx={STANDARD_STYLES.pageContainer}>
+      <Paper elevation={PAPER_ELEVATION.MAIN_CONTENT} sx={STANDARD_STYLES.mainContentPaper}>
         <Stack
           direction="row"
           justifyContent="space-between"

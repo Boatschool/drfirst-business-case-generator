@@ -16,6 +16,7 @@ import {
 } from '@mui/material';
 import { Google as GoogleIcon } from '@mui/icons-material';
 import { Link as RouterLink } from 'react-router-dom';
+import { PAPER_ELEVATION, STANDARD_STYLES } from '../styles/constants';
 
 const SignUpPage: React.FC = () => {
   const [email, setEmail] = useState('');
@@ -105,14 +106,7 @@ const SignUpPage: React.FC = () => {
   if (loading) {
     return (
       <Container component="main" maxWidth="xs">
-        <Box
-          sx={{
-            marginTop: 8,
-            display: 'flex',
-            flexDirection: 'column',
-            alignItems: 'center',
-          }}
-        >
+        <Box sx={STANDARD_STYLES.authPageContainer}>
           <CircularProgress />
           <Typography sx={{ mt: 2 }}>Loading...</Typography>
         </Box>
@@ -122,15 +116,8 @@ const SignUpPage: React.FC = () => {
 
   return (
     <Container component="main" maxWidth="xs">
-      <Box
-        sx={{
-          marginTop: 8,
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'center',
-        }}
-      >
-        <Paper elevation={3} sx={{ padding: 4, width: '100%' }}>
+      <Box sx={STANDARD_STYLES.authPageContainer}>
+        <Paper elevation={PAPER_ELEVATION.AUTH_FORM} sx={{ ...STANDARD_STYLES.authFormPaper, width: '100%' }}>
           <Typography component="h1" variant="h4" align="center" gutterBottom>
             Sign Up
           </Typography>

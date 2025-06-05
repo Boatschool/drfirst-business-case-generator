@@ -27,6 +27,7 @@ import ReactMarkdown from 'react-markdown';
 import { BusinessCaseDetails } from '../../services/agent/AgentService';
 import { useAgentContext } from '../../contexts/AgentContext';
 import { useAuth } from '../../contexts/AuthContext';
+import { PAPER_ELEVATION, STANDARD_STYLES } from '../../styles/constants';
 
 interface SystemDesignSectionProps {
   currentCaseDetails: BusinessCaseDetails | null;
@@ -227,7 +228,7 @@ export const SystemDesignSection: React.FC<SystemDesignSectionProps> = ({
   return (
     <Box mb={4}>
       <Divider sx={{ my: 3 }} />
-      <Paper elevation={2} sx={{ p: 3 }}>
+      <Paper elevation={PAPER_ELEVATION.MAIN_CONTENT} sx={STANDARD_STYLES.mainContentPaper}>
         <Stack
           direction="row"
           alignItems="center"

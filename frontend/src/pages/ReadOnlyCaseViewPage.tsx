@@ -20,6 +20,7 @@ import {
 import ReactMarkdown from 'react-markdown';
 import { useAgentContext } from '../contexts/AgentContext';
 import useDocumentTitle from '../hooks/useDocumentTitle';
+import { PAPER_ELEVATION, STANDARD_STYLES } from '../styles/constants';
 
 // Helper function to improve text formatting for better readability
 const formatMarkdownContent = (content: string): string => {
@@ -153,9 +154,9 @@ const ReadOnlyCaseViewPage: React.FC = () => {
   const status = currentCaseDetails.status;
 
   return (
-    <Container maxWidth="lg" sx={{ mt: 4, mb: 4 }}>
+    <Container maxWidth="lg" sx={STANDARD_STYLES.pageContainer}>
       {/* Header Section */}
-      <Paper elevation={2} sx={{ p: 3, mb: 3, backgroundColor: '#f8f9fa' }}>
+      <Paper elevation={PAPER_ELEVATION.MAIN_CONTENT} sx={{ ...STANDARD_STYLES.mainContentPaper, mb: 3, backgroundColor: '#f8f9fa' }}>
         <Stack spacing={2}>
           <Box display="flex" alignItems="center" justifyContent="space-between">
             <Typography
@@ -211,7 +212,7 @@ const ReadOnlyCaseViewPage: React.FC = () => {
       </Paper>
 
       {/* Problem Statement */}
-      <Paper elevation={1} sx={{ p: 3, mb: 3 }}>
+      <Paper elevation={PAPER_ELEVATION.SUB_SECTION} sx={{ ...STANDARD_STYLES.subSectionPaper, mb: 3 }}>
         <Typography
           variant="h5"
           gutterBottom
@@ -227,7 +228,7 @@ const ReadOnlyCaseViewPage: React.FC = () => {
 
       {/* PRD Section */}
       {currentCaseDetails.prd_draft && (
-        <Paper elevation={1} sx={{ p: 3, mb: 3 }}>
+        <Paper elevation={PAPER_ELEVATION.SUB_SECTION} sx={{ ...STANDARD_STYLES.subSectionPaper, mb: 3 }}>
           <Typography
             variant="h5"
             gutterBottom
@@ -246,7 +247,7 @@ const ReadOnlyCaseViewPage: React.FC = () => {
 
       {/* System Design Section */}
       {currentCaseDetails.system_design_v1_draft && (
-        <Paper elevation={1} sx={{ p: 3, mb: 3 }}>
+        <Paper elevation={PAPER_ELEVATION.SUB_SECTION} sx={{ ...STANDARD_STYLES.subSectionPaper, mb: 3 }}>
           <Typography
             variant="h5"
             gutterBottom
@@ -267,7 +268,7 @@ const ReadOnlyCaseViewPage: React.FC = () => {
 
       {/* Basic financial information display without complex structures */}
       {currentCaseDetails.effort_estimate_v1 && (
-        <Paper elevation={1} sx={{ p: 3, mb: 3 }}>
+        <Paper elevation={PAPER_ELEVATION.SUB_SECTION} sx={{ ...STANDARD_STYLES.subSectionPaper, mb: 3 }}>
           <Typography variant="h5" gutterBottom>
             Effort Estimate Available
           </Typography>
@@ -281,7 +282,7 @@ const ReadOnlyCaseViewPage: React.FC = () => {
       )}
 
       {currentCaseDetails.cost_estimate_v1 && (
-        <Paper elevation={1} sx={{ p: 3, mb: 3 }}>
+        <Paper elevation={PAPER_ELEVATION.SUB_SECTION} sx={{ ...STANDARD_STYLES.subSectionPaper, mb: 3 }}>
           <Typography variant="h5" gutterBottom>
             Cost Estimate Available
           </Typography>
@@ -292,7 +293,7 @@ const ReadOnlyCaseViewPage: React.FC = () => {
       )}
 
       {currentCaseDetails.value_projection_v1 && (
-        <Paper elevation={1} sx={{ p: 3, mb: 3 }}>
+        <Paper elevation={PAPER_ELEVATION.SUB_SECTION} sx={{ ...STANDARD_STYLES.subSectionPaper, mb: 3 }}>
           <Typography variant="h5" gutterBottom>
             Value Projection Available
           </Typography>

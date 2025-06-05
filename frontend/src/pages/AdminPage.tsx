@@ -65,6 +65,7 @@ import {
 } from '../services/admin/AdminService';
 import { HttpAdminAdapter } from '../services/admin/HttpAdminAdapter';
 import useDocumentTitle from '../hooks/useDocumentTitle';
+import { PAPER_ELEVATION, STANDARD_STYLES } from '../styles/constants';
 
 interface RoleFormData {
   roleName: string;
@@ -752,8 +753,8 @@ const AdminPage: React.FC = () => {
   };
 
   return (
-    <Container maxWidth="lg">
-      <Box sx={{ my: 4 }}>
+    <Container maxWidth="lg" sx={STANDARD_STYLES.pageContainer}>
+      <Box>
         {/* Header */}
         <Box sx={{ display: 'flex', alignItems: 'center', mb: 4 }}>
           <AdminPanelSettings sx={{ mr: 2, fontSize: 32 }} />
@@ -788,7 +789,7 @@ const AdminPage: React.FC = () => {
         <Grid container spacing={4}>
           {/* Global Approval Settings Section */}
           <Grid item xs={12}>
-            <Paper sx={{ p: 3, mb: 2 }}>
+            <Paper elevation={PAPER_ELEVATION.MAIN_CONTENT} sx={STANDARD_STYLES.mainContentPaper}>
               <Box sx={{ display: 'flex', alignItems: 'center', mb: 3 }}>
                 <SettingsIcon sx={{ mr: 2, color: 'primary.main' }} />
                 <Typography variant="h5" component="h2">
@@ -867,7 +868,7 @@ const AdminPage: React.FC = () => {
           </Grid>
           {/* Rate Cards Section */}
           <Grid item xs={12}>
-            <Paper sx={{ p: 3 }}>
+            <Paper elevation={PAPER_ELEVATION.MAIN_CONTENT} sx={STANDARD_STYLES.mainContentPaper}>
               <Box
                 sx={{
                   display: 'flex',
@@ -1013,7 +1014,7 @@ const AdminPage: React.FC = () => {
 
           {/* Pricing Templates Section */}
           <Grid item xs={12}>
-            <Paper sx={{ p: 3 }}>
+            <Paper elevation={PAPER_ELEVATION.MAIN_CONTENT} sx={STANDARD_STYLES.mainContentPaper}>
               <Box
                 sx={{
                   display: 'flex',
@@ -1192,7 +1193,7 @@ const AdminPage: React.FC = () => {
 
           {/* Users Section */}
           <Grid item xs={12}>
-            <Paper sx={{ p: 3 }}>
+            <Paper elevation={PAPER_ELEVATION.MAIN_CONTENT} sx={STANDARD_STYLES.mainContentPaper}>
               <Box sx={{ display: 'flex', alignItems: 'center', mb: 3 }}>
                 <Box sx={{ display: 'flex', alignItems: 'center' }}>
                   <PeopleIcon sx={{ mr: 2, color: 'primary.main' }} />

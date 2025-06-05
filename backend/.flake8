@@ -9,6 +9,9 @@ exclude =
     .env,
     migrations,
     tests/fixtures
+# Ignore specific error codes:
+# E203: whitespace before ':'
+# W503: line break before binary operator
 ignore = 
-    E203,  # whitespace before ':'
-    W503   # line break before binary operator 
+    E203,
+    W503 

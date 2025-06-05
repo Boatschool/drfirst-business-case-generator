@@ -25,6 +25,7 @@ import { useAgentContext } from '../contexts/AgentContext';
 import { BusinessCaseSummary } from '../services/agent/AgentService';
 import StatusBadge from '../components/common/StatusBadge';
 import StatusFilter from '../components/common/StatusFilter';
+import { ListSkeleton } from '../components/common/LoadingIndicators';
 import { ALL_BUSINESS_CASE_STATUSES } from '../constants/businessCaseStatuses';
 import useDocumentTitle from '../hooks/useDocumentTitle';
 import { PAPER_ELEVATION, STANDARD_STYLES } from '../styles/constants';
@@ -233,9 +234,9 @@ const DashboardPage: React.FC = () => {
         </Menu>
 
         {isLoadingCases && (
-          <Box sx={{ display: 'flex', justifyContent: 'center', my: 3 }}>
-            <CircularProgress />
-          </Box>
+          <Paper elevation={PAPER_ELEVATION.MAIN_CONTENT} sx={{ width: '100%' }}>
+            <ListSkeleton rows={5} />
+          </Paper>
         )}
 
         {casesError && (

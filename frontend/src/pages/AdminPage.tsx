@@ -64,6 +64,7 @@ import {
   User,
 } from '../services/admin/AdminService';
 import { HttpAdminAdapter } from '../services/admin/HttpAdminAdapter';
+import { TableSkeleton, LoadingButton, InlineLoading } from '../components/common/LoadingIndicators';
 import useDocumentTitle from '../hooks/useDocumentTitle';
 import { PAPER_ELEVATION, STANDARD_STYLES } from '../styles/constants';
 
@@ -800,9 +801,7 @@ const AdminPage: React.FC = () => {
               </Typography>
 
               {isLoadingApproverConfig && (
-                <Box sx={{ display: 'flex', justifyContent: 'center', p: 2 }}>
-                  <CircularProgress size={24} />
-                </Box>
+                <InlineLoading message="Loading approver configuration..." size={24} />
               )}
 
               {approverConfigError && (
@@ -841,17 +840,16 @@ const AdminPage: React.FC = () => {
                       </Select>
                     </FormControl>
 
-                    <Button
+                    <LoadingButton
                       variant="contained"
                       onClick={handleSaveApproverConfig}
-                      disabled={
-                        isSavingApproverConfig ||
-                        selectedApproverRole === finalApproverRoleName
-                      }
+                      disabled={selectedApproverRole === finalApproverRoleName}
+                      loading={isSavingApproverConfig}
+                      loadingText="Saving..."
                       startIcon={<SaveIcon />}
                     >
-                      {isSavingApproverConfig ? 'Saving...' : 'Save Setting'}
-                    </Button>
+                      Save Setting
+                    </LoadingButton>
                   </Stack>
 
                   <Alert severity="warning" sx={{ mt: 2 }}>
@@ -892,9 +890,7 @@ const AdminPage: React.FC = () => {
               </Box>
 
               {isLoadingRateCards && (
-                <Box sx={{ display: 'flex', justifyContent: 'center', p: 4 }}>
-                  <CircularProgress />
-                </Box>
+                <TableSkeleton rows={5} columns={7} />
               )}
 
               {rateCardsError && (
@@ -1038,8 +1034,8 @@ const AdminPage: React.FC = () => {
               </Box>
 
               {isLoadingPricingTemplates && (
-                <Box sx={{ display: 'flex', justifyContent: 'center', p: 4 }}>
-                  <CircularProgress />
+                <Box sx={{ p: 2 }}>
+                  <InlineLoading message="Loading pricing templates..." />
                 </Box>
               )}
 
@@ -1202,9 +1198,7 @@ const AdminPage: React.FC = () => {
               </Box>
 
               {isLoadingUsers && (
-                <Box sx={{ display: 'flex', justifyContent: 'center', p: 4 }}>
-                  <CircularProgress />
-                </Box>
+                <TableSkeleton rows={6} columns={6} />
               )}
 
               {usersError && (
@@ -1459,16 +1453,15 @@ const AdminPage: React.FC = () => {
           >
             Cancel
           </Button>
-          <Button
+          <LoadingButton
             onClick={handleSubmitCreate}
             variant="contained"
-            disabled={isSubmitting}
-            startIcon={
-              isSubmitting ? <CircularProgress size={20} /> : <SaveIcon />
-            }
+            loading={isSubmitting}
+            loadingText="Creating..."
+            startIcon={<SaveIcon />}
           >
-            {isSubmitting ? 'Creating...' : 'Create Rate Card'}
-          </Button>
+            Create Rate Card
+          </LoadingButton>
         </DialogActions>
       </Dialog>
 
@@ -1631,16 +1624,15 @@ const AdminPage: React.FC = () => {
           >
             Cancel
           </Button>
-          <Button
+          <LoadingButton
             onClick={handleSubmitEdit}
             variant="contained"
-            disabled={isSubmitting}
-            startIcon={
-              isSubmitting ? <CircularProgress size={20} /> : <SaveIcon />
-            }
+            loading={isSubmitting}
+            loadingText="Saving..."
+            startIcon={<SaveIcon />}
           >
-            {isSubmitting ? 'Saving...' : 'Save Changes'}
-          </Button>
+            Save Changes
+          </LoadingButton>
         </DialogActions>
       </Dialog>
 
@@ -1665,17 +1657,16 @@ const AdminPage: React.FC = () => {
           <Button onClick={handleCloseDeleteDialog} disabled={isSubmitting}>
             Cancel
           </Button>
-          <Button
+          <LoadingButton
             onClick={handleConfirmDelete}
             variant="contained"
             color="error"
-            disabled={isSubmitting}
-            startIcon={
-              isSubmitting ? <CircularProgress size={20} /> : <DeleteIcon />
-            }
+            loading={isSubmitting}
+            loadingText="Deleting..."
+            startIcon={<DeleteIcon />}
           >
-            {isSubmitting ? 'Deleting...' : 'Delete'}
-          </Button>
+            Delete
+          </LoadingButton>
         </DialogActions>
       </Dialog>
 
@@ -1899,17 +1890,16 @@ const AdminPage: React.FC = () => {
           >
             Cancel
           </Button>
-          <Button
+          <LoadingButton
             onClick={handleConfirmDeleteTemplate}
             variant="contained"
             color="error"
-            disabled={isSubmitting}
-            startIcon={
-              isSubmitting ? <CircularProgress size={20} /> : <DeleteIcon />
-            }
+            loading={isSubmitting}
+            loadingText="Deleting..."
+            startIcon={<DeleteIcon />}
           >
-            {isSubmitting ? 'Deleting...' : 'Delete'}
-          </Button>
+            Delete
+          </LoadingButton>
         </DialogActions>
       </Dialog>
 

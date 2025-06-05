@@ -27,6 +27,7 @@ import {
 import { Link as RouterLink } from 'react-router-dom';
 import { AuthContext } from '../contexts/AuthContext';
 import { useAgentContext } from '../contexts/AgentContext';
+import { CardSkeleton } from '../components/common/LoadingIndicators';
 import { PAPER_ELEVATION, STANDARD_STYLES } from '../styles/constants';
 
 const MainPage: React.FC = () => {
@@ -66,57 +67,73 @@ const MainPage: React.FC = () => {
       <Grid container spacing={3} sx={{ mb: 4 }}>
         <Grid item xs={12} sm={6} md={3}>
           <Card>
-            <CardContent>
-              <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
-                <AssignmentIcon color="primary" sx={{ mr: 1 }} />
-                <Typography variant="h6" component="h3">Total Cases</Typography>
-              </Box>
-              <Typography variant="h4" color="primary">
-                {isLoadingCases ? '...' : totalCases}
-              </Typography>
-            </CardContent>
+            {isLoadingCases ? (
+              <CardSkeleton rows={2} />
+            ) : (
+              <CardContent>
+                <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
+                  <AssignmentIcon color="primary" sx={{ mr: 1 }} />
+                  <Typography variant="h6" component="h3">Total Cases</Typography>
+                </Box>
+                <Typography variant="h4" color="primary">
+                  {totalCases}
+                </Typography>
+              </CardContent>
+            )}
           </Card>
         </Grid>
 
         <Grid item xs={12} sm={6} md={3}>
           <Card>
-            <CardContent>
-              <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
-                <SpeedIcon color="warning" sx={{ mr: 1 }} />
-                <Typography variant="h6" component="h3">In Progress</Typography>
-              </Box>
-              <Typography variant="h4" color="warning.main">
-                {isLoadingCases ? '...' : draftCases}
-              </Typography>
-            </CardContent>
+            {isLoadingCases ? (
+              <CardSkeleton rows={2} />
+            ) : (
+              <CardContent>
+                <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
+                  <SpeedIcon color="warning" sx={{ mr: 1 }} />
+                  <Typography variant="h6" component="h3">In Progress</Typography>
+                </Box>
+                <Typography variant="h4" color="warning.main">
+                  {draftCases}
+                </Typography>
+              </CardContent>
+            )}
           </Card>
         </Grid>
 
         <Grid item xs={12} sm={6} md={3}>
           <Card>
-            <CardContent>
-              <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
-                <TrendingUpIcon color="info" sx={{ mr: 1 }} />
-                <Typography variant="h6" component="h3">Under Review</Typography>
-              </Box>
-              <Typography variant="h4" color="info.main">
-                {isLoadingCases ? '...' : reviewCases}
-              </Typography>
-            </CardContent>
+            {isLoadingCases ? (
+              <CardSkeleton rows={2} />
+            ) : (
+              <CardContent>
+                <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
+                  <TrendingUpIcon color="info" sx={{ mr: 1 }} />
+                  <Typography variant="h6" component="h3">Under Review</Typography>
+                </Box>
+                <Typography variant="h4" color="info.main">
+                  {reviewCases}
+                </Typography>
+              </CardContent>
+            )}
           </Card>
         </Grid>
 
         <Grid item xs={12} sm={6} md={3}>
           <Card>
-            <CardContent>
-              <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
-                <CheckCircleIcon color="success" sx={{ mr: 1 }} />
-                <Typography variant="h6" component="h3">Approved</Typography>
-              </Box>
-              <Typography variant="h4" color="success.main">
-                {isLoadingCases ? '...' : approvedCases}
-              </Typography>
-            </CardContent>
+            {isLoadingCases ? (
+              <CardSkeleton rows={2} />
+            ) : (
+              <CardContent>
+                <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
+                  <CheckCircleIcon color="success" sx={{ mr: 1 }} />
+                  <Typography variant="h6" component="h3">Approved</Typography>
+                </Box>
+                <Typography variant="h4" color="success.main">
+                  {approvedCases}
+                </Typography>
+              </CardContent>
+            )}
           </Card>
         </Grid>
       </Grid>

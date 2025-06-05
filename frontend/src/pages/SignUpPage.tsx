@@ -16,6 +16,7 @@ import {
 } from '@mui/material';
 import { Google as GoogleIcon } from '@mui/icons-material';
 import { Link as RouterLink } from 'react-router-dom';
+import { LoadingButton } from '../components/common/LoadingIndicators';
 import { PAPER_ELEVATION, STANDARD_STYLES } from '../styles/constants';
 
 const SignUpPage: React.FC = () => {
@@ -174,20 +175,21 @@ const SignUpPage: React.FC = () => {
               disabled={isLoading}
             />
 
-            <Button
+            <LoadingButton
               type="submit"
               fullWidth
               variant="contained"
               sx={{ mt: 3, mb: 2 }}
               disabled={
-                isLoading ||
                 !email.trim() ||
                 !password.trim() ||
                 !confirmPassword.trim()
               }
+              loading={isLoading}
+              loadingText="Signing Up..."
             >
-              {isLoading ? <CircularProgress size={24} /> : 'Sign Up'}
-            </Button>
+              Sign Up
+            </LoadingButton>
 
             <Divider sx={{ my: 2 }}>
               <Typography variant="body2" color="text.secondary">
@@ -195,16 +197,17 @@ const SignUpPage: React.FC = () => {
               </Typography>
             </Divider>
 
-            <Button
+            <LoadingButton
               fullWidth
               variant="outlined"
               startIcon={<GoogleIcon />}
               onClick={handleGoogleSignUp}
-              disabled={isLoading}
+              loading={isLoading}
+              loadingText="Signing Up..."
               sx={{ mb: 2 }}
             >
               Sign up with Google
-            </Button>
+            </LoadingButton>
 
             <Stack
               direction="row"

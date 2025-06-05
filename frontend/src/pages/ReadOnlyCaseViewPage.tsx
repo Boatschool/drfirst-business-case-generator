@@ -19,6 +19,7 @@ import {
 } from '@mui/icons-material';
 import ReactMarkdown from 'react-markdown';
 import { useAgentContext } from '../contexts/AgentContext';
+import { PageLoading } from '../components/common/LoadingIndicators';
 import useDocumentTitle from '../hooks/useDocumentTitle';
 import { PAPER_ELEVATION, STANDARD_STYLES } from '../styles/constants';
 
@@ -111,8 +112,12 @@ const ReadOnlyCaseViewPage: React.FC = () => {
 
   if (isLoadingCaseDetails) {
     return (
-      <Container sx={{ display: 'flex', justifyContent: 'center', mt: 4 }}>
-        <CircularProgress />
+      <Container maxWidth="lg" sx={STANDARD_STYLES.pageContainer}>
+        <PageLoading
+          message="Loading business case details..."
+          variant="skeleton"
+          skeletonLines={8}
+        />
       </Container>
     );
   }

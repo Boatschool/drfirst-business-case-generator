@@ -19,6 +19,7 @@ import RemoveCircleOutlineIcon from '@mui/icons-material/RemoveCircleOutline';
 import HelpOutlineIcon from '@mui/icons-material/HelpOutline';
 import { useAgentContext } from '../contexts/AgentContext';
 import { InitiateCasePayload } from '../services/agent/AgentService';
+import { LoadingButton } from '../components/common/LoadingIndicators';
 import { isNotEmpty, validateRelevantLink } from '../utils/validation';
 import useDocumentTitle from '../hooks/useDocumentTitle';
 import { PAPER_ELEVATION, STANDARD_STYLES } from '../styles/constants';
@@ -336,15 +337,17 @@ const NewCasePage: React.FC = () => {
             Add Link
           </Button>
 
-          <Button
+          <LoadingButton
             type="submit"
             fullWidth
             variant="contained"
             sx={{ mt: 3, mb: 2, py: 1.5 }}
-            disabled={isLoading || !isFormValid}
+            disabled={!isFormValid}
+            loading={isLoading}
+            loadingText="Initiating Case..."
           >
-            {isLoading ? <CircularProgress size={24} /> : 'Initiate Case'}
-          </Button>
+            Initiate Case
+          </LoadingButton>
         </Box>
       </Paper>
     </Container>

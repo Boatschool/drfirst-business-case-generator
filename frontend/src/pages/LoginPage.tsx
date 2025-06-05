@@ -15,6 +15,7 @@ import {
 import { Google as GoogleIcon } from '@mui/icons-material';
 import { useLocation, useNavigate, Link as RouterLink } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
+import { LoadingButton } from '../components/common/LoadingIndicators';
 import { PAPER_ELEVATION, STANDARD_STYLES } from '../styles/constants';
 
 const LoginPage: React.FC = () => {
@@ -156,15 +157,17 @@ const LoginPage: React.FC = () => {
               disabled={isLoading}
             />
 
-            <Button
+            <LoadingButton
               type="submit"
               fullWidth
               variant="contained"
               sx={{ mt: 3, mb: 2 }}
-              disabled={isLoading || !email.trim() || !password.trim()}
+              disabled={!email.trim() || !password.trim()}
+              loading={isLoading}
+              loadingText="Signing In..."
             >
-              {isLoading ? <CircularProgress size={24} /> : 'Sign In'}
-            </Button>
+              Sign In
+            </LoadingButton>
 
             <Divider sx={{ my: 2 }}>
               <Typography variant="body2" color="text.secondary">
@@ -172,16 +175,17 @@ const LoginPage: React.FC = () => {
               </Typography>
             </Divider>
 
-            <Button
+            <LoadingButton
               fullWidth
               variant="outlined"
               startIcon={<GoogleIcon />}
               onClick={handleGoogleLogin}
-              disabled={isLoading}
+              loading={isLoading}
+              loadingText="Signing In..."
               sx={{ mb: 2 }}
             >
               Sign in with Google
-            </Button>
+            </LoadingButton>
 
             <Stack
               direction="row"

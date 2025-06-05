@@ -53,6 +53,7 @@ import {
 } from '../services/agent/AgentService';
 
 import { useAuth } from '../contexts/AuthContext';
+import { PageLoading, LoadingButton } from '../components/common/LoadingIndicators';
 import { PAPER_ELEVATION, STANDARD_STYLES } from '../styles/constants';
 
 // Helper function to improve text formatting for better readability
@@ -1032,7 +1033,13 @@ const BusinessCaseDetailPage: React.FC = () => {
 
   if (isLoadingCaseDetails && !currentCaseDetails) {
     return (
-      <CircularProgress sx={{ display: 'block', margin: 'auto', mt: 5 }} />
+      <Container maxWidth="lg" sx={STANDARD_STYLES.pageContainer}>
+        <PageLoading
+          message="Loading business case details..."
+          variant="skeleton"
+          skeletonLines={10}
+        />
+      </Container>
     );
   }
 
@@ -1100,15 +1107,16 @@ const BusinessCaseDetailPage: React.FC = () => {
             </Typography>
           </Stack>
           <Stack direction="row" spacing={1}>
-            <Button
+            <LoadingButton
               variant="contained"
               startIcon={<PdfIcon />}
               onClick={handleExportToPdf}
-              disabled={isExportingPdf}
+              loading={isExportingPdf}
+              loadingText="Exporting..."
               sx={{ mr: 1 }}
             >
-              {isExportingPdf ? 'Exporting...' : 'Export PDF'}
-            </Button>
+              Export PDF
+            </LoadingButton>
             <Tooltip title="Refresh Case Details">
               <IconButton
                 onClick={loadDetails}
@@ -1203,14 +1211,15 @@ const BusinessCaseDetailPage: React.FC = () => {
                 sx={{ mb: 1 }}
               />
               <Stack direction="row" spacing={1} sx={{ mt: 1 }}>
-                <Button
+                <LoadingButton
                   variant="contained"
                   onClick={handleSavePrd}
                   startIcon={<SaveIcon />}
-                  disabled={isLoading}
+                  loading={isLoading}
+                  loadingText="Saving..."
                 >
-                  {isLoading ? 'Saving...' : 'Save Changes'}
-                </Button>
+                  Save Changes
+                </LoadingButton>
                 <Button
                   variant="outlined"
                   onClick={handleCancelEditPrd}
@@ -1460,14 +1469,15 @@ const BusinessCaseDetailPage: React.FC = () => {
                     sx={{ mb: 2, fontFamily: 'monospace' }}
                   />
                   <Stack direction="row" spacing={1}>
-                    <Button
+                    <LoadingButton
                       variant="contained"
                       startIcon={<SaveIcon />}
                       onClick={handleSaveSystemDesign}
-                      disabled={isLoading}
+                      loading={isLoading}
+                      loadingText="Saving..."
                     >
                       Save Changes
-                    </Button>
+                    </LoadingButton>
                     <Button
                       variant="outlined"
                       startIcon={<CancelIcon />}

@@ -28,6 +28,7 @@ import {
   isRetryableError 
 } from '../utils/errorFormatting';
 import { PAPER_ELEVATION } from '../styles/constants';
+import type { ApiError, FirebaseAuthError } from '../types/api';
 
 /**
  * Demo page showcasing the enhanced error handling system
@@ -40,47 +41,54 @@ const ErrorDemoPage: React.FC = () => {
   // Helper function to simulate different error types
   const simulateError = (errorType: string) => {
     switch (errorType) {
-      case 'network':
+      case 'network': {
         const networkError = new Error('Network connection failed');
         (networkError as any).name = 'NetworkError';
         setCurrentError(networkError);
         break;
+      }
       
-      case 'auth_expired':
-        const authError = new Error('Session expired');
-        (authError as any).status = 401;
+      case 'auth_expired': {
+        const authError: ApiError = new Error('Session expired');
+        authError.status = 401;
         setCurrentError(authError);
         break;
+      }
       
-      case 'forbidden':
-        const forbiddenError = new Error('Access denied');
-        (forbiddenError as any).status = 403;
+      case 'forbidden': {
+        const forbiddenError: ApiError = new Error('Access denied');
+        forbiddenError.status = 403;
         setCurrentError(forbiddenError);
         break;
+      }
       
-      case 'server_error':
-        const serverError = new Error('Internal server error');
-        (serverError as any).status = 500;
+      case 'server_error': {
+        const serverError: ApiError = new Error('Internal server error');
+        serverError.status = 500;
         setCurrentError(serverError);
         break;
+      }
       
-      case 'validation':
+      case 'validation': {
         const validationError = new Error('Invalid input provided');
         (validationError as any).status = 422;
         setCurrentError(validationError);
         break;
+      }
       
-      case 'firebase_auth':
-        const firebaseError = new Error('Invalid credentials');
-        (firebaseError as any).code = 'auth/wrong-password';
+      case 'firebase_auth': {
+        const firebaseError: FirebaseAuthError = new Error('Invalid credentials') as FirebaseAuthError;
+        firebaseError.code = 'auth/wrong-password';
         setCurrentError(firebaseError);
         break;
+      }
       
-      case 'case_not_found':
+      case 'case_not_found': {
         const notFoundError = new Error('Business case not found');
         (notFoundError as any).status = 404;
         setCurrentError(notFoundError);
         break;
+      }
       
       default:
         setCurrentError(new Error('Unknown error occurred'));

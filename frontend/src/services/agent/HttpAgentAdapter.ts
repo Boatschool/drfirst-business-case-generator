@@ -152,7 +152,9 @@ export class HttpAgentAdapter implements AgentService {
     }, 5000); // Poll every 5 seconds
     return () => clearInterval(intervalId);
     */
-    return () => {}; // Return a no-op unsubscribe function
+    return () => {
+      // No-op unsubscribe function for HTTP adapter (no real-time updates)
+    };
   }
 
   async listCases(): Promise<BusinessCaseSummary[]> {

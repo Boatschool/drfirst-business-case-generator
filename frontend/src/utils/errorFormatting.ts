@@ -113,7 +113,6 @@ function getErrorType(error: any): keyof typeof ERROR_MESSAGES {
       return 'VALIDATION_ERROR';
     case 500:
     case 502:
-    case 503:
       return 'SERVER_ERROR';
     case 503:
       return 'SERVICE_UNAVAILABLE';

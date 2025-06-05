@@ -21,6 +21,35 @@ def fix_blank_lines_with_whitespace(content):
     return '\n'.join(fixed_lines)
 
 
+def fix_too_many_blank_lines(content):
+    """Fix E303 errors by reducing consecutive blank lines."""
+    lines = content.split('\n')
+    fixed_lines = []
+    blank_line_count = 0
+    
+    for i, line in enumerate(lines):
+        if line.strip() == '':
+            blank_line_count += 1
+            # For E303 errors, allow maximum of 1 consecutive blank line
+            # except after class/function definitions where 2 are allowed
+            prev_line = lines[i-1].strip() if i > 0 else ''
+            
+            # Check if previous line was an import statement or similar
+            if prev_line.startswith('from ') or prev_line.startswith('import '):
+                # After imports, only allow 1 blank line
+                if blank_line_count <= 1:
+                    fixed_lines.append(line)
+            else:
+                # Otherwise allow up to 2 blank lines
+                if blank_line_count <= 2:
+                    fixed_lines.append(line)
+        else:
+            blank_line_count = 0
+            fixed_lines.append(line)
+    
+    return '\n'.join(fixed_lines)
+
+
 def ensure_newline_at_end(content):
     """Ensure file ends with exactly one newline."""
     content = content.rstrip('\n') + '\n'
@@ -53,6 +82,7 @@ def fix_file(file_path):
     
     # Apply fixes
     content = fix_blank_lines_with_whitespace(content)
+    content = fix_too_many_blank_lines(content)
     content = ensure_newline_at_end(content)
     content = fix_f_string_without_placeholders(content)
     

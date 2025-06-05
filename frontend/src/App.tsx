@@ -32,6 +32,8 @@ import {
 } from '@mui/material';
 import { Link as RouterLink } from 'react-router-dom';
 
+
+
 // Smart Home Page component that redirects based on auth status
 const HomePage: React.FC = () => {
   const authContext = useContext(AuthContext);
@@ -95,7 +97,7 @@ const HomePage: React.FC = () => {
 
 // ProtectedRoute component
 interface ProtectedRouteProps {
-  // children?: React.ReactNode; // Outlet handles children now
+  children?: React.ReactNode; // Outlet handles children now
 }
 
 const ProtectedRoute: React.FC<ProtectedRouteProps> = () => {
@@ -138,7 +140,7 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = () => {
 
 // AdminProtectedRoute component - requires ADMIN role
 interface AdminProtectedRouteProps {
-  // children?: React.ReactNode; // Outlet handles children now
+  children?: React.ReactNode; // Outlet handles children now
 }
 
 const AdminProtectedRoute: React.FC<AdminProtectedRouteProps> = () => {

@@ -7,6 +7,7 @@ import {
 } from '@mui/material';
 import { Link as RouterLink, useLocation } from 'react-router-dom';
 import { useAgentContext } from '../../contexts/AgentContext';
+import type { BusinessCaseDetails, BusinessCaseSummary } from '../../services/agent/AgentService';
 
 interface BreadcrumbItem {
   label: string;
@@ -25,10 +26,8 @@ const STATIC_ROUTE_LABELS: Record<string, string> = {
   'cases': 'Cases',
 };
 
-// Helper function to get case title from AgentContext
-const useCaseTitle = (caseId?: string): string | null => {
-  const { currentCaseDetails, cases } = useAgentContext();
-  
+// Helper function to get case title - NOT a hook
+const getCaseTitle = (caseId: string | undefined, currentCaseDetails: BusinessCaseDetails | null, cases: BusinessCaseSummary[]): string | null => {
   if (!caseId) return null;
   
   // First try to get from current case details if it matches
@@ -43,9 +42,18 @@ const useCaseTitle = (caseId?: string): string | null => {
 
 const Breadcrumbs: React.FC = () => {
   const location = useLocation();
+  const { currentCaseDetails, cases } = useAgentContext();
   
   // Split pathname into segments and filter out empty strings
   const pathSegments = location.pathname.split('/').filter(Boolean);
+
+  // Get case title for current route if applicable
+  const currentCaseId = React.useMemo(() => {
+    const caseMatch = location.pathname.match(/\/cases\/([^/]+)/);
+    return caseMatch ? caseMatch[1] : undefined;
+  }, [location.pathname]);
+
+  const caseTitle = getCaseTitle(currentCaseId, currentCaseDetails, cases);
   
   // Generate breadcrumb items
   const breadcrumbItems = React.useMemo((): BreadcrumbItem[] => {
@@ -67,7 +75,7 @@ const Breadcrumbs: React.FC = () => {
       if (segment === 'cases' && pathSegments[i + 1]) {
         // For /cases/:caseId routes
         const caseId = pathSegments[i + 1];
-        const caseTitle = useCaseTitle(caseId);
+        const title = getCaseTitle(caseId, currentCaseDetails, cases);
         
         // Add "Cases" if not already there
         if (!items.some(item => item.label === 'Cases')) {
@@ -78,7 +86,7 @@ const Breadcrumbs: React.FC = () => {
         }
         
         // Add the case title or ID
-        const label = caseTitle || `Case ${caseId.substring(0, 8)}...`;
+        const label = title || `Case ${caseId.substring(0, 8)}...`;
         const casePath = `/cases/${caseId}`;
         
         // Check if there's a "view" sub-path
@@ -139,15 +147,7 @@ const Breadcrumbs: React.FC = () => {
     }
     
     return items;
-  }, [location.pathname, pathSegments]);
-  
-  // Get case title for current route if applicable
-  const currentCaseId = React.useMemo(() => {
-    const caseMatch = location.pathname.match(/\/cases\/([^\/]+)/);
-    return caseMatch ? caseMatch[1] : undefined;
-  }, [location.pathname]);
-  
-  const caseTitle = useCaseTitle(currentCaseId);
+  }, [pathSegments, currentCaseDetails, cases]);
   
   // Update breadcrumb items with case title if available
   const finalBreadcrumbItems = React.useMemo(() => {
@@ -170,7 +170,7 @@ const Breadcrumbs: React.FC = () => {
   if (finalBreadcrumbItems.length <= 1) {
     return null;
   }
-  
+
   return (
     <Box sx={{ mb: 2 }}>
       <MUIBreadcrumbs aria-label="breadcrumb">

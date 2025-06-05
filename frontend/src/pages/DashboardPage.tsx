@@ -191,7 +191,7 @@ const DashboardPage: React.FC = () => {
                   aria-label={`Sort business cases. Current sort: ${getCurrentSortLabel()}`}
                   aria-expanded={Boolean(sortAnchorEl)}
                   aria-haspopup="menu"
-                  aria-controls={Boolean(sortAnchorEl) ? 'sort-menu' : undefined}
+                  aria-controls={sortAnchorEl ? 'sort-menu' : undefined}
                 >
                   <SortIcon />
                 </IconButton>

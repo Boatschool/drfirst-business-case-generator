@@ -199,24 +199,6 @@ const AdminPage: React.FC = () => {
   const [selectedApproverRole, setSelectedApproverRole] = useState<string>('FINAL_APPROVER');
   const [isSavingApproverConfig, setIsSavingApproverConfig] = useState(false);
 
-  // Simple admin check (placeholder for full RBAC in Task 7.3)
-  // For now, allow any authenticated user to access admin page
-  // TODO: Replace with proper role-based access control
-  if (!authContext?.currentUser) {
-    return <Navigate to="/login" replace />;
-  }
-
-  // Show admin role information and access status
-  const userRole = authContext.systemRole || 'USER';
-  const isAdminUser = authContext.isAdmin;
-
-  console.log('AdminPage - User role info:', {
-    email: authContext.currentUser?.email,
-    systemRole: authContext.systemRole,
-    isAdmin: authContext.isAdmin,
-    hasAdminAccess: isAdminUser,
-  });
-
   // Fetch rate cards
   const fetchRateCards = useCallback(async () => {
     setIsLoadingRateCards(true);
@@ -299,6 +281,24 @@ const AdminPage: React.FC = () => {
     fetchUsers();
     fetchApproverConfig();
   }, [fetchRateCards, fetchPricingTemplates, fetchUsers, fetchApproverConfig]);
+
+  // Simple admin check (placeholder for full RBAC in Task 7.3)
+  // For now, allow any authenticated user to access admin page
+  // TODO: Replace with proper role-based access control
+  if (!authContext?.currentUser) {
+    return <Navigate to="/login" replace />;
+  }
+
+  // Show admin role information and access status
+  const userRole = authContext.systemRole || 'USER';
+  const isAdminUser = authContext.isAdmin;
+
+  console.log('AdminPage - User role info:', {
+    email: authContext.currentUser?.email,
+    systemRole: authContext.systemRole,
+    isAdmin: authContext.isAdmin,
+    hasAdminAccess: isAdminUser,
+  });
 
   // Show notification
   const showNotification = (

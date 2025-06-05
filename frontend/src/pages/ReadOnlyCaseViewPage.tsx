@@ -27,7 +27,7 @@ import { PAPER_ELEVATION, STANDARD_STYLES } from '../styles/constants';
 const formatMarkdownContent = (content: string): string => {
   if (!content) return content;
 
-  let formatted = content
+  const formatted = content
     .replace(/^(#{1,6}\s.+)$/gm, '$1\n')
     .replace(/([^\n])\n(#{1,6}\s)/g, '$1\n\n$2')
     .replace(/^(\s*[-*+]\s.+)$/gm, '$1')

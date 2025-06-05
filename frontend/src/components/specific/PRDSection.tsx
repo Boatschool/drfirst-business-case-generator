@@ -38,7 +38,7 @@ const formatPrdContent = (content: string): string => {
   if (!content) return content;
 
   // Ensure proper line breaks after headings and before new sections
-  let formatted = content
+  const formatted = content
     // Add line breaks after markdown headings
     .replace(/^(#{1,6}\s.+)$/gm, '$1\n')
     // Add line breaks before new headings if not already present

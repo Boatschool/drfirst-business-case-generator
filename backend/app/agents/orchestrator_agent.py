@@ -148,7 +148,7 @@ class OrchestratorAgent:
         self.cost_analyst_agent = CostAnalystAgent()
         self.sales_value_analyst_agent = SalesValueAnalystAgent()
         self.financial_model_agent = FinancialModelAgent()
-        
+
         # Use dependency injection for database client
         self.db = db if db is not None else get_db()
         print("OrchestratorAgent: Database client initialized successfully.")

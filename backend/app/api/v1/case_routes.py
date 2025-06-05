@@ -237,7 +237,7 @@ async def update_prd_draft(
         raise HTTPException(status_code=401, detail="User ID not found in token.")
 
     try:
-        
+
         case_doc_ref = db.collection("businessCases").document(case_id)
 
         doc_snapshot = await asyncio.to_thread(case_doc_ref.get)
@@ -326,7 +326,6 @@ async def submit_prd_for_review(
         # Import BusinessCaseStatus from orchestrator_agent
         from app.agents.orchestrator_agent import BusinessCaseStatus
 
-        
         case_doc_ref = db.collection("businessCases").document(case_id)
 
         doc_snapshot = await asyncio.to_thread(case_doc_ref.get)
@@ -490,7 +489,6 @@ async def approve_prd(
         # Import BusinessCaseStatus from orchestrator_agent
         from app.agents.orchestrator_agent import BusinessCaseStatus
 
-        
         case_doc_ref = db.collection("businessCases").document(case_id)
 
         doc_snapshot = await asyncio.to_thread(case_doc_ref.get)
@@ -625,7 +623,6 @@ async def reject_prd(
         # Import BusinessCaseStatus from orchestrator_agent
         from app.agents.orchestrator_agent import BusinessCaseStatus
 
-        
         case_doc_ref = db.collection("businessCases").document(case_id)
 
         doc_snapshot = await asyncio.to_thread(case_doc_ref.get)
@@ -741,7 +738,7 @@ async def update_case_status(
         )
 
     try:
-        
+
         case_doc_ref = db.collection("businessCases").document(case_id)
 
         doc_snapshot = await asyncio.to_thread(case_doc_ref.get)
@@ -831,7 +828,6 @@ async def update_system_design_draft(
         # Import BusinessCaseStatus from orchestrator_agent
         from app.agents.orchestrator_agent import BusinessCaseStatus
 
-        
         case_doc_ref = db.collection("businessCases").document(case_id)
 
         doc_snapshot = await asyncio.to_thread(case_doc_ref.get)
@@ -945,7 +941,6 @@ async def submit_system_design_for_review(
         # Import BusinessCaseStatus from orchestrator_agent
         from app.agents.orchestrator_agent import BusinessCaseStatus
 
-        
         case_doc_ref = db.collection("businessCases").document(case_id)
 
         doc_snapshot = await asyncio.to_thread(case_doc_ref.get)
@@ -1056,7 +1051,6 @@ async def approve_system_design(
         # Import BusinessCaseStatus from orchestrator_agent
         from app.agents.orchestrator_agent import BusinessCaseStatus
 
-        
         case_doc_ref = db.collection("businessCases").document(case_id)
 
         doc_snapshot = await asyncio.to_thread(case_doc_ref.get)
@@ -1154,7 +1148,6 @@ async def reject_system_design(
         # Import BusinessCaseStatus from orchestrator_agent
         from app.agents.orchestrator_agent import BusinessCaseStatus
 
-        
         case_doc_ref = db.collection("businessCases").document(case_id)
 
         doc_snapshot = await asyncio.to_thread(case_doc_ref.get)
@@ -1246,7 +1239,6 @@ async def update_effort_estimate(
     try:
         from app.agents.orchestrator_agent import BusinessCaseStatus
 
-        
         case_doc_ref = db.collection("businessCases").document(case_id)
 
         doc_snapshot = await asyncio.to_thread(case_doc_ref.get)
@@ -1352,7 +1344,6 @@ async def submit_effort_estimate_for_review(
     try:
         from app.agents.orchestrator_agent import BusinessCaseStatus
 
-        
         case_doc_ref = db.collection("businessCases").document(case_id)
 
         doc_snapshot = await asyncio.to_thread(case_doc_ref.get)
@@ -1459,7 +1450,6 @@ async def update_cost_estimate(
     try:
         from app.agents.orchestrator_agent import BusinessCaseStatus
 
-        
         case_doc_ref = db.collection("businessCases").document(case_id)
 
         doc_snapshot = await asyncio.to_thread(case_doc_ref.get)
@@ -1566,7 +1556,6 @@ async def submit_cost_estimate_for_review(
     try:
         from app.agents.orchestrator_agent import BusinessCaseStatus
 
-        
         case_doc_ref = db.collection("businessCases").document(case_id)
 
         doc_snapshot = await asyncio.to_thread(case_doc_ref.get)
@@ -1671,7 +1660,6 @@ async def update_value_projection(
     try:
         from app.agents.orchestrator_agent import BusinessCaseStatus
 
-        
         case_doc_ref = db.collection("businessCases").document(case_id)
 
         doc_snapshot = await asyncio.to_thread(case_doc_ref.get)
@@ -1780,7 +1768,6 @@ async def submit_value_projection_for_review(
     try:
         from app.agents.orchestrator_agent import BusinessCaseStatus
 
-        
         case_doc_ref = db.collection("businessCases").document(case_id)
 
         doc_snapshot = await asyncio.to_thread(case_doc_ref.get)
@@ -1888,7 +1875,6 @@ async def approve_effort_estimate(
     try:
         from app.agents.orchestrator_agent import BusinessCaseStatus
 
-        
         case_doc_ref = db.collection("businessCases").document(case_id)
 
         doc_snapshot = await asyncio.to_thread(case_doc_ref.get)
@@ -1985,7 +1971,6 @@ async def reject_effort_estimate(
     try:
         from app.agents.orchestrator_agent import BusinessCaseStatus
 
-        
         case_doc_ref = db.collection("businessCases").document(case_id)
 
         doc_snapshot = await asyncio.to_thread(case_doc_ref.get)
@@ -2084,7 +2069,6 @@ async def approve_cost_estimate(
     try:
         from app.agents.orchestrator_agent import BusinessCaseStatus
 
-        
         case_doc_ref = db.collection("businessCases").document(case_id)
 
         doc_snapshot = await asyncio.to_thread(case_doc_ref.get)
@@ -2192,7 +2176,6 @@ async def reject_cost_estimate(
     try:
         from app.agents.orchestrator_agent import BusinessCaseStatus
 
-        
         case_doc_ref = db.collection("businessCases").document(case_id)
 
         doc_snapshot = await asyncio.to_thread(case_doc_ref.get)
@@ -2290,7 +2273,6 @@ async def approve_value_projection(
     try:
         from app.agents.orchestrator_agent import BusinessCaseStatus
 
-        
         case_doc_ref = db.collection("businessCases").document(case_id)
 
         doc_snapshot = await asyncio.to_thread(case_doc_ref.get)
@@ -2408,7 +2390,6 @@ async def reject_value_projection(
     try:
         from app.agents.orchestrator_agent import BusinessCaseStatus
 
-        
         case_doc_ref = db.collection("businessCases").document(case_id)
 
         doc_snapshot = await asyncio.to_thread(case_doc_ref.get)
@@ -2524,7 +2505,6 @@ async def submit_case_for_final_approval(
     try:
         from app.agents.orchestrator_agent import BusinessCaseStatus
 
-        
         case_doc_ref = db.collection("businessCases").document(case_id)
 
         doc_snapshot = await asyncio.to_thread(case_doc_ref.get)
@@ -2621,7 +2601,6 @@ async def approve_final_case(
     try:
         from app.agents.orchestrator_agent import BusinessCaseStatus
 
-        
         case_doc_ref = db.collection("businessCases").document(case_id)
 
         doc_snapshot = await asyncio.to_thread(case_doc_ref.get)
@@ -2710,7 +2689,6 @@ async def reject_final_case(
     try:
         from app.agents.orchestrator_agent import BusinessCaseStatus
 
-        
         case_doc_ref = db.collection("businessCases").document(case_id)
 
         doc_snapshot = await asyncio.to_thread(case_doc_ref.get)
@@ -2796,7 +2774,7 @@ async def export_case_to_pdf(
         raise HTTPException(status_code=401, detail="User ID not found in token.")
 
     try:
-        
+
         case_doc_ref = db.collection("businessCases").document(case_id)
 
         # Fetch case document

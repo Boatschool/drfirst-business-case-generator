@@ -3,14 +3,6 @@ import { render } from '@testing-library/react';
 import { BrowserRouter } from 'react-router-dom';
 import Breadcrumbs from '../Breadcrumbs';
 
-// Mock the AgentContext hook
-vi.mock('../../../contexts/AgentContext', () => ({
-  useAgentContext: () => ({
-    currentCaseDetails: null,
-    cases: [],
-  }),
-}));
-
 // Mock react-router-dom useLocation
 const mockUseLocation = vi.fn();
 vi.mock('react-router-dom', async () => {

@@ -64,6 +64,7 @@ import {
   User,
 } from '../services/admin/AdminService';
 import { HttpAdminAdapter } from '../services/admin/HttpAdminAdapter';
+import useDocumentTitle from '../hooks/useDocumentTitle';
 
 interface RoleFormData {
   roleName: string;
@@ -100,6 +101,9 @@ interface PricingTemplateFormErrors {
 }
 
 const AdminPage: React.FC = () => {
+  // Set document title
+  useDocumentTitle('Admin');
+
   const authContext = useContext(AuthContext);
 
   // Admin service instance

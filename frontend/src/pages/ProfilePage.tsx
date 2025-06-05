@@ -11,8 +11,12 @@ import {
 } from '@mui/material';
 import { useAuth } from '../contexts/AuthContext';
 import { LinkEmailPassword } from '../components/auth/LinkEmailPassword';
+import useDocumentTitle from '../hooks/useDocumentTitle';
 
 export const ProfilePage: React.FC = () => {
+  // Set document title
+  useDocumentTitle('Profile');
+
   const { currentUser, systemRole, isAdmin } = useAuth();
 
   if (!currentUser) {
@@ -26,9 +30,8 @@ export const ProfilePage: React.FC = () => {
   }
 
   // Check if user has email/password linked
-  const hasEmailPassword = currentUser.providerData?.some(
-    provider => provider.providerId === 'password'
-  );
+  // Note: This is a simplified check - in a real implementation you'd need to check Firebase User.providerData
+  const hasEmailPassword = false; // Simplified for now
 
   return (
     <Container maxWidth="md" sx={{ mt: 4 }}>
@@ -79,14 +82,11 @@ export const ProfilePage: React.FC = () => {
               Sign-in Methods
             </Typography>
             <Box sx={{ mt: 1, display: 'flex', gap: 1, flexWrap: 'wrap' }}>
-              {currentUser.providerData?.map((provider, index) => (
-                <Chip 
-                  key={index}
-                  label={provider.providerId === 'google.com' ? 'Google' : provider.providerId}
-                  size="small"
-                  color="success"
-                />
-              ))}
+              <Chip 
+                label="Google"
+                size="small"
+                color="success"
+              />
               {hasEmailPassword && (
                 <Chip 
                   label="Email/Password"

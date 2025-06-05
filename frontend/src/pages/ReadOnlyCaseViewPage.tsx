@@ -19,6 +19,7 @@ import {
 } from '@mui/icons-material';
 import ReactMarkdown from 'react-markdown';
 import { useAgentContext } from '../contexts/AgentContext';
+import useDocumentTitle from '../hooks/useDocumentTitle';
 
 // Helper function to improve text formatting for better readability
 const formatMarkdownContent = (content: string): string => {
@@ -94,6 +95,12 @@ const ReadOnlyCaseViewPage: React.FC = () => {
     isLoadingCaseDetails, 
     caseDetailsError 
   } = useAgentContext();
+
+  // Set document title dynamically based on case title
+  useDocumentTitle(
+    currentCaseDetails?.title ? `${currentCaseDetails.title} (View)` : `Case ${caseId?.substring(0, 8)}... (View)` || 'Business Case View',
+    currentCaseDetails?.title
+  );
 
   useEffect(() => {
     if (caseId) {

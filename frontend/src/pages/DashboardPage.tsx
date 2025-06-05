@@ -27,6 +27,7 @@ import { BusinessCaseSummary } from '../services/agent/AgentService';
 import StatusBadge from '../components/common/StatusBadge';
 import StatusFilter from '../components/common/StatusFilter';
 import { ALL_BUSINESS_CASE_STATUSES } from '../constants/businessCaseStatuses';
+import useDocumentTitle from '../hooks/useDocumentTitle';
 
 type SortOption = 'title-asc' | 'title-desc' | 'date-newest' | 'date-oldest' | 'status-asc' | 'status-desc';
 
@@ -41,6 +42,9 @@ const SORT_OPTIONS: { value: SortOption; label: string }[] = [
 
 const DashboardPage: React.FC = () => {
   console.log('🟢 DashboardPage: Component rendering');
+
+  // Set document title
+  useDocumentTitle('Dashboard');
 
   const navigate = useNavigate();
   const { cases, isLoadingCases, casesError, fetchUserCases } =

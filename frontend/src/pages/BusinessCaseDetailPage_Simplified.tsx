@@ -18,6 +18,7 @@ import {
   Share as ShareIcon
 } from '@mui/icons-material';
 import { useAgentContext } from '../contexts/AgentContext';
+import useDocumentTitle from '../hooks/useDocumentTitle';
 
 import { PRDSection } from '../components/specific/PRDSection';
 import { SystemDesignSection } from '../components/specific/SystemDesignSection';
@@ -39,6 +40,12 @@ const BusinessCaseDetailPageSimplified: React.FC = () => {
   } = useAgentContext();
 
   const [isExportingPdf, setIsExportingPdf] = useState(false);
+
+  // Set document title dynamically based on case title
+  useDocumentTitle(
+    currentCaseDetails?.title || `Case ${caseId?.substring(0, 8)}...` || 'Business Case',
+    currentCaseDetails?.title
+  );
 
   // Helper function to determine if case is shareable
   const isShareable = (status: string) => {

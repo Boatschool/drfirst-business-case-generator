@@ -20,6 +20,7 @@ import HelpOutlineIcon from '@mui/icons-material/HelpOutline';
 import { useAgentContext } from '../contexts/AgentContext';
 import { InitiateCasePayload } from '../services/agent/AgentService';
 import { isNotEmpty, validateRelevantLink } from '../utils/validation';
+import useDocumentTitle from '../hooks/useDocumentTitle';
 
 interface FormErrors {
   projectTitle: string;
@@ -28,6 +29,9 @@ interface FormErrors {
 }
 
 const NewCasePage: React.FC = () => {
+  // Set document title
+  useDocumentTitle('New Business Case');
+
   const [projectTitle, setProjectTitle] = useState('');
   const [problemStatement, setProblemStatement] = useState('');
   const [relevantLinks, setRelevantLinks] = useState<

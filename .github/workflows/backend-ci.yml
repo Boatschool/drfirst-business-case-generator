@@ -26,6 +26,10 @@ jobs:
       contents: read
       id-token: write
 
+    outputs:
+      image_base: ${{ steps.image-tags.outputs.image_base }}
+      image_sha_tag: ${{ steps.image-tags.outputs.image_sha_tag }}
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -117,8 +121,9 @@ jobs:
           echo "$TAGS" >> $GITHUB_OUTPUT
           echo "EOF" >> $GITHUB_OUTPUT
           
-          # Also set base path for easy reference
+          # Also set base path and SHA tag for easy reference
           echo "image_base=${IMAGE_BASE}" >> $GITHUB_OUTPUT
+          echo "image_sha_tag=${IMAGE_BASE}:${{ github.sha }}" >> $GITHUB_OUTPUT
 
       - name: Build and Push Docker image to Artifact Registry
         if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop')
@@ -213,4 +218,86 @@ jobs:
           else
             echo "❌ Failed to pull image from Artifact Registry"
             exit 1
+          fi
+
+  # Continuous Deployment job for staging environment
+  deploy-staging:
+    if: github.event_name == 'push' && github.ref == 'refs/heads/develop'
+    needs: [build-and-test, verify-image]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+
+    steps:
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ secrets.GCP_SERVICE_ACCOUNT_EMAIL }}
+
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Deploy to Cloud Run - Staging
+        uses: google-github-actions/deploy-cloudrun@v2
+        with:
+          service: ${{ secrets.CLOUD_RUN_SERVICE_DEV }}
+          project_id: ${{ env.GAR_PROJECT_ID }}
+          region: ${{ secrets.GCP_REGION }}
+          image: ${{ needs.build-and-test.outputs.image_sha_tag }}
+          env_vars: |
+            ENVIRONMENT=development
+            GOOGLE_CLOUD_PROJECT_ID=${{ env.GAR_PROJECT_ID }}
+            FIREBASE_PROJECT_ID=${{ env.GAR_PROJECT_ID }}
+            VERTEX_AI_LOCATION=${{ secrets.GCP_REGION }}
+            VERTEX_AI_MODEL_NAME=gemini-2.0-flash-lite
+            LOG_LEVEL=INFO
+            DEBUG=false
+            BACKEND_CORS_ORIGINS=${{ secrets.DEV_BACKEND_CORS_ORIGINS }}
+          secrets: |
+            SECRET_KEY=projects/${{ env.GAR_PROJECT_ID }}/secrets/app-secret-key/versions/latest
+            FIREBASE_API_KEY=projects/${{ env.GAR_PROJECT_ID }}/secrets/firebase-api-key/versions/latest
+          flags: "--port=8000 --memory=1Gi --cpu=1 --allow-unauthenticated"
+
+      - name: Verify deployment success
+        run: |
+          echo "🎉 Deployment to Cloud Run staging completed!"
+          echo ""
+          echo "🌐 Service Details:"
+          echo "Service: ${{ secrets.CLOUD_RUN_SERVICE_DEV }}"
+          echo "Region: ${{ secrets.GCP_REGION }}"
+          echo "Project: ${{ env.GAR_PROJECT_ID }}"
+          echo "Image: ${{ needs.build-and-test.outputs.image_sha_tag }}"
+          echo ""
+          echo "🔗 View in Google Cloud Console:"
+          echo "https://console.cloud.google.com/run/detail/${{ secrets.GCP_REGION }}/${{ secrets.CLOUD_RUN_SERVICE_DEV }}/metrics?project=${{ env.GAR_PROJECT_ID }}"
+
+      - name: Health check deployed service
+        run: |
+          echo "🏥 Performing health check on deployed service..."
+          
+          # Get the service URL
+          SERVICE_URL=$(gcloud run services describe ${{ secrets.CLOUD_RUN_SERVICE_DEV }} \
+            --region=${{ secrets.GCP_REGION }} \
+            --format='value(status.url)')
+          
+          echo "Service URL: ${SERVICE_URL}"
+          
+          # Wait a moment for the service to be ready
+          sleep 30
+          
+          # Test the health endpoint
+          if curl -f -s "${SERVICE_URL}/" > /dev/null; then
+            echo "✅ Health check passed - service is responding"
+          else
+            echo "❌ Health check failed - service may not be ready"
+            echo "Trying again in 30 seconds..."
+            sleep 30
+            if curl -f -s "${SERVICE_URL}/" > /dev/null; then
+              echo "✅ Health check passed on retry - service is responding"
+            else
+              echo "❌ Health check failed on retry"
+              exit 1
+            fi
           fi 

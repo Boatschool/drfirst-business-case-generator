@@ -21,7 +21,8 @@ class UserService:
     def _initialize_firestore(self):
         """Initialize Firestore client"""
         try:
-            self.db = firestore.Client(project=settings.firebase_project_id)
+            from app.core.dependencies import get_db
+            self.db = get_db()
             print("✅ UserService: Firestore client initialized successfully")
         except Exception as e:
             print(f"❌ UserService: Failed to initialize Firestore client: {e}")

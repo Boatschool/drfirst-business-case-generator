@@ -2,11 +2,12 @@
 Cost Analyst Agent for applying rate cards to generate cost estimates.
 """
 
-from typing import Dict, Any
+from typing import Dict, Any, Optional
 import asyncio
 import logging
-from google.cloud import firestore
 from app.core.config import settings
+from app.core.dependencies import get_db
+from app.core.database import DatabaseClient
 
 # Set up logging
 logger = logging.getLogger(__name__)
@@ -18,19 +19,14 @@ class CostAnalystAgent:
     to generate financial cost projections for business cases.
     """
 
-    def __init__(self):
+    def __init__(self, db: Optional[DatabaseClient] = None):
         self.name = "Cost Analyst Agent"
         self.description = "Applies rate card to generate cost estimates."
         self.status = "initialized"
 
-        # Initialize Firestore client for rate card access
-        try:
-            self.db = firestore.Client(project=settings.firebase_project_id)
-            print("CostAnalystAgent: Firestore client initialized successfully.")
-        except Exception as e:
-            print(f"CostAnalystAgent: Failed to initialize Firestore client: {e}")
-            self.db = None
-
+        # Use dependency injection for database client
+        self.db = db if db is not None else get_db()
+        print("CostAnalystAgent: Database client initialized successfully.")
         print("CostAnalystAgent: Initialized successfully.")
         self.status = "available"
 

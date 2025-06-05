@@ -10,8 +10,9 @@ import asyncio
 
 from app.auth.firebase_auth import get_current_active_user, require_role
 from app.utils.config_helpers import require_dynamic_final_approver_role
-from google.cloud import firestore
 from app.core.config import settings
+from app.core.dependencies import get_db, get_array_union, get_increment
+from app.core.database import DatabaseClient
 
 # Assuming BusinessCaseStatus is defined in orchestrator_agent or a shared models location
 # If it's in orchestrator_agent, the import might be: from app.agents.orchestrator_agent import BusinessCaseStatus
@@ -74,7 +75,10 @@ class StatusUpdateRequest(BaseModel):
     response_model=List[BusinessCaseSummary],
     summary="List business cases for the authenticated user",
 )
-async def list_user_cases(current_user: dict = Depends(get_current_active_user)):
+async def list_user_cases(
+    current_user: dict = Depends(get_current_active_user),
+    db: DatabaseClient = Depends(get_db)
+):
     """
     Retrieves a list of business cases initiated by the authenticated user.
     Filters cases by the `user_id` from the Firebase token.
@@ -84,7 +88,6 @@ async def list_user_cases(current_user: dict = Depends(get_current_active_user))
         raise HTTPException(status_code=401, detail="User ID not found in token.")
 
     try:
-        db = firestore.Client(project=settings.firebase_project_id)
         cases_query = db.collection("businessCases").where("user_id", "==", user_id)
         docs_snapshot = await asyncio.to_thread(cases_query.stream)
 
@@ -129,7 +132,9 @@ async def list_user_cases(current_user: dict = Depends(get_current_active_user))
     summary="Get details for a specific business case",
 )
 async def get_case_details(
-    case_id: str, current_user: dict = Depends(get_current_active_user)
+    case_id: str, 
+    current_user: dict = Depends(get_current_active_user),
+    db: DatabaseClient = Depends(get_db)
 ):
     """
     Retrieves the full details for a specific business case.
@@ -140,7 +145,6 @@ async def get_case_details(
         raise HTTPException(status_code=401, detail="User ID not found in token.")
 
     try:
-        db = firestore.Client(project=settings.firebase_project_id)
         case_doc_ref = db.collection("businessCases").document(case_id)
         # Use asyncio.to_thread for the blocking Firestore call
         doc = await asyncio.to_thread(case_doc_ref.get)
@@ -222,6 +226,7 @@ async def update_prd_draft(
     case_id: str,
     prd_update_request: PrdUpdateRequest,
     current_user: dict = Depends(get_current_active_user),
+    db: DatabaseClient = Depends(get_db),
 ):
     """
     Updates the PRD draft for a specific business case.
@@ -232,7 +237,7 @@ async def update_prd_draft(
         raise HTTPException(status_code=401, detail="User ID not found in token.")
 
     try:
-        db = firestore.Client(project=settings.firebase_project_id)
+        
         case_doc_ref = db.collection("businessCases").document(case_id)
 
         doc_snapshot = await asyncio.to_thread(case_doc_ref.get)
@@ -277,7 +282,7 @@ async def update_prd_draft(
         update_data = {
             "prd_draft": updated_prd_draft,
             "updated_at": datetime.now(timezone.utc),
-            "history": firestore.ArrayUnion([history_entry]),
+            "history": get_array_union([history_entry]),
         }
 
         await asyncio.to_thread(case_doc_ref.update, update_data)
@@ -306,7 +311,8 @@ async def update_prd_draft(
     "/cases/{case_id}/submit-prd", status_code=200, summary="Submit PRD for review"
 )
 async def submit_prd_for_review(
-    case_id: str, current_user: dict = Depends(get_current_active_user)
+    case_id: str, current_user: dict = Depends(get_current_active_user),
+    db: DatabaseClient = Depends(get_db)
 ):
     """
     Submits the PRD for review, updating the case status to PRD_REVIEW.
@@ -320,7 +326,7 @@ async def submit_prd_for_review(
         # Import BusinessCaseStatus from orchestrator_agent
         from app.agents.orchestrator_agent import BusinessCaseStatus
 
-        db = firestore.Client(project=settings.firebase_project_id)
+        
         case_doc_ref = db.collection("businessCases").document(case_id)
 
         doc_snapshot = await asyncio.to_thread(case_doc_ref.get)
@@ -384,7 +390,7 @@ async def submit_prd_for_review(
         update_data = {
             "status": BusinessCaseStatus.PRD_REVIEW.value,
             "updated_at": datetime.now(timezone.utc),
-            "history": firestore.ArrayUnion([history_entry]),
+            "history": get_array_union([history_entry]),
         }
 
         await asyncio.to_thread(case_doc_ref.update, update_data)
@@ -467,7 +473,8 @@ class ValueProjectionRejectRequest(BaseModel):
     summary="Approve PRD for a specific business case",
 )
 async def approve_prd(
-    case_id: str, current_user: dict = Depends(get_current_active_user)
+    case_id: str, current_user: dict = Depends(get_current_active_user),
+    db: DatabaseClient = Depends(get_db)
 ):
     """
     Approves the PRD for a business case, updating the case status to PRD_APPROVED.
@@ -483,7 +490,7 @@ async def approve_prd(
         # Import BusinessCaseStatus from orchestrator_agent
         from app.agents.orchestrator_agent import BusinessCaseStatus
 
-        db = firestore.Client(project=settings.firebase_project_id)
+        
         case_doc_ref = db.collection("businessCases").document(case_id)
 
         doc_snapshot = await asyncio.to_thread(case_doc_ref.get)
@@ -530,7 +537,7 @@ async def approve_prd(
         update_data = {
             "status": BusinessCaseStatus.PRD_APPROVED.value,
             "updated_at": datetime.now(timezone.utc),
-            "history": firestore.ArrayUnion([history_entry]),
+            "history": get_array_union([history_entry]),
         }
 
         await asyncio.to_thread(case_doc_ref.update, update_data)
@@ -601,6 +608,7 @@ async def reject_prd(
     case_id: str,
     reject_request: PrdRejectRequest = PrdRejectRequest(),
     current_user: dict = Depends(get_current_active_user),
+    db: DatabaseClient = Depends(get_db)
 ):
     """
     Rejects the PRD for a business case, updating the case status to PRD_REJECTED.
@@ -617,7 +625,7 @@ async def reject_prd(
         # Import BusinessCaseStatus from orchestrator_agent
         from app.agents.orchestrator_agent import BusinessCaseStatus
 
-        db = firestore.Client(project=settings.firebase_project_id)
+        
         case_doc_ref = db.collection("businessCases").document(case_id)
 
         doc_snapshot = await asyncio.to_thread(case_doc_ref.get)
@@ -667,7 +675,7 @@ async def reject_prd(
         update_data = {
             "status": BusinessCaseStatus.PRD_REJECTED.value,
             "updated_at": datetime.now(timezone.utc),
-            "history": firestore.ArrayUnion([history_entry]),
+            "history": get_array_union([history_entry]),
         }
 
         await asyncio.to_thread(case_doc_ref.update, update_data)
@@ -698,6 +706,7 @@ async def update_case_status(
     case_id: str,
     status_update_request: StatusUpdateRequest,
     current_user: dict = Depends(get_current_active_user),
+    db: DatabaseClient = Depends(get_db),
 ):
     """
     Updates the status of a specific business case.
@@ -732,7 +741,7 @@ async def update_case_status(
         )
 
     try:
-        db = firestore.Client(project=settings.firebase_project_id)
+        
         case_doc_ref = db.collection("businessCases").document(case_id)
 
         doc_snapshot = await asyncio.to_thread(case_doc_ref.get)
@@ -769,7 +778,7 @@ async def update_case_status(
         update_data = {
             "status": status_update_request.status,
             "updated_at": datetime.now(timezone.utc),
-            "history": firestore.ArrayUnion([history_entry]),
+            "history": get_array_union([history_entry]),
         }
 
         await asyncio.to_thread(case_doc_ref.update, update_data)
@@ -805,6 +814,7 @@ async def update_system_design_draft(
     case_id: str,
     system_design_update_request: SystemDesignUpdateRequest,
     current_user: dict = Depends(get_current_active_user),
+    db: DatabaseClient = Depends(get_db),
 ):
     """
     Updates the System Design draft for a specific business case.
@@ -821,7 +831,7 @@ async def update_system_design_draft(
         # Import BusinessCaseStatus from orchestrator_agent
         from app.agents.orchestrator_agent import BusinessCaseStatus
 
-        db = firestore.Client(project=settings.firebase_project_id)
+        
         case_doc_ref = db.collection("businessCases").document(case_id)
 
         doc_snapshot = await asyncio.to_thread(case_doc_ref.get)
@@ -888,7 +898,7 @@ async def update_system_design_draft(
         update_data = {
             "system_design_v1_draft": updated_system_design,
             "updated_at": datetime.now(timezone.utc),
-            "history": firestore.ArrayUnion([history_entry]),
+            "history": get_array_union([history_entry]),
         }
 
         await asyncio.to_thread(case_doc_ref.update, update_data)
@@ -917,7 +927,8 @@ async def update_system_design_draft(
     summary="Submit System Design for review",
 )
 async def submit_system_design_for_review(
-    case_id: str, current_user: dict = Depends(get_current_active_user)
+    case_id: str, current_user: dict = Depends(get_current_active_user),
+    db: DatabaseClient = Depends(get_db)
 ):
     """
     Submits the System Design for review, updating the case status to SYSTEM_DESIGN_PENDING_REVIEW.
@@ -934,7 +945,7 @@ async def submit_system_design_for_review(
         # Import BusinessCaseStatus from orchestrator_agent
         from app.agents.orchestrator_agent import BusinessCaseStatus
 
-        db = firestore.Client(project=settings.firebase_project_id)
+        
         case_doc_ref = db.collection("businessCases").document(case_id)
 
         doc_snapshot = await asyncio.to_thread(case_doc_ref.get)
@@ -990,7 +1001,7 @@ async def submit_system_design_for_review(
         update_data = {
             "status": BusinessCaseStatus.SYSTEM_DESIGN_PENDING_REVIEW.value,
             "updated_at": datetime.now(timezone.utc),
-            "history": firestore.ArrayUnion([history_entry]),
+            "history": get_array_union([history_entry]),
         }
 
         await asyncio.to_thread(case_doc_ref.update, update_data)
@@ -1020,7 +1031,8 @@ async def submit_system_design_for_review(
     summary="Approve System Design for a specific business case",
 )
 async def approve_system_design(
-    case_id: str, current_user: dict = Depends(get_current_active_user)
+    case_id: str, current_user: dict = Depends(get_current_active_user),
+    db: DatabaseClient = Depends(get_db)
 ):
     """
     Approves the System Design for a business case, updating the case status to SYSTEM_DESIGN_APPROVED.
@@ -1044,7 +1056,7 @@ async def approve_system_design(
         # Import BusinessCaseStatus from orchestrator_agent
         from app.agents.orchestrator_agent import BusinessCaseStatus
 
-        db = firestore.Client(project=settings.firebase_project_id)
+        
         case_doc_ref = db.collection("businessCases").document(case_id)
 
         doc_snapshot = await asyncio.to_thread(case_doc_ref.get)
@@ -1084,7 +1096,7 @@ async def approve_system_design(
         update_data = {
             "status": BusinessCaseStatus.SYSTEM_DESIGN_APPROVED.value,
             "updated_at": datetime.now(timezone.utc),
-            "history": firestore.ArrayUnion([history_entry]),
+            "history": get_array_union([history_entry]),
         }
 
         await asyncio.to_thread(case_doc_ref.update, update_data)
@@ -1141,7 +1153,7 @@ async def reject_system_design(
         # Import BusinessCaseStatus from orchestrator_agent
         from app.agents.orchestrator_agent import BusinessCaseStatus
 
-        db = firestore.Client(project=settings.firebase_project_id)
+        
         case_doc_ref = db.collection("businessCases").document(case_id)
 
         doc_snapshot = await asyncio.to_thread(case_doc_ref.get)
@@ -1185,7 +1197,7 @@ async def reject_system_design(
         update_data = {
             "status": BusinessCaseStatus.SYSTEM_DESIGN_REJECTED.value,
             "updated_at": datetime.now(timezone.utc),
-            "history": firestore.ArrayUnion([history_entry]),
+            "history": get_array_union([history_entry]),
         }
 
         await asyncio.to_thread(case_doc_ref.update, update_data)
@@ -1218,6 +1230,7 @@ async def update_effort_estimate(
     case_id: str,
     effort_update_request: EffortEstimateUpdateRequest,
     current_user: dict = Depends(get_current_active_user),
+    db: DatabaseClient = Depends(get_db),
 ):
     """
     Updates the Effort Estimate for a specific business case.
@@ -1232,7 +1245,7 @@ async def update_effort_estimate(
     try:
         from app.agents.orchestrator_agent import BusinessCaseStatus
 
-        db = firestore.Client(project=settings.firebase_project_id)
+        
         case_doc_ref = db.collection("businessCases").document(case_id)
 
         doc_snapshot = await asyncio.to_thread(case_doc_ref.get)
@@ -1293,7 +1306,7 @@ async def update_effort_estimate(
         update_data = {
             "effort_estimate_v1": updated_effort_estimate,
             "updated_at": datetime.now(timezone.utc),
-            "history": firestore.ArrayUnion([history_entry]),
+            "history": get_array_union([history_entry]),
         }
 
         await asyncio.to_thread(case_doc_ref.update, update_data)
@@ -1322,7 +1335,8 @@ async def update_effort_estimate(
     summary="Submit Effort Estimate for review",
 )
 async def submit_effort_estimate_for_review(
-    case_id: str, current_user: dict = Depends(get_current_active_user)
+    case_id: str, current_user: dict = Depends(get_current_active_user),
+    db: DatabaseClient = Depends(get_db)
 ):
     """
     Submits the Effort Estimate for review, updating the case status to EFFORT_PENDING_REVIEW.
@@ -1337,7 +1351,7 @@ async def submit_effort_estimate_for_review(
     try:
         from app.agents.orchestrator_agent import BusinessCaseStatus
 
-        db = firestore.Client(project=settings.firebase_project_id)
+        
         case_doc_ref = db.collection("businessCases").document(case_id)
 
         doc_snapshot = await asyncio.to_thread(case_doc_ref.get)
@@ -1394,7 +1408,7 @@ async def submit_effort_estimate_for_review(
         update_data = {
             "status": BusinessCaseStatus.EFFORT_PENDING_REVIEW.value,
             "updated_at": datetime.now(timezone.utc),
-            "history": firestore.ArrayUnion([history_entry]),
+            "history": get_array_union([history_entry]),
         }
 
         await asyncio.to_thread(case_doc_ref.update, update_data)
@@ -1429,6 +1443,7 @@ async def update_cost_estimate(
     case_id: str,
     cost_update_request: CostEstimateUpdateRequest,
     current_user: dict = Depends(get_current_active_user),
+    db: DatabaseClient = Depends(get_db),
 ):
     """
     Updates the Cost Estimate for a specific business case.
@@ -1443,7 +1458,7 @@ async def update_cost_estimate(
     try:
         from app.agents.orchestrator_agent import BusinessCaseStatus
 
-        db = firestore.Client(project=settings.firebase_project_id)
+        
         case_doc_ref = db.collection("businessCases").document(case_id)
 
         doc_snapshot = await asyncio.to_thread(case_doc_ref.get)
@@ -1505,7 +1520,7 @@ async def update_cost_estimate(
         update_data = {
             "cost_estimate_v1": updated_cost_estimate,
             "updated_at": datetime.now(timezone.utc),
-            "history": firestore.ArrayUnion([history_entry]),
+            "history": get_array_union([history_entry]),
         }
 
         await asyncio.to_thread(case_doc_ref.update, update_data)
@@ -1534,7 +1549,8 @@ async def update_cost_estimate(
     summary="Submit Cost Estimate for review",
 )
 async def submit_cost_estimate_for_review(
-    case_id: str, current_user: dict = Depends(get_current_active_user)
+    case_id: str, current_user: dict = Depends(get_current_active_user),
+    db: DatabaseClient = Depends(get_db)
 ):
     """
     Submits the Cost Estimate for review, updating the case status to COSTING_PENDING_REVIEW.
@@ -1549,7 +1565,7 @@ async def submit_cost_estimate_for_review(
     try:
         from app.agents.orchestrator_agent import BusinessCaseStatus
 
-        db = firestore.Client(project=settings.firebase_project_id)
+        
         case_doc_ref = db.collection("businessCases").document(case_id)
 
         doc_snapshot = await asyncio.to_thread(case_doc_ref.get)
@@ -1606,7 +1622,7 @@ async def submit_cost_estimate_for_review(
         update_data = {
             "status": BusinessCaseStatus.COSTING_PENDING_REVIEW.value,
             "updated_at": datetime.now(timezone.utc),
-            "history": firestore.ArrayUnion([history_entry]),
+            "history": get_array_union([history_entry]),
         }
 
         await asyncio.to_thread(case_doc_ref.update, update_data)
@@ -1639,6 +1655,7 @@ async def update_value_projection(
     case_id: str,
     value_update_request: ValueProjectionUpdateRequest,
     current_user: dict = Depends(get_current_active_user),
+    db: DatabaseClient = Depends(get_db),
 ):
     """
     Updates the Value Projection for a specific business case.
@@ -1653,7 +1670,7 @@ async def update_value_projection(
     try:
         from app.agents.orchestrator_agent import BusinessCaseStatus
 
-        db = firestore.Client(project=settings.firebase_project_id)
+        
         case_doc_ref = db.collection("businessCases").document(case_id)
 
         doc_snapshot = await asyncio.to_thread(case_doc_ref.get)
@@ -1715,7 +1732,7 @@ async def update_value_projection(
         update_data = {
             "value_projection_v1": updated_value_projection,
             "updated_at": datetime.now(timezone.utc),
-            "history": firestore.ArrayUnion([history_entry]),
+            "history": get_array_union([history_entry]),
         }
 
         await asyncio.to_thread(case_doc_ref.update, update_data)
@@ -1746,7 +1763,8 @@ async def update_value_projection(
     summary="Submit Value Projection for review",
 )
 async def submit_value_projection_for_review(
-    case_id: str, current_user: dict = Depends(get_current_active_user)
+    case_id: str, current_user: dict = Depends(get_current_active_user),
+    db: DatabaseClient = Depends(get_db)
 ):
     """
     Submits the Value Projection for review, updating the case status to VALUE_PENDING_REVIEW.
@@ -1761,7 +1779,7 @@ async def submit_value_projection_for_review(
     try:
         from app.agents.orchestrator_agent import BusinessCaseStatus
 
-        db = firestore.Client(project=settings.firebase_project_id)
+        
         case_doc_ref = db.collection("businessCases").document(case_id)
 
         doc_snapshot = await asyncio.to_thread(case_doc_ref.get)
@@ -1818,7 +1836,7 @@ async def submit_value_projection_for_review(
         update_data = {
             "status": BusinessCaseStatus.VALUE_PENDING_REVIEW.value,
             "updated_at": datetime.now(timezone.utc),
-            "history": firestore.ArrayUnion([history_entry]),
+            "history": get_array_union([history_entry]),
         }
 
         await asyncio.to_thread(case_doc_ref.update, update_data)
@@ -1853,7 +1871,8 @@ async def submit_value_projection_for_review(
     summary="Approve Effort Estimate for a specific business case",
 )
 async def approve_effort_estimate(
-    case_id: str, current_user: dict = Depends(get_current_active_user)
+    case_id: str, current_user: dict = Depends(get_current_active_user),
+    db: DatabaseClient = Depends(get_db)
 ):
     """
     Approves the Effort Estimate for a specific business case.
@@ -1868,7 +1887,7 @@ async def approve_effort_estimate(
     try:
         from app.agents.orchestrator_agent import BusinessCaseStatus
 
-        db = firestore.Client(project=settings.firebase_project_id)
+        
         case_doc_ref = db.collection("businessCases").document(case_id)
 
         doc_snapshot = await asyncio.to_thread(case_doc_ref.get)
@@ -1915,7 +1934,7 @@ async def approve_effort_estimate(
         update_data = {
             "status": BusinessCaseStatus.EFFORT_APPROVED.value,
             "updated_at": datetime.now(timezone.utc),
-            "history": firestore.ArrayUnion([history_entry]),
+            "history": get_array_union([history_entry]),
         }
 
         await asyncio.to_thread(case_doc_ref.update, update_data)
@@ -1964,7 +1983,7 @@ async def reject_effort_estimate(
     try:
         from app.agents.orchestrator_agent import BusinessCaseStatus
 
-        db = firestore.Client(project=settings.firebase_project_id)
+        
         case_doc_ref = db.collection("businessCases").document(case_id)
 
         doc_snapshot = await asyncio.to_thread(case_doc_ref.get)
@@ -2015,7 +2034,7 @@ async def reject_effort_estimate(
         update_data = {
             "status": BusinessCaseStatus.PLANNING_COMPLETE.value,
             "updated_at": datetime.now(timezone.utc),
-            "history": firestore.ArrayUnion([history_entry]),
+            "history": get_array_union([history_entry]),
         }
 
         await asyncio.to_thread(case_doc_ref.update, update_data)
@@ -2047,7 +2066,8 @@ async def reject_effort_estimate(
     summary="Approve Cost Estimate for a specific business case",
 )
 async def approve_cost_estimate(
-    case_id: str, current_user: dict = Depends(get_current_active_user)
+    case_id: str, current_user: dict = Depends(get_current_active_user),
+    db: DatabaseClient = Depends(get_db)
 ):
     """
     Approves the Cost Estimate for a specific business case.
@@ -2062,7 +2082,7 @@ async def approve_cost_estimate(
     try:
         from app.agents.orchestrator_agent import BusinessCaseStatus
 
-        db = firestore.Client(project=settings.firebase_project_id)
+        
         case_doc_ref = db.collection("businessCases").document(case_id)
 
         doc_snapshot = await asyncio.to_thread(case_doc_ref.get)
@@ -2109,7 +2129,7 @@ async def approve_cost_estimate(
         update_data = {
             "status": BusinessCaseStatus.COSTING_APPROVED.value,
             "updated_at": datetime.now(timezone.utc),
-            "history": firestore.ArrayUnion([history_entry]),
+            "history": get_array_union([history_entry]),
         }
 
         await asyncio.to_thread(case_doc_ref.update, update_data)
@@ -2169,7 +2189,7 @@ async def reject_cost_estimate(
     try:
         from app.agents.orchestrator_agent import BusinessCaseStatus
 
-        db = firestore.Client(project=settings.firebase_project_id)
+        
         case_doc_ref = db.collection("businessCases").document(case_id)
 
         doc_snapshot = await asyncio.to_thread(case_doc_ref.get)
@@ -2220,7 +2240,7 @@ async def reject_cost_estimate(
         update_data = {
             "status": BusinessCaseStatus.COSTING_COMPLETE.value,
             "updated_at": datetime.now(timezone.utc),
-            "history": firestore.ArrayUnion([history_entry]),
+            "history": get_array_union([history_entry]),
         }
 
         await asyncio.to_thread(case_doc_ref.update, update_data)
@@ -2250,7 +2270,8 @@ async def reject_cost_estimate(
     summary="Approve Value Projection for a specific business case",
 )
 async def approve_value_projection(
-    case_id: str, current_user: dict = Depends(get_current_active_user)
+    case_id: str, current_user: dict = Depends(get_current_active_user),
+    db: DatabaseClient = Depends(get_db)
 ):
     """
     Approves the Value Projection for a specific business case.
@@ -2266,7 +2287,7 @@ async def approve_value_projection(
     try:
         from app.agents.orchestrator_agent import BusinessCaseStatus
 
-        db = firestore.Client(project=settings.firebase_project_id)
+        
         case_doc_ref = db.collection("businessCases").document(case_id)
 
         doc_snapshot = await asyncio.to_thread(case_doc_ref.get)
@@ -2320,7 +2341,7 @@ async def approve_value_projection(
         update_data = {
             "status": BusinessCaseStatus.VALUE_APPROVED.value,
             "updated_at": datetime.now(timezone.utc),
-            "history": firestore.ArrayUnion([history_entry]),
+            "history": get_array_union([history_entry]),
         }
 
         await asyncio.to_thread(case_doc_ref.update, update_data)
@@ -2383,7 +2404,7 @@ async def reject_value_projection(
     try:
         from app.agents.orchestrator_agent import BusinessCaseStatus
 
-        db = firestore.Client(project=settings.firebase_project_id)
+        
         case_doc_ref = db.collection("businessCases").document(case_id)
 
         doc_snapshot = await asyncio.to_thread(case_doc_ref.get)
@@ -2441,7 +2462,7 @@ async def reject_value_projection(
         update_data = {
             "status": BusinessCaseStatus.VALUE_ANALYSIS_COMPLETE.value,
             "updated_at": datetime.now(timezone.utc),
-            "history": firestore.ArrayUnion([history_entry]),
+            "history": get_array_union([history_entry]),
         }
 
         await asyncio.to_thread(case_doc_ref.update, update_data)
@@ -2482,7 +2503,8 @@ class FinalRejectRequest(BaseModel):
     summary="Submit business case for final approval",
 )
 async def submit_case_for_final_approval(
-    case_id: str, current_user: dict = Depends(get_current_active_user)
+    case_id: str, current_user: dict = Depends(get_current_active_user),
+    db: DatabaseClient = Depends(get_db)
 ):
     """
     Submits the business case for final approval by updating status to PENDING_FINAL_APPROVAL.
@@ -2498,7 +2520,7 @@ async def submit_case_for_final_approval(
     try:
         from app.agents.orchestrator_agent import BusinessCaseStatus
 
-        db = firestore.Client(project=settings.firebase_project_id)
+        
         case_doc_ref = db.collection("businessCases").document(case_id)
 
         doc_snapshot = await asyncio.to_thread(case_doc_ref.get)
@@ -2545,7 +2567,7 @@ async def submit_case_for_final_approval(
         update_data = {
             "status": BusinessCaseStatus.PENDING_FINAL_APPROVAL.value,
             "updated_at": datetime.now(timezone.utc),
-            "history": firestore.ArrayUnion([history_entry]),
+            "history": get_array_union([history_entry]),
         }
 
         await asyncio.to_thread(case_doc_ref.update, update_data)
@@ -2594,7 +2616,7 @@ async def approve_final_case(
     try:
         from app.agents.orchestrator_agent import BusinessCaseStatus
 
-        db = firestore.Client(project=settings.firebase_project_id)
+        
         case_doc_ref = db.collection("businessCases").document(case_id)
 
         doc_snapshot = await asyncio.to_thread(case_doc_ref.get)
@@ -2634,7 +2656,7 @@ async def approve_final_case(
         update_data = {
             "status": BusinessCaseStatus.APPROVED.value,
             "updated_at": datetime.now(timezone.utc),
-            "history": firestore.ArrayUnion([history_entry]),
+            "history": get_array_union([history_entry]),
         }
 
         await asyncio.to_thread(case_doc_ref.update, update_data)
@@ -2682,7 +2704,7 @@ async def reject_final_case(
     try:
         from app.agents.orchestrator_agent import BusinessCaseStatus
 
-        db = firestore.Client(project=settings.firebase_project_id)
+        
         case_doc_ref = db.collection("businessCases").document(case_id)
 
         doc_snapshot = await asyncio.to_thread(case_doc_ref.get)
@@ -2726,7 +2748,7 @@ async def reject_final_case(
         update_data = {
             "status": BusinessCaseStatus.REJECTED.value,
             "updated_at": datetime.now(timezone.utc),
-            "history": firestore.ArrayUnion([history_entry]),
+            "history": get_array_union([history_entry]),
         }
 
         await asyncio.to_thread(case_doc_ref.update, update_data)
@@ -2752,7 +2774,8 @@ async def reject_final_case(
 
 @router.get("/cases/{case_id}/export-pd", summary="Export business case as PDF")
 async def export_case_to_pdf(
-    case_id: str, current_user: dict = Depends(get_current_active_user)
+    case_id: str, current_user: dict = Depends(get_current_active_user),
+    db: DatabaseClient = Depends(get_db)
 ):
     """
     Exports a business case as a PDF document.
@@ -2767,7 +2790,7 @@ async def export_case_to_pdf(
         raise HTTPException(status_code=401, detail="User ID not found in token.")
 
     try:
-        db = firestore.Client(project=settings.firebase_project_id)
+        
         case_doc_ref = db.collection("businessCases").document(case_id)
 
         # Fetch case document

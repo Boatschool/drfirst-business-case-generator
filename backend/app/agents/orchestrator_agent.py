@@ -9,8 +9,9 @@ import uuid
 from datetime import datetime, timezone
 
 from pydantic import BaseModel, Field
-from google.cloud import firestore
 from app.core.config import settings
+from app.core.dependencies import get_db, get_array_union
+from app.core.database import DatabaseClient
 
 # Import ProductManagerAgent
 from .product_manager_agent import ProductManagerAgent
@@ -136,7 +137,7 @@ class OrchestratorAgent:
     by managing other specialized agents.
     """
 
-    def __init__(self):
+    def __init__(self, db: Optional[DatabaseClient] = None):
         self.name = "Orchestrator Agent"
         self.description = "Coordinates the business case generation process"
         self.status = "initialized"
@@ -147,12 +148,10 @@ class OrchestratorAgent:
         self.cost_analyst_agent = CostAnalystAgent()
         self.sales_value_analyst_agent = SalesValueAnalystAgent()
         self.financial_model_agent = FinancialModelAgent()
-        try:
-            self.db = firestore.Client(project=settings.firebase_project_id)
-            print("OrchestratorAgent: Firestore client initialized successfully.")
-        except Exception as e:
-            print(f"OrchestratorAgent: Failed to initialize Firestore client: {e}")
-            self.db = None
+        
+        # Use dependency injection for database client
+        self.db = db if db is not None else get_db()
+        print("OrchestratorAgent: Database client initialized successfully.")
 
     async def handle_request(
         self, request_type: str, payload: Dict[str, Any], user_id: str
@@ -426,7 +425,7 @@ class OrchestratorAgent:
             update_data = {
                 "status": BusinessCaseStatus.SYSTEM_DESIGN_DRAFTING.value,
                 "updated_at": current_time,
-                "history": firestore.ArrayUnion(
+                "history": get_array_union(
                     [
                         {
                             "timestamp": current_time.isoformat(),
@@ -457,7 +456,7 @@ class OrchestratorAgent:
                     "system_design_v1_draft": system_design_draft,
                     "status": BusinessCaseStatus.SYSTEM_DESIGN_DRAFTED.value,
                     "updated_at": updated_at_time,
-                    "history": firestore.ArrayUnion(
+                    "history": get_array_union(
                         [
                             {
                                 "timestamp": updated_at_time.isoformat(),
@@ -521,7 +520,7 @@ class OrchestratorAgent:
                 update_data = {
                     "status": BusinessCaseStatus.PRD_APPROVED.value,  # Revert to PRD_APPROVED
                     "updated_at": updated_at_time,
-                    "history": firestore.ArrayUnion(
+                    "history": get_array_union(
                         [
                             {
                                 "timestamp": updated_at_time.isoformat(),
@@ -575,7 +574,7 @@ class OrchestratorAgent:
             update_data = {
                 "status": BusinessCaseStatus.PLANNING_IN_PROGRESS.value,
                 "updated_at": current_time,
-                "history": firestore.ArrayUnion(
+                "history": get_array_union(
                     [
                         {
                             "timestamp": current_time.isoformat(),
@@ -608,7 +607,7 @@ class OrchestratorAgent:
                     "effort_estimate_v1": effort_breakdown,
                     "status": BusinessCaseStatus.PLANNING_COMPLETE.value,
                     "updated_at": updated_at_time,
-                    "history": firestore.ArrayUnion(
+                    "history": get_array_union(
                         [
                             {
                                 "timestamp": updated_at_time.isoformat(),
@@ -652,7 +651,7 @@ class OrchestratorAgent:
                 update_data = {
                     "status": BusinessCaseStatus.SYSTEM_DESIGN_DRAFTED.value,  # Revert to previous status
                     "updated_at": updated_at_time,
-                    "history": firestore.ArrayUnion(
+                    "history": get_array_union(
                         [
                             {
                                 "timestamp": updated_at_time.isoformat(),
@@ -704,7 +703,7 @@ class OrchestratorAgent:
             update_data = {
                 "status": BusinessCaseStatus.COSTING_IN_PROGRESS.value,
                 "updated_at": current_time,
-                "history": firestore.ArrayUnion(
+                "history": get_array_union(
                     [
                         {
                             "timestamp": current_time.isoformat(),
@@ -735,7 +734,7 @@ class OrchestratorAgent:
                     "cost_estimate_v1": cost_estimate,
                     "status": BusinessCaseStatus.COSTING_COMPLETE.value,
                     "updated_at": updated_at_time,
-                    "history": firestore.ArrayUnion(
+                    "history": get_array_union(
                         [
                             {
                                 "timestamp": updated_at_time.isoformat(),
@@ -777,7 +776,7 @@ class OrchestratorAgent:
                 update_data = {
                     "status": BusinessCaseStatus.PLANNING_COMPLETE.value,  # Revert to previous status
                     "updated_at": updated_at_time,
-                    "history": firestore.ArrayUnion(
+                    "history": get_array_union(
                         [
                             {
                                 "timestamp": updated_at_time.isoformat(),
@@ -825,7 +824,7 @@ class OrchestratorAgent:
             update_data = {
                 "status": BusinessCaseStatus.VALUE_ANALYSIS_IN_PROGRESS.value,
                 "updated_at": current_time,
-                "history": firestore.ArrayUnion(
+                "history": get_array_union(
                     [
                         {
                             "timestamp": current_time.isoformat(),
@@ -856,7 +855,7 @@ class OrchestratorAgent:
                     "value_projection_v1": value_projection,
                     "status": BusinessCaseStatus.VALUE_ANALYSIS_COMPLETE.value,
                     "updated_at": updated_at_time,
-                    "history": firestore.ArrayUnion(
+                    "history": get_array_union(
                         [
                             {
                                 "timestamp": updated_at_time.isoformat(),
@@ -902,7 +901,7 @@ class OrchestratorAgent:
                 update_data = {
                     "status": BusinessCaseStatus.COSTING_COMPLETE.value,  # Revert to previous status
                     "updated_at": updated_at_time,
-                    "history": firestore.ArrayUnion(
+                    "history": get_array_union(
                         [
                             {
                                 "timestamp": updated_at_time.isoformat(),
@@ -1099,7 +1098,7 @@ class OrchestratorAgent:
             update_data = {
                 "status": BusinessCaseStatus.FINANCIAL_MODEL_IN_PROGRESS.value,
                 "updated_at": current_time,
-                "history": firestore.ArrayUnion(
+                "history": get_array_union(
                     [
                         {
                             "timestamp": current_time.isoformat(),
@@ -1146,7 +1145,7 @@ class OrchestratorAgent:
                     "financial_summary_v1": financial_summary,
                     "status": BusinessCaseStatus.FINANCIAL_MODEL_COMPLETE.value,
                     "updated_at": updated_at_time,
-                    "history": firestore.ArrayUnion(
+                    "history": get_array_union(
                         [
                             {
                                 "timestamp": updated_at_time.isoformat(),
@@ -1190,7 +1189,7 @@ class OrchestratorAgent:
                 update_data = {
                     "status": BusinessCaseStatus.VALUE_APPROVED.value,  # Revert to stable state
                     "updated_at": updated_at_time,
-                    "history": firestore.ArrayUnion(
+                    "history": get_array_union(
                         [
                             {
                                 "timestamp": updated_at_time.isoformat(),

@@ -3,7 +3,6 @@ import React, {
   useState,
   useEffect,
   ReactNode,
-  useContext,
   useMemo,
 } from 'react';
 // FirebaseUser is used by Firebase SDK, AuthUser is our simplified version from authService

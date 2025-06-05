@@ -1,21 +1,472 @@
 # Backend CI Placeholder
-name: Backend CI
+name: Backend CI & Staging CD
 
 on:
   push:
-    branches: [ main, develop ]
-    paths: ['backend/**']
+    branches:
+      - main
+      - develop
   pull_request:
-    branches: [ main ]
-    paths: ['backend/**']
+    branches:
+      - main
+      - develop
+
+env:
+  GAR_REGION: us-central1
+  GAR_PROJECT_ID: drfirst-business-case-gen
+  GAR_REPOSITORY: drfirst-backend
+  IMAGE_NAME: drfirst-backend
 
 jobs:
-  backend-ci:
+  build-and-test:
     runs-on: ubuntu-latest
+    
+    # Add permissions for Workload Identity Federation
+    permissions:
+      contents: read
+      id-token: write
+
+    outputs:
+      image_base: ${{ steps.image-tags.outputs.image_base }}
+      image_sha_tag: ${{ steps.image-tags.outputs.image_sha_tag }}
+
     steps:
-      - uses: actions/checkout@v3
-      - name: Setup Python
-        uses: actions/setup-python@v4
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
         with:
           python-version: '3.11'
-      # Add backend CI steps here 
+
+      - name: Cache Python dependencies
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-${{ hashFiles('backend/requirements.txt') }}
+          restore-keys: |
+            ${{ runner.os }}-pip-
+
+      - name: Install Dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r backend/requirements.txt
+
+      - name: Lint Code
+        run: |
+          flake8 --config=backend/.flake8 backend/app backend/tests
+
+      - name: Create fake Google credentials for testing
+        working-directory: ./backend
+        run: |
+          mkdir -p ~/.config/gcloud
+          cat > fake-credentials.json << 'EOF'
+          {
+            "type": "service_account",
+            "project_id": "test-project",
+            "private_key_id": "fake-key-id",
+            "private_key": "-----BEGIN PRIVATE KEY-----\nMIIEvQIBADANBgkqhkiG9w0BAQEFAASCBKcwggSjAgEAAoIBAQCmFzGJ/2TwxHZ4\nZO9cBe7T5DlQCB4LUDk4U4F85xcaXepuoOvdZFIgqjS59X0XUJw7rI734nHBSI8x\nhxWcu91yON7C89ovUhNdLlsi1Dr7ldJrGYjK2ZRv3Ej8IowDuW/qeHPpuBR0XPJ0\n2lJsRybDvDA23jayVr1+Q22t1JeA7p+S8G4WsGlBbHmTdCROnBxazKfDEgIfc85F\nIumhNOKIOzH/KzQKafUfX7L8AgsgUkGOFWwHjIP3U67yg49hzFZ5znWJgT1odQ9r\ntBdcPLZGr2QqUB44DmuPkRXxf7h9UdP0OjFo9xML6iwXMafAYLwLy+6K1TSgGbGA\nt1RdQ+otAgMBAAECggEAHpxOsobB5UfoJ7c+kCC9zAqXb4MXenFOIm3tgwYaMW9W\nqg35eoOnSULlVdKDO/1M1givDsuKuJs1XOTvHERZg1gs4hRMRYVkcTt+a3Re7IhH\n0BpUJkKkg1s/jkyVrogKMtYBUvVsu6d3vgaQw0j3wYJZBnu86/BlmzQ1LiDszUOh\nKeVf3wVAMoQBkh1VLGyBXhTva/RQN4QuatBvvH+zC/aUScARvwMhafYa42ZyVT6m\npdzAd/x+VDFPRRbsGMb+/veO2q6YPPMr7K4vuY4OpSd/KPWhLE3fuPE4sngyuxZe\ncDLSbxMmhVeu5mZEK9Og9FIUdJBu+esndYVEPqjFFwKBgQDd7Kr/JJZEC02+XR67\n7wVj3uChSFcec19s2vcs+C3msDW9j+TAmJYyPTNFv/MlGVIhvX78ZzU5wd/UNC/+\nz4nGGaJtYRLH1xxm2a0PIvyaYx+7lYUp+tcAxzaby0w/IAHpITMiW0vmkDKY+pEo\nifyhH+q1uqh9gPV53LN5CPATDwKBgQC/l9OEUqF4A227jzR5xM+PARTuVJXQ80ZT\nw/Rizoha63REEm9V6HpHZAW6d8nPPS9el9oCHnM9LkO+Sq8knKolrrJ5OftU15vO\nT4mSe2dWCDQqPZoxYGjEtHlYILFS6UpU+fpW1NVT9WF/dmzgMob5nXK3s+SJNNz+\nxYpPag0/AwKBgQCtltU+lCDSAsGCGRbUTCe8MfclUQ+MKxTGchSL4WkOHGE88NQu\n7mv1yjdT5MxNBZxf9fjhd92DWyo4s8WjHDWZdi2+PwNQu+tka/pZb7WFEeodcdxi\ntOn+mtUVUhVG/0NfVu/HfQBGzh412TE4M48ffXa7RdFLslbRRphAIYSgcwKBgFSx\nHpT9mdbdXSJt2TqCn2WNit0Xkuo8v7fDhUIwHeJi9pAovgJxs6vfMREOZq0vVMMx\nyPLq1vISg2uYw/chMa1anhYsZUdJz9vRGPUhi7piAf0yIfj1rxpU1Nb6DKij63HI\n1rqPdoWYkLKxfMtWSogI6279HGbycUZFuDAGpzhVAoGAFCfYbdKk3i4vBgDVTIut\nD5Ipwq+tqQ33aDcxK8nPI1drStdT+K05O4cWOewNlxy9LbRQA2KUvXairQ8/fMbw\nH88Yvay7ry9APdlK36qwugo4mmgbhyL33KVvSbZsQei4wChthOCdWIfu/RpbidiT\nQYrK4wxCohEV3RPYtVfW1zM=\n-----END PRIVATE KEY-----\n",
+            "client_email": "test-service-account@test-project.iam.gserviceaccount.com",
+            "client_id": "12345678901234567890",
+            "auth_uri": "https://accounts.google.com/o/oauth2/auth",
+            "token_uri": "https://oauth2.googleapis.com/token",
+            "auth_provider_x509_cert_url": "https://www.googleapis.com/oauth2/v1/certs",
+            "client_x509_cert_url": "https://www.googleapis.com/robot/v1/metadata/x509/test-service-account%40test-project.iam.gserviceaccount.com"
+          }
+          EOF
+
+      - name: Run Tests
+        working-directory: ./backend
+        env:
+          PYTHONPATH: .
+          SECRET_KEY: test-secret-key-for-ci
+          GOOGLE_CLOUD_PROJECT_ID: test-project
+          FIREBASE_PROJECT_ID: test-project
+          VERTEX_AI_LOCATION: us-central1
+          VERTEX_AI_MODEL_NAME: gemini-2.0-flash-lite
+          LOG_LEVEL: INFO
+          DEBUG: false
+          ENVIRONMENT: test
+          GOOGLE_APPLICATION_CREDENTIALS: fake-credentials.json
+          GOOGLE_AUTH_SUPPRESS_CREDENTIALS_WARNINGS: "true"
+        run: |
+          python -m pytest tests/ --verbose --cov=app --cov-report=term-missing
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build Docker Image
+        uses: docker/build-push-action@v5
+        with:
+          context: ./backend
+          file: ./backend/Dockerfile
+          platforms: linux/amd64
+          push: false
+          tags: |
+            ${{ env.IMAGE_NAME }}:ci-${{ github.sha }}
+            ${{ env.IMAGE_NAME }}:ci-latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      # GCP Authentication and Image Push (only on push to main/develop)
+      - name: Authenticate to Google Cloud
+        if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop')
+        id: auth
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ secrets.GCP_SERVICE_ACCOUNT_EMAIL }}
+
+      - name: Set up Cloud SDK
+        if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop')
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Configure Docker for Artifact Registry
+        if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop')
+        run: |-
+          gcloud auth configure-docker ${{ env.GAR_REGION }}-docker.pkg.dev
+
+      - name: Generate image tags
+        if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop')
+        id: image-tags
+        run: |
+          # Base image path
+          IMAGE_BASE="${{ env.GAR_REGION }}-docker.pkg.dev/${{ env.GAR_PROJECT_ID }}/${{ env.GAR_REPOSITORY }}/${{ env.IMAGE_NAME }}"
+          
+          # Always tag with commit SHA
+          TAGS="${IMAGE_BASE}:${{ github.sha }}"
+          
+          # Add branch-specific tags
+          if [[ "${{ github.ref }}" == "refs/heads/main" ]]; then
+            TAGS="${TAGS}
+          ${IMAGE_BASE}:latest
+          ${IMAGE_BASE}:main"
+          elif [[ "${{ github.ref }}" == "refs/heads/develop" ]]; then
+            TAGS="${TAGS}
+          ${IMAGE_BASE}:develop"
+          fi
+          
+          # Set output for next step
+          echo "tags<<EOF" >> $GITHUB_OUTPUT
+          echo "$TAGS" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+          
+          # Also set base path and SHA tag for easy reference
+          echo "image_base=${IMAGE_BASE}" >> $GITHUB_OUTPUT
+          echo "image_sha_tag=${IMAGE_BASE}:${{ github.sha }}" >> $GITHUB_OUTPUT
+
+      - name: Build and Push Docker image to Artifact Registry
+        if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop')
+        uses: docker/build-push-action@v5
+        with:
+          context: ./backend
+          file: ./backend/Dockerfile
+          platforms: linux/amd64
+          push: true
+          tags: ${{ steps.image-tags.outputs.tags }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          labels: |
+            org.opencontainers.image.title=DrFirst Backend
+            org.opencontainers.image.description=Backend API for DrFirst Business Case Generator
+            org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
+            org.opencontainers.image.revision=${{ github.sha }}
+            org.opencontainers.image.created=${{ github.event.head_commit.timestamp }}
+
+      - name: Output image details
+        if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop')
+        run: |
+          echo "🚀 Successfully pushed Docker image to Google Artifact Registry!"
+          echo ""
+          echo "📋 Image Details:"
+          echo "Repository: ${{ steps.image-tags.outputs.image_base }}"
+          echo "Tags pushed:"
+          echo "${{ steps.image-tags.outputs.tags }}" | sed 's/^/  - /'
+          echo ""
+          echo "🔗 View in Google Cloud Console:"
+          echo "https://console.cloud.google.com/artifacts/docker/${{ env.GAR_PROJECT_ID }}/${{ env.GAR_REGION }}/${{ env.GAR_REPOSITORY }}?project=${{ env.GAR_PROJECT_ID }}"
+
+      - name: Security scan with Trivy
+        if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop')
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: ${{ steps.image-tags.outputs.image_base }}:${{ github.sha }}
+          format: 'sarif'
+          output: 'trivy-results.sarif'
+
+      - name: Upload Trivy scan results to GitHub Security tab
+        if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop')
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: 'trivy-results.sarif'
+
+  # Optional: Job to verify the image can be pulled (integration test)
+  verify-image:
+    if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop')
+    needs: build-and-test
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+
+    steps:
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ secrets.GCP_SERVICE_ACCOUNT_EMAIL }}
+
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Configure Docker for Artifact Registry
+        run: |-
+          gcloud auth configure-docker ${{ env.GAR_REGION }}-docker.pkg.dev
+
+      - name: Verify image can be pulled
+        run: |
+          IMAGE_PATH="${{ env.GAR_REGION }}-docker.pkg.dev/${{ env.GAR_PROJECT_ID }}/${{ env.GAR_REPOSITORY }}/${{ env.IMAGE_NAME }}:${{ github.sha }}"
+          echo "🔍 Attempting to pull image: ${IMAGE_PATH}"
+          
+          if docker pull "${IMAGE_PATH}"; then
+            echo "✅ Successfully pulled image from Artifact Registry"
+            
+            # Optional: Run basic health check
+            echo "🏥 Running basic container health check..."
+            CONTAINER_ID=$(docker run -d -p 8000:8000 "${IMAGE_PATH}")
+            sleep 10
+            
+            # Check if container is still running
+            if docker ps | grep -q "${CONTAINER_ID}"; then
+              echo "✅ Container started successfully"
+              docker stop "${CONTAINER_ID}"
+            else
+              echo "❌ Container failed to start"
+              docker logs "${CONTAINER_ID}"
+              exit 1
+            fi
+          else
+            echo "❌ Failed to pull image from Artifact Registry"
+            exit 1
+          fi
+
+  # Continuous Deployment job for staging environment
+  deploy-staging:
+    if: github.event_name == 'push' && github.ref == 'refs/heads/develop'
+    needs: [build-and-test, verify-image]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+
+    steps:
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ secrets.GCP_SERVICE_ACCOUNT_EMAIL }}
+
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Deploy to Cloud Run - Staging
+        uses: google-github-actions/deploy-cloudrun@v2
+        with:
+          service: ${{ secrets.CLOUD_RUN_SERVICE_DEV }}
+          project_id: ${{ env.GAR_PROJECT_ID }}
+          region: ${{ secrets.GCP_REGION }}
+          image: ${{ needs.build-and-test.outputs.image_sha_tag }}
+          env_vars: |
+            ENVIRONMENT=development
+            GOOGLE_CLOUD_PROJECT_ID=${{ env.GAR_PROJECT_ID }}
+            FIREBASE_PROJECT_ID=${{ env.GAR_PROJECT_ID }}
+            VERTEX_AI_LOCATION=${{ secrets.GCP_REGION }}
+            VERTEX_AI_MODEL_NAME=gemini-2.0-flash-lite
+            LOG_LEVEL=INFO
+            DEBUG=false
+            BACKEND_CORS_ORIGINS=${{ secrets.DEV_BACKEND_CORS_ORIGINS }}
+          secrets: |
+            SECRET_KEY=projects/${{ env.GAR_PROJECT_ID }}/secrets/app-secret-key/versions/latest
+            FIREBASE_API_KEY=projects/${{ env.GAR_PROJECT_ID }}/secrets/firebase-api-key/versions/latest
+          flags: "--port=8000 --memory=1Gi --cpu=1 --allow-unauthenticated"
+
+      - name: Verify deployment success
+        run: |
+          echo "🎉 Deployment to Cloud Run staging completed!"
+          echo ""
+          echo "🌐 Service Details:"
+          echo "Service: ${{ secrets.CLOUD_RUN_SERVICE_DEV }}"
+          echo "Region: ${{ secrets.GCP_REGION }}"
+          echo "Project: ${{ env.GAR_PROJECT_ID }}"
+          echo "Image: ${{ needs.build-and-test.outputs.image_sha_tag }}"
+          echo ""
+          echo "🔗 View in Google Cloud Console:"
+          echo "https://console.cloud.google.com/run/detail/${{ secrets.GCP_REGION }}/${{ secrets.CLOUD_RUN_SERVICE_DEV }}/metrics?project=${{ env.GAR_PROJECT_ID }}"
+
+      - name: Health check deployed service
+        run: |
+          echo "🏥 Performing health check on deployed service..."
+          
+          # Get the service URL
+          SERVICE_URL=$(gcloud run services describe ${{ secrets.CLOUD_RUN_SERVICE_DEV }} \
+            --region=${{ secrets.GCP_REGION }} \
+            --format='value(status.url)')
+          
+          echo "Service URL: ${SERVICE_URL}"
+          
+          # Wait a moment for the service to be ready
+          sleep 30
+          
+          # Test the health endpoint
+          if curl -f -s "${SERVICE_URL}/" > /dev/null; then
+            echo "✅ Health check passed - service is responding"
+          else
+            echo "❌ Health check failed - service may not be ready"
+            echo "Trying again in 30 seconds..."
+            sleep 30
+            if curl -f -s "${SERVICE_URL}/" > /dev/null; then
+              echo "✅ Health check passed on retry - service is responding"
+            else
+              echo "❌ Health check failed on retry"
+              exit 1
+            fi
+          fi 
+
+  # Continuous Deployment job for production environment
+  deploy-production:
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    needs: [build-and-test, verify-image]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+
+    steps:
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ secrets.GCP_SERVICE_ACCOUNT_EMAIL }}
+
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Deploy to Cloud Run - Production
+        uses: google-github-actions/deploy-cloudrun@v2
+        with:
+          service: ${{ secrets.CLOUD_RUN_SERVICE_PROD }}
+          project_id: ${{ env.GAR_PROJECT_ID }}
+          region: ${{ secrets.GCP_REGION }}
+          image: ${{ needs.build-and-test.outputs.image_sha_tag }}
+          env_vars: |
+            ENVIRONMENT=production
+            GOOGLE_CLOUD_PROJECT_ID=${{ env.GAR_PROJECT_ID }}
+            FIREBASE_PROJECT_ID=${{ env.GAR_PROJECT_ID }}
+            VERTEX_AI_LOCATION=${{ secrets.GCP_REGION }}
+            VERTEX_AI_MODEL_NAME=gemini-2.0-flash-lite
+            LOG_LEVEL=WARNING
+            DEBUG=false
+            BACKEND_CORS_ORIGINS=${{ secrets.PROD_BACKEND_CORS_ORIGINS }}
+          secrets: |
+            SECRET_KEY=projects/${{ env.GAR_PROJECT_ID }}/secrets/prod-app-secret-key/versions/latest
+            FIREBASE_API_KEY=projects/${{ env.GAR_PROJECT_ID }}/secrets/prod-firebase-api-key/versions/latest
+          flags: "--port=8000 --memory=2Gi --cpu=2 --allow-unauthenticated --max-instances=100 --min-instances=1"
+
+      - name: Verify production deployment success
+        run: |
+          echo "🎉 Deployment to Cloud Run production completed!"
+          echo ""
+          echo "🌐 Service Details:"
+          echo "Service: ${{ secrets.CLOUD_RUN_SERVICE_PROD }}"
+          echo "Region: ${{ secrets.GCP_REGION }}"
+          echo "Project: ${{ env.GAR_PROJECT_ID }}"
+          echo "Image: ${{ needs.build-and-test.outputs.image_sha_tag }}"
+          echo ""
+          echo "🔗 View in Google Cloud Console:"
+          echo "https://console.cloud.google.com/run/detail/${{ secrets.GCP_REGION }}/${{ secrets.CLOUD_RUN_SERVICE_PROD }}/metrics?project=${{ env.GAR_PROJECT_ID }}"
+
+      - name: Health check production service
+        run: |
+          echo "🏥 Performing health check on production service..."
+          
+          # Get the service URL
+          SERVICE_URL=$(gcloud run services describe ${{ secrets.CLOUD_RUN_SERVICE_PROD }} \
+            --region=${{ secrets.GCP_REGION }} \
+            --format='value(status.url)')
+          
+          echo "Production Service URL: ${SERVICE_URL}"
+          
+          # Wait a moment for the service to be ready
+          sleep 30
+          
+          # Test the health endpoint with more robust checking for production
+          MAX_RETRIES=5
+          RETRY_COUNT=0
+          
+          while [ $RETRY_COUNT -lt $MAX_RETRIES ]; do
+            if curl -f -s "${SERVICE_URL}/" > /dev/null; then
+              echo "✅ Production health check passed - service is responding"
+              break
+            else
+              RETRY_COUNT=$((RETRY_COUNT + 1))
+              echo "⏳ Production health check attempt $RETRY_COUNT failed, retrying in 30 seconds..."
+              if [ $RETRY_COUNT -eq $MAX_RETRIES ]; then
+                echo "❌ Production health check failed after $MAX_RETRIES attempts"
+                echo "This is a critical issue that needs immediate attention"
+                exit 1
+              fi
+              sleep 30
+            fi
+          done
+
+      - name: Run production smoke tests
+        run: |
+          echo "🧪 Running production smoke tests..."
+          
+          # Get the service URL
+          SERVICE_URL=$(gcloud run services describe ${{ secrets.CLOUD_RUN_SERVICE_PROD }} \
+            --region=${{ secrets.GCP_REGION }} \
+            --format='value(status.url)')
+          
+          # Test key endpoints
+          echo "Testing root endpoint..."
+          if ! curl -f -s "${SERVICE_URL}/" > /dev/null; then
+            echo "❌ Root endpoint test failed"
+            exit 1
+          fi
+          
+          echo "Testing health endpoint..."
+          if ! curl -f -s "${SERVICE_URL}/health" > /dev/null; then
+            echo "⚠️ Health endpoint not available (this may be expected)"
+          fi
+          
+          echo "Testing API docs endpoint..."
+          if ! curl -f -s "${SERVICE_URL}/docs" > /dev/null; then
+            echo "⚠️ API docs endpoint not available (this may be expected)"
+          fi
+          
+          echo "✅ Production smoke tests completed successfully"
+
+      - name: Send deployment notification
+        run: |
+          echo "📢 Production Deployment Summary"
+          echo "=================================="
+          echo "✅ Successfully deployed to production Cloud Run"
+          echo "🕒 Deployment time: $(date)"
+          echo "🔖 Git SHA: ${{ github.sha }}"
+          echo "🌟 Deployed from: ${{ github.ref }}"
+          echo "👤 Triggered by: ${{ github.actor }}"
+          echo ""
+          echo "🔧 Production Configuration:"
+          echo "  - Environment: production"
+          echo "  - Memory: 2Gi"
+          echo "  - CPU: 2"
+          echo "  - Min instances: 1"
+          echo "  - Max instances: 100"
+          echo "  - Log level: WARNING"
+          echo ""
+          echo "🎯 Next steps:"
+          echo "  - Monitor service health and performance"
+          echo "  - Review logs for any issues"
+          echo "  - Verify frontend integration"
+          echo "  - Update documentation if needed" 

@@ -3,7 +3,6 @@ import React, {
   useState,
   useEffect,
   ReactNode,
-  useContext,
   useMemo,
 } from 'react';
 // FirebaseUser is used by Firebase SDK, AuthUser is our simplified version from authService
@@ -144,15 +143,6 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
-};
-
-// Custom hook to use the auth context
-export const useAuth = (): AuthContextType => {
-  const context = useContext(AuthContext);
-  if (context === undefined) {
-    throw new Error('useAuth must be used within an AuthProvider');
-  }
-  return context;
 };
 
 export { AuthContext };

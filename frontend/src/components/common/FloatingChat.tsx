@@ -130,6 +130,10 @@ const FloatingChat: React.FC<FloatingChatProps> = ({
               overflow: 'hidden',
               border: '1px solid #e0e0e0',
             }}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="chat-title"
+            aria-describedby="chat-description"
           >
             {/* Chat Header */}
             <Box
@@ -148,9 +152,10 @@ const FloatingChat: React.FC<FloatingChatProps> = ({
                 spacing={1}
                 sx={{ flex: 1, minWidth: 0 }}
               >
-                <BotIcon />
+                <BotIcon aria-hidden="true" />
                 <Box sx={{ minWidth: 0, flex: 1 }}>
                   <Typography
+                    id="chat-title"
                     variant="h6"
                     sx={{ fontWeight: 600, fontSize: '1rem' }}
                   >
@@ -158,6 +163,7 @@ const FloatingChat: React.FC<FloatingChatProps> = ({
                   </Typography>
                   {currentCaseTitle && (
                     <Typography
+                      id="chat-description"
                       variant="caption"
                       sx={{
                         opacity: 0.9,
@@ -178,6 +184,7 @@ const FloatingChat: React.FC<FloatingChatProps> = ({
                   size="small"
                   onClick={handleToggleChat}
                   sx={{ color: 'primary.contrastText' }}
+                  aria-label="Minimize chat"
                 >
                   <MinimizeIcon />
                 </IconButton>
@@ -185,6 +192,7 @@ const FloatingChat: React.FC<FloatingChatProps> = ({
                   size="small"
                   onClick={handleToggleChat}
                   sx={{ color: 'primary.contrastText' }}
+                  aria-label="Close chat"
                 >
                   <CloseIcon />
                 </IconButton>
@@ -202,6 +210,9 @@ const FloatingChat: React.FC<FloatingChatProps> = ({
                 flexDirection: 'column',
                 gap: 1,
               }}
+              role="log"
+              aria-live="polite"
+              aria-label="Chat messages"
             >
               {messages.length > 0 ? (
                 messages.map((msg, index) => (
@@ -279,7 +290,12 @@ const FloatingChat: React.FC<FloatingChatProps> = ({
             {/* Input Area */}
             <Box sx={{ p: 2, backgroundColor: 'background.paper' }}>
               {error && (
-                <Alert severity="error" sx={{ mb: 1, fontSize: '0.8rem' }}>
+                <Alert 
+                  severity="error" 
+                  sx={{ mb: 1, fontSize: '0.8rem' }}
+                  role="alert"
+                  aria-live="assertive"
+                >
                   {error}
                 </Alert>
               )}
@@ -304,6 +320,8 @@ const FloatingChat: React.FC<FloatingChatProps> = ({
                       borderRadius: 2,
                     },
                   }}
+                  aria-label="Chat message input"
+                  aria-describedby={error ? 'chat-error' : undefined}
                 />
                 <IconButton
                   color="primary"
@@ -321,6 +339,7 @@ const FloatingChat: React.FC<FloatingChatProps> = ({
                       backgroundColor: 'action.disabled',
                     },
                   }}
+                  aria-label="Send message"
                 >
                   <SendIcon />
                 </IconButton>
@@ -330,6 +349,7 @@ const FloatingChat: React.FC<FloatingChatProps> = ({
                   variant="caption"
                   color="text.secondary"
                   sx={{ mt: 0.5, display: 'block' }}
+                  aria-live="polite"
                 >
                   {isSending ? 'Sending message...' : 'Processing...'}
                 </Typography>
@@ -365,6 +385,12 @@ const FloatingChat: React.FC<FloatingChatProps> = ({
                 },
                 transition: 'all 0.2s ease-in-out',
               }}
+              aria-label={
+                unreadCount > 0
+                  ? `Open chat (${unreadCount} unread messages)`
+                  : 'Open chat with agent'
+              }
+              aria-expanded={isOpen}
             >
               <ChatIcon sx={{ fontSize: 28 }} />
             </Fab>

@@ -61,16 +61,16 @@ PDF_HTML_TEMPLATE = """
         <!-- Financial Analysis -->
         <section class="section financial-analysis">
             <h2 class="section-title">📊 Financial Analysis</h2>
-            
+
             <!-- Effort Estimate -->
             {effort_estimate_section}
-            
+
             <!-- Cost Estimate -->
             {cost_estimate_section}
-            
+
             <!-- Value Projection -->
             {value_projection_section}
-            
+
             <!-- Financial Summary -->
             {financial_summary_section}
         </section>
@@ -353,27 +353,29 @@ footer {
 async def generate_business_case_pdf(case_data: Dict[str, Any]) -> bytes:
     """
     Generate a PDF document for a business case.
-    
+
     Args:
         case_data (Dict[str, Any]): Business case data from Firestore
-        
+
     Returns:
         bytes: PDF document as bytes
-        
+
     Raises:
         Exception: If PDF generation fails
     """
     try:
         logger.info(f"Starting PDF generation for case {case_data.get('case_id')}")
-        
+
         # Use asyncio.to_thread for the blocking PDF generation
         pdf_bytes = await asyncio.to_thread(_generate_pdf_sync, case_data)
-        
+
         logger.info(f"PDF generation completed for case {case_data.get('case_id')}")
         return pdf_bytes
-        
+
     except Exception as e:
-        logger.error(f"PDF generation failed for case {case_data.get('case_id')}: {str(e)}")
+        logger.error(
+            f"PDF generation failed for case {case_data.get('case_id')}: {str(e)}"
+        )
         raise Exception(f"PDF generation failed: {str(e)}")
 
 
@@ -384,17 +386,17 @@ def _generate_pdf_sync(case_data: Dict[str, Any]) -> bytes:
     """
     # Prepare template data
     template_data = _prepare_template_data(case_data)
-    
+
     # Generate HTML content
     html_content = PDF_HTML_TEMPLATE.format(**template_data)
-    
+
     # Create WeasyPrint HTML object
     html_doc = HTML(string=html_content)
-    
+
     # Generate PDF
     pdf_buffer = io.BytesIO()
     html_doc.write_pdf(pdf_buffer)
-    
+
     return pdf_buffer.getvalue()
 
 
@@ -403,73 +405,89 @@ def _prepare_template_data(case_data: Dict[str, Any]) -> Dict[str, str]:
     Prepare data for the HTML template.
     """
     # Basic case information
-    case_id = case_data.get('case_id', 'N/A')
-    title = case_data.get('title', 'Business Case')
-    status = case_data.get('status', 'UNKNOWN')
-    
+    case_id = case_data.get("case_id", "N/A")
+    title = case_data.get("title", "Business Case")
+    status = case_data.get("status", "UNKNOWN")
+
     # Format dates
-    created_at = _format_datetime(case_data.get('created_at'))
-    updated_at = _format_datetime(case_data.get('updated_at'))
-    generation_date = datetime.now().strftime('%B %d, %Y at %I:%M %p')
-    
+    created_at = _format_datetime(case_data.get("created_at"))
+    updated_at = _format_datetime(case_data.get("updated_at"))
+    generation_date = datetime.now().strftime("%B %d, %Y at %I:%M %p")
+
     # Status class for styling
-    status_class = status.lower().replace('_', '-')
-    
+    status_class = status.lower().replace("_", "-")
+
     # Problem statement
-    problem_statement = case_data.get('problem_statement', 'No problem statement provided.')
-    
+    problem_statement = case_data.get(
+        "problem_statement", "No problem statement provided."
+    )
+
     # Relevant links section
-    relevant_links_section = _generate_relevant_links_section(case_data.get('relevant_links', []))
-    
+    relevant_links_section = _generate_relevant_links_section(
+        case_data.get("relevant_links", [])
+    )
+
     # PRD section
-    prd_section = _generate_prd_section(case_data.get('prd_draft'))
-    
+    prd_section = _generate_prd_section(case_data.get("prd_draft"))
+
     # System design section
-    system_design_section = _generate_system_design_section(case_data.get('system_design_v1_draft'))
-    
+    system_design_section = _generate_system_design_section(
+        case_data.get("system_design_v1_draft")
+    )
+
     # Financial sections
-    effort_estimate_section = _generate_effort_estimate_section(case_data.get('effort_estimate_v1'))
-    cost_estimate_section = _generate_cost_estimate_section(case_data.get('cost_estimate_v1'))
-    value_projection_section = _generate_value_projection_section(case_data.get('value_projection_v1'))
-    financial_summary_section = _generate_financial_summary_section(case_data.get('financial_summary_v1'))
-    
+    effort_estimate_section = _generate_effort_estimate_section(
+        case_data.get("effort_estimate_v1")
+    )
+    cost_estimate_section = _generate_cost_estimate_section(
+        case_data.get("cost_estimate_v1")
+    )
+    value_projection_section = _generate_value_projection_section(
+        case_data.get("value_projection_v1")
+    )
+    financial_summary_section = _generate_financial_summary_section(
+        case_data.get("financial_summary_v1")
+    )
+
     # Approval history
-    approval_history_section = _generate_approval_history_section(case_data.get('history', []))
-    
+    approval_history_section = _generate_approval_history_section(
+        case_data.get("history", [])
+    )
+
     return {
-        'css_styles': PDF_CSS_STYLES,
-        'title': title,
-        'case_id': case_id,
-        'status': status,
-        'status_class': status_class,
-        'created_at': created_at,
-        'updated_at': updated_at,
-        'generation_date': generation_date,
-        'problem_statement': problem_statement,
-        'relevant_links_section': relevant_links_section,
-        'prd_section': prd_section,
-        'system_design_section': system_design_section,
-        'effort_estimate_section': effort_estimate_section,
-        'cost_estimate_section': cost_estimate_section,
-        'value_projection_section': value_projection_section,
-        'financial_summary_section': financial_summary_section,
-        'approval_history_section': approval_history_section,
+        "css_styles": PDF_CSS_STYLES,
+        "title": title,
+        "case_id": case_id,
+        "status": status,
+        "status_class": status_class,
+        "created_at": created_at,
+        "updated_at": updated_at,
+        "generation_date": generation_date,
+        "problem_statement": problem_statement,
+        "relevant_links_section": relevant_links_section,
+        "prd_section": prd_section,
+        "system_design_section": system_design_section,
+        "effort_estimate_section": effort_estimate_section,
+        "cost_estimate_section": cost_estimate_section,
+        "value_projection_section": value_projection_section,
+        "financial_summary_section": financial_summary_section,
+        "approval_history_section": approval_history_section,
     }
 
 
 def _format_datetime(dt) -> str:
     """Format datetime for display."""
     if not dt:
-        return 'N/A'
-    
+        return "N/A"
+
     if isinstance(dt, str):
         try:
-            dt = datetime.fromisoformat(dt.replace('Z', '+00:00'))
+            dt = datetime.fromisoformat(dt.replace("Z", "+00:00"))
         except:
             return dt
-    
+
     try:
-        return dt.strftime('%B %d, %Y at %I:%M %p')
+        return dt.strftime("%B %d, %Y at %I:%M %p")
     except:
         return str(dt)
 
@@ -477,12 +495,11 @@ def _format_datetime(dt) -> str:
 def _markdown_to_html(markdown_text: str) -> str:
     """Convert markdown text to HTML."""
     if not markdown_text:
-        return '<p>No content available.</p>'
-    
+        return "<p>No content available.</p>"
+
     try:
         html = markdown.markdown(
-            markdown_text,
-            extensions=['tables', 'fenced_code', 'toc']
+            markdown_text, extensions=["tables", "fenced_code", "toc"]
         )
         return f'<div class="markdown-content">{html}</div>'
     except Exception as e:
@@ -493,96 +510,98 @@ def _markdown_to_html(markdown_text: str) -> str:
 def _generate_relevant_links_section(links: list) -> str:
     """Generate HTML for relevant links section."""
     if not links:
-        return ''
-    
+        return ""
+
     links_html = '<div class="links-list"><ul>'
     for link in links:
-        name = link.get('name', 'Link')
-        url = link.get('url', '#')
+        name = link.get("name", "Link")
+        url = link.get("url", "#")
         links_html += f'<li><a href="{url}">{name}</a></li>'
-    links_html += '</ul></div>'
-    
-    return f'''
+    links_html += "</ul></div>"
+
+    return """
     <section class="section">
         <h2 class="section-title">🔗 Relevant Links</h2>
         {links_html}
     </section>
-    '''
+    """
 
 
 def _generate_prd_section(prd_data: Optional[Dict[str, Any]]) -> str:
     """Generate HTML for PRD section."""
     if not prd_data:
-        return '''
+        return """
         <section class="section">
             <h2 class="section-title">📋 Product Requirements Document</h2>
             <div class="content">
                 <p><em>PRD not yet generated.</em></p>
             </div>
         </section>
-        '''
-    
-    prd_content = prd_data.get('content_markdown', '')
+        """
+
+    prd_content = prd_data.get("content_markdown", "")
     prd_html = _markdown_to_html(prd_content)
-    version = prd_data.get('version', 'N/A')
-    
-    return f'''
+    version = prd_data.get("version", "N/A")
+
+    return """
     <section class="section page-break-before">
         <h2 class="section-title">📋 Product Requirements Document (v{version})</h2>
         {prd_html}
     </section>
-    '''
+    """
 
 
-def _generate_system_design_section(system_design_data: Optional[Dict[str, Any]]) -> str:
+def _generate_system_design_section(
+    system_design_data: Optional[Dict[str, Any]],
+) -> str:
     """Generate HTML for system design section."""
     if not system_design_data:
-        return '''
+        return """
         <section class="section">
             <h2 class="section-title">🏗️ System Design</h2>
             <div class="content">
                 <p><em>System design not yet generated.</em></p>
             </div>
         </section>
-        '''
-    
-    design_content = system_design_data.get('content_markdown', '')
+        """
+
+    design_content = system_design_data.get("content_markdown", "")
     design_html = _markdown_to_html(design_content)
-    version = system_design_data.get('version', 'N/A')
-    generated_by = system_design_data.get('generated_by', 'System')
-    
-    return f'''
+    version = system_design_data.get("version", "N/A")
+    generated_by = system_design_data.get("generated_by", "System")
+
+    return """
     <section class="section page-break-before">
         <h2 class="section-title">🏗️ System Design (v{version})</h2>
         <p><em>Generated by: {generated_by}</em></p>
         {design_html}
     </section>
-    '''
+    """
 
 
 def _generate_effort_estimate_section(effort_data: Optional[Dict[str, Any]]) -> str:
     """Generate HTML for effort estimate section."""
     if not effort_data:
-        return '''
+        return """
         <div class="financial-subsection">
             <h3>💼 Effort Estimate</h3>
             <p><em>Effort estimate not yet available.</em></p>
         </div>
-        '''
-    
-    total_hours = effort_data.get('total_hours', 0)
-    duration_weeks = effort_data.get('estimated_duration_weeks', 0)
-    complexity = effort_data.get('complexity_assessment', 'N/A')
-    roles = effort_data.get('roles', [])
-    
+        """
+
+    total_hours = effort_data.get("total_hours", 0)
+    duration_weeks = effort_data.get("estimated_duration_weeks", 0)
+    complexity = effort_data.get("complexity_assessment", "N/A")
+    roles = effort_data.get("roles", [])
+
     roles_html = '<table class="data-table"><tr><th>Role</th><th>Hours</th></tr>'
     for role in roles:
-        role_name = role.get('role', 'Unknown')
-        hours = role.get('hours', 0)
-        roles_html += f'<tr><td>{role_name}</td><td>{hours}</td></tr>'
-    roles_html += '</table>'
-    
-    return f'''
+        role_name = role.get("role", "Unknown")
+        hours = role.get("hours", 0)
+        roles_html += f"<tr><td>{role_name}</td><td>{hours}</td></tr>"
+    roles_html += "</table>"
+
+    return """
     <div class="financial-subsection">
         <h3>💼 Effort Estimate</h3>
         <div class="metric-grid">
@@ -599,34 +618,34 @@ def _generate_effort_estimate_section(effort_data: Optional[Dict[str, Any]]) -> 
         <h4>Role Breakdown:</h4>
         {roles_html}
     </div>
-    '''
+    """
 
 
 def _generate_cost_estimate_section(cost_data: Optional[Dict[str, Any]]) -> str:
     """Generate HTML for cost estimate section."""
     if not cost_data:
-        return '''
+        return """
         <div class="financial-subsection">
             <h3>💰 Cost Estimate</h3>
             <p><em>Cost estimate not yet available.</em></p>
         </div>
-        '''
-    
-    estimated_cost = cost_data.get('estimated_cost', 0)
-    currency = cost_data.get('currency', 'USD')
-    rate_card_used = cost_data.get('rate_card_used', 'N/A')
-    breakdown = cost_data.get('breakdown_by_role', [])
-    
+        """
+
+    estimated_cost = cost_data.get("estimated_cost", 0)
+    currency = cost_data.get("currency", "USD")
+    rate_card_used = cost_data.get("rate_card_used", "N/A")
+    breakdown = cost_data.get("breakdown_by_role", [])
+
     breakdown_html = '<table class="data-table"><tr><th>Role</th><th>Hours</th><th>Rate</th><th>Cost</th></tr>'
     for item in breakdown:
-        role = item.get('role', 'Unknown')
-        hours = item.get('hours', 0)
-        rate = item.get('hourly_rate', 0)
-        cost = item.get('total_cost', 0)
-        breakdown_html += f'<tr><td>{role}</td><td>{hours}</td><td>${rate:,.2f}</td><td>${cost:,.2f}</td></tr>'
-    breakdown_html += '</table>'
-    
-    return f'''
+        role = item.get("role", "Unknown")
+        hours = item.get("hours", 0)
+        rate = item.get("hourly_rate", 0)
+        cost = item.get("total_cost", 0)
+        breakdown_html += f"<tr><td>{role}</td><td>{hours}</td><td>${rate:,.2f}</td><td>${cost:,.2f}</td></tr>"
+    breakdown_html += "</table>"
+
+    return """
     <div class="financial-subsection">
         <h3>💰 Cost Estimate</h3>
         <div class="metric-grid">
@@ -642,72 +661,76 @@ def _generate_cost_estimate_section(cost_data: Optional[Dict[str, Any]]) -> str:
         <h4>Cost Breakdown:</h4>
         {breakdown_html}
     </div>
-    '''
+    """
 
 
 def _generate_value_projection_section(value_data: Optional[Dict[str, Any]]) -> str:
     """Generate HTML for value projection section."""
     if not value_data:
-        return '''
+        return """
         <div class="financial-subsection">
             <h3>📈 Value Projection</h3>
             <p><em>Value projection not yet available.</em></p>
         </div>
-        '''
-    
-    scenarios = value_data.get('scenarios', [])
-    currency = value_data.get('currency', 'USD')
-    methodology = value_data.get('methodology', 'N/A')
-    
+        """
+
+    scenarios = value_data.get("scenarios", [])
+    currency = value_data.get("currency", "USD")
+    methodology = value_data.get("methodology", "N/A")
+
     scenarios_html = '<table class="data-table"><tr><th>Scenario</th><th>Value</th><th>Description</th></tr>'
     for scenario in scenarios:
-        case = scenario.get('case', 'Unknown')
-        value = scenario.get('value', 0)
-        description = scenario.get('description', '')
-        scenarios_html += f'<tr><td>{case}</td><td>${value:,.2f}</td><td>{description}</td></tr>'
-    scenarios_html += '</table>'
-    
-    return f'''
+        case = scenario.get("case", "Unknown")
+        value = scenario.get("value", 0)
+        description = scenario.get("description", "")
+        scenarios_html += (
+            f"<tr><td>{case}</td><td>${value:,.2f}</td><td>{description}</td></tr>"
+        )
+    scenarios_html += "</table>"
+
+    return """
     <div class="financial-subsection">
         <h3>📈 Value Projection</h3>
         <p><strong>Methodology:</strong> {methodology}</p>
         <h4>Value Scenarios:</h4>
         {scenarios_html}
     </div>
-    '''
+    """
 
 
-def _generate_financial_summary_section(financial_data: Optional[Dict[str, Any]]) -> str:
+def _generate_financial_summary_section(
+    financial_data: Optional[Dict[str, Any]],
+) -> str:
     """Generate HTML for financial summary section."""
     if not financial_data:
-        return '''
+        return """
         <div class="financial-subsection">
             <h3>📊 Financial Summary</h3>
             <p><em>Financial summary not yet available.</em></p>
         </div>
-        '''
-    
-    total_cost = financial_data.get('total_estimated_cost', 0)
-    currency = financial_data.get('currency', 'USD')
-    value_scenarios = financial_data.get('value_scenarios', {})
-    metrics = financial_data.get('financial_metrics', {})
-    
-    primary_net_value = metrics.get('primary_net_value', 0)
-    primary_roi = metrics.get('primary_roi_percentage', 'N/A')
-    payback_period = metrics.get('simple_payback_period_years', 'N/A')
-    
-    scenarios_html = ''
+        """
+
+    total_cost = financial_data.get("total_estimated_cost", 0)
+    currency = financial_data.get("currency", "USD")
+    value_scenarios = financial_data.get("value_scenarios", {})
+    metrics = financial_data.get("financial_metrics", {})
+
+    primary_net_value = metrics.get("primary_net_value", 0)
+    primary_roi = metrics.get("primary_roi_percentage", "N/A")
+    payback_period = metrics.get("simple_payback_period_years", "N/A")
+
+    scenarios_html = ""
     for scenario, value in value_scenarios.items():
         net_value = value - total_cost
-        scenarios_html += f'''
+        scenarios_html += """
         <div class="metric-item">
             <div class="metric-label">{scenario} Scenario</div>
             <div class="metric-value currency-amount">${value:,.2f}</div>
             <div style="font-size: 9pt; color: #666;">Net: ${net_value:,.2f}</div>
         </div>
-        '''
-    
-    return f'''
+        """
+
+    return """
     <div class="financial-subsection">
         <h3>📊 Financial Summary</h3>
         <div class="metric-grid">
@@ -733,33 +756,37 @@ def _generate_financial_summary_section(financial_data: Optional[Dict[str, Any]]
             {scenarios_html}
         </div>
     </div>
-    '''
+    """
 
 
 def _generate_approval_history_section(history: list) -> str:
     """Generate HTML for approval history section."""
     if not history:
-        return '''
+        return """
         <section class="section">
             <h2 class="section-title">📝 History</h2>
             <div class="content">
                 <p><em>No history available.</em></p>
             </div>
         </section>
-        '''
-    
+        """
+
     history_html = '<table class="data-table"><tr><th>Date</th><th>Source</th><th>Type</th><th>Content</th></tr>'
     for item in history:
-        timestamp = _format_datetime(item.get('timestamp'))
-        source = item.get('source', 'SYSTEM')
-        message_type = item.get('messageType', 'UPDATE')
-        content = str(item.get('content', ''))[:100] + '...' if len(str(item.get('content', ''))) > 100 else str(item.get('content', ''))
-        history_html += f'<tr><td>{timestamp}</td><td>{source}</td><td>{message_type}</td><td>{content}</td></tr>'
-    history_html += '</table>'
-    
-    return f'''
+        timestamp = _format_datetime(item.get("timestamp"))
+        source = item.get("source", "SYSTEM")
+        message_type = item.get("messageType", "UPDATE")
+        content = (
+            str(item.get("content", ""))[:100] + "..."
+            if len(str(item.get("content", ""))) > 100
+            else str(item.get("content", ""))
+        )
+        history_html += f"<tr><td>{timestamp}</td><td>{source}</td><td>{message_type}</td><td>{content}</td></tr>"
+    history_html += "</table>"
+
+    return """
     <section class="section">
         <h2 class="section-title">📝 Approval History</h2>
         {history_html}
     </section>
-    ''' 
+    """

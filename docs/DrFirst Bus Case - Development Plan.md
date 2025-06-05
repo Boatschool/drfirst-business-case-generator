@@ -193,6 +193,30 @@ The application now provides a professional, persistent chat experience that sup
 
 ---
 
+**Phase 11: CI/CD Hardening**
+
+* **Focus:** Implement comprehensive CI/CD pipelines for both backend and frontend applications using GitHub Actions. Establish automated testing, building, and deployment processes for staging and production environments.  
+* **Status:** Tasks 11.1.1-11.1.2 COMPLETE - Backend CI workflow foundation and implementation complete. Ready for Docker build and deployment steps.
+
+| Task ID | Title | Status | Priority | Complexity | Dependencies | Notes |
+| :---- | :---- | :---- | :---- | :---- | :---- | :---- |
+| 11.1 | **Backend CI/CD Pipeline** |  |  |  |  |  |
+| 11.1.1 | Define Backend CI GitHub Actions Workflow File (.github/workflows/backend-ci.yml) - Basic structure with placeholders | COMPLETE | highest | low | (GitHub repository access) | ✅ COMPLETE: Professional workflow file created with triggers, job structure, Python setup, and implementation placeholders for Tasks 11.1.2-11.1.4. Ready for CI implementation. |
+| 11.1.2 | Implement Backend CI Steps: Dependencies, Linting, Testing (pip install, flake8, pytest) | COMPLETE | highest | low | 11.1.1 | ✅ COMPLETE: Professional CI implementation with pip upgrade + requirements.txt, flake8 linting with project configuration (.flake8), pytest execution with coverage reporting and PYTHONPATH configuration. All 3 steps operational with quality gates. |
+| 11.1.3 | Implement Backend Docker Build Step in CI Pipeline | COMPLETE | highest | medium | 11.1.2 | ✅ COMPLETE: Enhanced backend-ci.yml with Docker Buildx setup and build-push-action. Builds Docker image with linux/amd64 platform targeting for Cloud Run compatibility. Tagged with ci-${{ github.sha }} for unique identification. |
+| 11.1.4 | Implement Backend Docker Push to GCP Artifact Registry (conditional on main/develop) | TODO | highest | medium | 11.1.3 | Configure GCP authentication and push to us-central1-docker.pkg.dev/drfirst-business-case-gen/drfirst-backend repository. |
+| 11.2 | **Frontend CI/CD Pipeline** |  |  |  |  |  |
+| 11.2.1 | Define Frontend CI GitHub Actions Workflow File (.github/workflows/frontend-ci.yml) | TODO | highest | low | 11.1.1 | Similar structure to backend workflow with Node.js setup and frontend-specific steps. |
+| 11.2.2 | Implement Frontend CI Steps: Dependencies, Linting, Testing, Build (npm ci, eslint, test, build) | TODO | highest | low | 11.2.1 | Frontend-specific quality gates and build validation. |
+| 11.2.3 | Implement Frontend Firebase Hosting Deployment (conditional on main/develop) | TODO | highest | medium | 11.2.2 | Deploy to Firebase Hosting with proper environment configuration. |
+| 11.3 | **Advanced CI/CD Features** |  |  |  |  |  |
+| 11.3.1 | Implement Staging Deployment Automation for Backend (Cloud Run) | TODO | high | medium | 11.1.4 | Automatic deployment to staging environment on develop branch. |
+| 11.3.2 | Implement Production Deployment Automation (with manual approval gates) | TODO | high | high | 11.3.1 | Production deployment with required manual approval for main branch. |
+| 11.3.3 | Add CI/CD Notifications (Slack/email integration for deployment status) | TODO | medium | low | 11.3.2 | Notification system for deployment success/failure. |
+| 11.3.4 | Implement Rollback Mechanisms and Health Checks | TODO | medium | medium | 11.3.2 | Automated rollback on deployment failure and health monitoring. |
+
+---
+
 **Phase 7: Admin UI Enhancements & Role-Based Access Control (RBAC)**
 
 * **Focus:** Implement CRUD operations for Rate Cards and Pricing Templates in the Admin UI. Implement basic RBAC for accessing Admin features and user management foundation.  
@@ -368,33 +392,40 @@ The application now provides a professional, persistent chat experience that sup
 
 ---
 
-**Phase 10: Browser Extension for Intake**
+**Phase 10: Web Application Focus Confirmation, Admin Config & UI Polish**
 
-* **Focus:** Develop the Chrome/MS Edge browser extension to capture initial project ideas and send them to the backend to initiate a new business case.  
-* **Status:** All tasks todo.
+* **Focus:** Confirm and solidify the web application as the sole primary interface by performing audit-driven cleanup. Implement basic admin configuration for final approvals. Then, polish the web application's usability, intake flow, and review initial deployment considerations.  
+* **Status:** Code cleanup COMPLETE, documentation cleanup IN PROGRESS.
 
 | Task ID | Title | Status | Priority | Complexity | Dependencies | Notes |
 | :---- | :---- | :---- | :---- | :---- | :---- | :---- |
-| 10.1 | **Browser Extension Project Setup** |  |  |  |  |  |
-| 10.1.1 | Create new project for browser extension (HTML, CSS, JavaScript/TypeScript) | todo | high | low | (Basic web dev knowledge) | Can use a simple bundler like Webpack or Parcel if TypeScript/React is used, or keep it vanilla JS for simplicity. SDD Section 4.1. |
-| 10.1.2 | Define manifest.json for the extension (permissions: activeTab, storage, potentially access to specific DrFirst domains if scraping context) | todo | high | low | 10.1.1 | Permissions need to be carefully considered (least privilege). |
-| 10.1.3 | Design basic UI for the extension popup (e.g., textarea for problem statement, optional fields for title, links to Confluence/Jira) | todo | high | low | 10.1.1 | Keep it very simple and focused. |
-| 10.2 | **Extension Functionality** |  |  |  |  |  |
-| 10.2.1 | Implement logic in popup.js to capture user input from the UI form | todo | high | low | 10.1.3 |  |
-| 10.2.2 | Implement authentication flow for the extension (e.g., redirect to web app for login, then store a token securely in extension storage) | todo | high | low | 3.2 (Auth Service), 10.2.1 | This can be tricky. Simplest might be to require user to be logged into the main web app. Or use chrome.identity API if GCIP supports it for extensions. |
-| 10.2.3 | Implement logic to make an authenticated API call from the extension to the backend /api/v1/initiate\_case\_from\_extension endpoint | todo | high | low | 3.4.2 (API Auth), 4.1.2 (Agent Service), 10.2.2 | New backend endpoint needed. This endpoint will take the extension's input and trigger the IntakeAgent flow. |
-| 10.2.4 | Backend: Implement /api/v1/initiate\_case\_from\_extension endpoint to receive data, create a new case, and start the intake process | todo | high | low | 4.2.3 (Orchestrator intake) | Similar to how the web app initiates a case but tailored for extension input. |
-| 10.2.5 | Extension: Provide feedback to the user (e.g., "Case created successfully\!" and optionally a link to the new case in the web app) | todo | medium | low | 10.2.3 |  |
-| 10.2.6 | (Optional) Implement context scraping (e.g., selected text on page, current page URL) if defined in scope and permissions allow | todo | low | low | 10.1.2 | Requires content\_scripts in manifest and message passing. |
-| 10.3 | **Packaging & Testing** |  |  |  |  |  |
-| 10.3.1 | Test loading the extension locally in Chrome/Edge developer mode | todo | high | low | 10.1.1 |  |
-| 10.3.2 | Package the extension for distribution (e.g., .zip file) | todo | medium | low | 10.1.1 | For internal DrFirst distribution, might not need public store submission immediately. |
+| **10.0.1** | **Execute Code & Script Cleanup based on Audit Report** | ✅ COMPLETE | highest | low | Task 10.0 (Audit Report) | **COMPLETED.** Commented out extension setup in scripts/setup\_dev\_env.sh. Moved browser-extension/ to archive/browser-extension/. Updated README.md structure. Git: feature/cleanup-audit-10.0.1 commit 2876432. |
+| **10.0.2** | **Execute Documentation Cleanup based on Audit Report** | 🔄 IN PROGRESS | highest | low | Task 10.0 (Audit Report) | **IN PROGRESS.** Update README.md, SystemDesign.md, architecture diagrams, and DrFirst Bus Case \- Development Plan.md (Phase 10 section) to reflect web-first focus and remove extension references. |
+| **9.1.4** | **(Simplified V1) Implement Admin UI to Designate Global Final Approver Role** | todo | highest | medium | Task 10.0.1, 10.0.2, (Phases 1-7, 9.1.1-9.1.3 for backend approval logic) | **DEFERRED TASK.** Backend logic reads this config; Admin UI sets it. Involves Firestore systemConfiguration and admin UI changes. |
+| **10.1** | **Review and Refine Web Application Intake Flow** |  |  |  |  |  |
+| 10.1.1 | Review the "New Business Case" creation flow (NewCasePage.tsx) for clarity, ease of use, and completeness. | todo | high | low | Task 4.4.3, 10.0.1, 10.0.2 | Ensure it's a smooth primary entry point. |
+| 10.1.2 | Enhance NewCasePage.tsx with better user guidance or examples for "Problem Statement" and "Relevant Links". | todo | high | low | 10.1.1 | E.g., placeholder text, tooltips. |
+| 10.1.3 | (Optional) Implement basic client-side validation for the New Case form (e.g., required fields, valid URL format for links). | todo | medium | low | 10.1.1 | Reduces backend errors and improves UX. |
+| **10.2** | **Dashboard and Navigation Enhancements** |  |  |  |  |  |
+| 10.2.1 | Review DashboardPage.tsx: Improve case listing (e.g., add sorting, filtering by status, pagination for many cases). | todo | high | medium | Task 4.4.1 | As the number of cases grows, this becomes important. |
+| 10.2.2 | Enhance main application navigation (e.g., in AppLayout.tsx): Ensure clear links to Dashboard, New Case, Admin (if admin role). | todo | high | low | Task 3.1.5, 6.4.1 | Make it easy for users to find key actions. |
+| 10.2.3 | Implement consistent breadcrumbs or a clear page titling strategy for better user orientation. | todo | medium | low | (Overall frontend structure) | Especially for nested views like BusinessCaseDetailPage. |
+| **10.3** | **User Experience & UI Polish** |  |  |  |  |  |
+| 10.3.1 | Conduct a general UI review across key pages for consistency in styling (MUI), terminology, and interaction patterns. | todo | medium | low | (All frontend pages) | Address any glaring inconsistencies. |
+| 10.3.2 | Improve loading state indicators across the application (ensure they are clear and consistently used for API calls). | todo | medium | low | (All components making API calls) | E.g., skeleton loaders, consistent spinner placement. |
+| 10.3.3 | Enhance error message display: Make error notifications user-friendly and provide actionable information where possible. | todo | medium | low | (All components handling API errors) | Instead of just "Error", something like "Failed to load cases. Please try again." |
+| 10.3.4 | Review application for basic accessibility (a11y) considerations (e.g., keyboard navigation, sufficient color contrast, alt text stubs). | todo | low | medium | (All frontend pages) | This is a large topic, aim for basic improvements. |
+| **10.4** | **Deployment Configuration Review (Pre-CI/CD Hardening)** |  |  |  |  |  |
+| 10.4.1 | Review and confirm environment variable setup for frontend (.env files for Vite) and backend (Cloud Run env vars/secrets). | todo | high | low | DEV\_LOG (Env Files), Task 11.3 (future) | Ensure all necessary configs are externalized and documented. |
+| 10.4.2 | Verify CORS configuration on backend (FastAPI) is appropriate for the web app's deployed domain(s). | todo | high | low | DEV\_LOG (main.py, config.py) | Critical for deployed environments. |
+| 10.4.3 | Review Firestore security rules: Ensure they are sufficiently granular. | todo | medium | medium | Task 1.1.3 (Firestore setup) | Review for production readiness; full implementation might be later. |
+| 10.4.4 | Perform a manual test deployment of the current main branch to a dev or staging GCP environment. | todo | high | medium | Task 2.2.5 (initial Cloud Run), (Frontend deploy) | Dry run before full CI/CD automation. Update deployment scripts. |
 
 ---
 
 **Phase 11: CI/CD Hardening & Full Setup**
 
-* **Focus:** Ensure robust CI/CD pipelines for frontend, backend (Application Server & ADK Agents), and potentially the browser extension. Implement environment configurations.  
+* **Focus:** Ensure robust CI/CD pipelines for frontend and backend (Application Server & ADK Agents). Implement environment configurations.  
 * **Status:** All tasks todo.
 
 | Task ID | Title | Status | Priority | Complexity | Dependencies | Notes |
@@ -414,9 +445,9 @@ The application now provides a professional, persistent chat experience that sup
 | 11.4 | **Infrastructure as Code (IaC) \- Basic (Optional for V1)** |  |  |  |  |  |
 | 11.4.1 | Evaluate using Terraform or Google Cloud Deployment Manager for defining core GCP resources (Firestore, GCS, Cloud Run services, API Gateway) | todo | low | low | (All Phase 1 tasks) | Highly recommended for maintainability but can be deferred if initial setup is manual. |
 | 11.4.2 | Implement basic IaC scripts for key resources if chosen | todo | low | low | 11.4.1 |  |
-| 11.5 | **CI/CD for Browser Extension (Optional for V1)** |  |  |  |  |  |
-| 11.5.1 | Set up GitHub Actions for browser extension repository | todo | low | low | 10.1.1 |  |
-| 11.5.2 | CI Pipeline: Linting, building/packaging the extension | todo | low | low | 10.3.2, 11.5.1 | Auto-publishing to stores is complex and likely out of scope for V1. |
+| 11.5 | **Additional Deployment Considerations** |  |  |  |  |  |
+| 11.5.1 | Set up production-ready monitoring and alerting | todo | medium | low | 11.2.4 | Enhanced monitoring for production deployment |
+| 11.5.2 | Implement automated security scanning in CI/CD pipeline | todo | medium | low | 11.1.2, 11.2.2 | Security best practices for production |
 
 ---
 

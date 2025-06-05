@@ -7,6 +7,7 @@ from app.auth.firebase_auth import get_current_user
 
 router = APIRouter()
 
+
 @router.get("/debug/auth-test")
 async def test_auth(current_user: dict = Depends(get_current_user)):
     """
@@ -19,8 +20,9 @@ async def test_auth(current_user: dict = Depends(get_current_user)):
             "email": current_user.get("email"),
             "email_verified": current_user.get("email_verified"),
             "name": current_user.get("name"),
-        }
+        },
     }
+
 
 @router.get("/debug/no-auth")
 async def test_no_auth():
@@ -29,5 +31,5 @@ async def test_no_auth():
     """
     return {
         "message": "This endpoint doesn't require authentication",
-        "status": "accessible"
-    } 
+        "status": "accessible",
+    }

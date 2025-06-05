@@ -29,13 +29,21 @@ export class HttpAdminAdapter implements AdminService {
   private async getAuthHeaders(): Promise<Record<string, string>> {
     try {
       const idToken = await authService.getIdToken();
+      if (!idToken) {
+        const authError = new Error('Authentication required');
+        (authError as any).code = 'auth/no-token';
+        throw authError;
+      }
       return {
         Authorization: `Bearer ${idToken}`,
         'Content-Type': 'application/json',
       };
     } catch (error) {
       console.error('[HttpAdminAdapter] Error getting auth headers:', error);
-      throw new Error('Authentication required. Please sign in again.');
+      const authError = new Error('Authentication failed');
+      (authError as any).code = 'auth/failed';
+      (authError as any).originalError = error;
+      throw authError;
     }
   }
 
@@ -46,34 +54,54 @@ export class HttpAdminAdapter implements AdminService {
     url: string,
     options: RequestInit = {}
   ): Promise<T> {
-    const headers = await this.getAuthHeaders();
+    try {
+      const headers = await this.getAuthHeaders();
 
-    const response = await fetch(url, {
-      ...options,
-      headers: {
-        ...headers,
-        ...options.headers,
-      },
-    });
+      const response = await fetch(url, {
+        ...options,
+        headers: {
+          ...headers,
+          ...options.headers,
+        },
+      });
 
-    if (!response.ok) {
-      let errorMessage = `HTTP Error: ${response.status} ${response.statusText}`;
-      try {
-        const errorData = await response.json();
-        if (errorData.detail) {
-          errorMessage = errorData.detail;
+      if (!response.ok) {
+        let errorMessage = response.statusText || 'Unknown error';
+        try {
+          const errorData = await response.json();
+          if (errorData.detail) {
+            errorMessage = errorData.detail;
+          }
+        } catch (parseError) {
+          // If we can't parse the error response, use the status text
+          console.warn(
+            '[HttpAdminAdapter] Could not parse error response:',
+            parseError
+          );
         }
-      } catch (parseError) {
-        // If we can't parse the error response, use the status text
-        console.warn(
-          '[HttpAdminAdapter] Could not parse error response:',
-          parseError
-        );
+        
+        // Create enhanced error object with status and context
+        const error = new Error(errorMessage);
+        (error as any).status = response.status;
+        (error as any).url = url;
+        (error as any).method = options.method || 'GET';
+        
+        throw error;
       }
-      throw new Error(errorMessage);
-    }
 
-    return response.json();
+      return response.json();
+    } catch (error) {
+      // Handle network errors and other exceptions
+      if (error instanceof TypeError && error.message.includes('fetch')) {
+        const networkError = new Error('Network connection failed');
+        (networkError as any).name = 'NetworkError';
+        (networkError as any).url = url;
+        throw networkError;
+      }
+      
+      // Re-throw errors with additional context
+      throw error;
+    }
   }
 
   /**
@@ -283,6 +311,48 @@ export class HttpAdminAdapter implements AdminService {
       return users;
     } catch (error) {
       console.error('[HttpAdminAdapter] Error fetching users:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Get the global final approver role setting
+   */
+  async getFinalApproverRoleSetting(): Promise<{ finalApproverRoleName: string; updatedAt?: string; description?: string }> {
+    try {
+      console.log('[HttpAdminAdapter] Fetching final approver role setting...');
+      const config = await this.fetchWithAuth<{ finalApproverRoleName: string; updatedAt?: string; description?: string }>(
+        `${this.apiBaseUrl}/admin/config/final-approver-role`
+      );
+      console.log(
+        `[HttpAdminAdapter] Successfully fetched final approver role: ${config.finalApproverRoleName}`
+      );
+      return config;
+    } catch (error) {
+      console.error('[HttpAdminAdapter] Error fetching final approver role setting:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Set the global final approver role setting
+   */
+  async setFinalApproverRoleSetting(roleName: string): Promise<{ finalApproverRoleName: string; updatedAt?: string; description?: string }> {
+    try {
+      console.log('[HttpAdminAdapter] Setting final approver role to:', roleName);
+      const config = await this.fetchWithAuth<{ finalApproverRoleName: string; updatedAt?: string; description?: string }>(
+        `${this.apiBaseUrl}/admin/config/final-approver-role`,
+        {
+          method: 'PUT',
+          body: JSON.stringify({ finalApproverRoleName: roleName }),
+        }
+      );
+      console.log(
+        `[HttpAdminAdapter] Successfully set final approver role to: ${config.finalApproverRoleName}`
+      );
+      return config;
+    } catch (error) {
+      console.error('[HttpAdminAdapter] Error setting final approver role:', error);
       throw error;
     }
   }

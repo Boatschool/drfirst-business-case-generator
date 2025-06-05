@@ -98,4 +98,4 @@ gcp-service-account-key.json
 serviceAccountKey.json
 
 # Docker
-.dockerignore 
+.dockerignore .DS_Store

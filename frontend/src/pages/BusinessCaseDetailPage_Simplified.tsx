@@ -17,7 +17,9 @@ import {
   Refresh as RefreshIcon,
   Share as ShareIcon
 } from '@mui/icons-material';
-import { useAgentContext } from '../contexts/AgentContext';
+import { useAgentContext } from '../hooks/useAgentContext';
+import useDocumentTitle from '../hooks/useDocumentTitle';
+import { STANDARD_STYLES } from '../styles/constants';
 
 import { PRDSection } from '../components/specific/PRDSection';
 import { SystemDesignSection } from '../components/specific/SystemDesignSection';
@@ -39,6 +41,12 @@ const BusinessCaseDetailPageSimplified: React.FC = () => {
   } = useAgentContext();
 
   const [isExportingPdf, setIsExportingPdf] = useState(false);
+
+  // Set document title dynamically based on case title
+  useDocumentTitle(
+    currentCaseDetails?.title || `Case ${caseId?.substring(0, 8)}...` || 'Business Case',
+    currentCaseDetails?.title
+  );
 
   // Helper function to determine if case is shareable
   const isShareable = (status: string) => {
@@ -85,7 +93,7 @@ const BusinessCaseDetailPageSimplified: React.FC = () => {
     return () => {
       clearCurrentCaseDetails();
     };
-  }, [caseId]); // SIMPLIFIED: Only caseId dependency, no function dependencies
+  }, [caseId, fetchCaseDetails, clearCurrentCaseDetails]); // Include all function dependencies
 
   // Loading state
   if (isLoadingCaseDetails && !currentCaseDetails) {
@@ -117,8 +125,8 @@ const BusinessCaseDetailPageSimplified: React.FC = () => {
   }
 
   return (
-    <Container component="main" maxWidth="lg">
-      <Box sx={{ marginTop: 2, marginBottom: 2 }}>
+    <Container component="main" maxWidth="lg" sx={STANDARD_STYLES.pageContainer}>
+      <Box>
         {/* Header */}
         <Stack
           direction="row"

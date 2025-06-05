@@ -24,8 +24,9 @@ import {
 } from '@mui/icons-material';
 import ReactMarkdown from 'react-markdown';
 import { BusinessCaseDetails } from '../../services/agent/AgentService';
-import { useAgentContext } from '../../contexts/AgentContext';
-import { useAuth } from '../../contexts/AuthContext';
+import { useAgentContext } from '../../hooks/useAgentContext';
+import { useAuth } from '../../hooks/useAuth';
+import { PAPER_ELEVATION, STANDARD_STYLES } from '../../styles/constants';
 
 interface PRDSectionProps {
   currentCaseDetails: BusinessCaseDetails | null;
@@ -37,7 +38,7 @@ const formatPrdContent = (content: string): string => {
   if (!content) return content;
 
   // Ensure proper line breaks after headings and before new sections
-  let formatted = content
+  const formatted = content
     // Add line breaks after markdown headings
     .replace(/^(#{1,6}\s.+)$/gm, '$1\n')
     // Add line breaks before new headings if not already present
@@ -229,14 +230,14 @@ export const PRDSection: React.FC<PRDSectionProps> = ({
 
   return (
     <Box mb={4}>
-      <Paper elevation={2} sx={{ p: 3 }}>
+      <Paper elevation={PAPER_ELEVATION.MAIN_CONTENT} sx={STANDARD_STYLES.mainContentPaper}>
         <Stack
           direction="row"
           alignItems="center"
           justifyContent="space-between"
           mb={2}
         >
-          <Typography variant="h5" gutterBottom sx={{ mb: 0 }}>
+          <Typography variant="h5" component="h2" gutterBottom sx={{ mb: 0 }}>
             Product Requirements Document (PRD)
           </Typography>
           <Stack direction="row" spacing={1}>

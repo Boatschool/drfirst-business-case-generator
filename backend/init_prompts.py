@@ -13,6 +13,7 @@ sys.path.insert(0, os.path.dirname(__file__))
 
 from app.utils.prompt_initializer import initialize_default_prompts
 
+
 async def main():
     """Initialize all default prompts."""
     print("🚀 Initializing default agent prompts...")
@@ -24,5 +25,6 @@ async def main():
         return 1
     return 0
 
+
 if __name__ == "__main__":
-    exit_code = asyncio.run(main()) 
+    exit_code = asyncio.run(main())

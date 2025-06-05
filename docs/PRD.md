@@ -49,7 +49,7 @@ Currently, creating comprehensive business cases at DrFirst is:
 - **Export Capabilities**: PDF, Word, PowerPoint formats
 
 #### 5.2 Advanced Features
-- **Browser Extension**: Extract context from web pages
+- **Web Application**: Complete business case lifecycle management
 - **Integration APIs**: Connect with existing DrFirst systems
 - **Analytics Dashboard**: Usage metrics and insights
 - **Version Control**: Track changes and revisions
@@ -110,7 +110,7 @@ Currently, creating comprehensive business cases at DrFirst is:
 
 **Phase 2**: 6 weeks
 - Advanced features
-- Browser extension
+- Comprehensive web application
 - Integrations
 
 **Phase 3**: 4 weeks

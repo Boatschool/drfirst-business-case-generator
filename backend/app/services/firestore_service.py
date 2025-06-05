@@ -3,17 +3,17 @@ Firestore service for database operations
 """
 
 from typing import Optional, List, Dict, Any
-from google.cloud import firestore
 from app.core.config import settings
 from app.models.firestore_models import User, BusinessCase, Job
 
+
 class FirestoreService:
     """Service for Firestore database operations"""
-    
+
     def __init__(self):
         self._db = None
         self._initialize_firestore()
-    
+
     def _initialize_firestore(self):
         """Initialize Firestore client"""
         try:
@@ -22,7 +22,7 @@ class FirestoreService:
             pass
         except Exception as e:
             print(f"Firestore initialization error: {e}")
-    
+
     # User operations
     async def create_user(self, user: User) -> bool:
         """Create a new user in Firestore"""
@@ -34,7 +34,7 @@ class FirestoreService:
         except Exception as e:
             print(f"User creation error: {e}")
             return False
-    
+
     async def get_user(self, uid: str) -> Optional[User]:
         """Get user by UID"""
         try:
@@ -47,7 +47,7 @@ class FirestoreService:
         except Exception as e:
             print(f"User retrieval error: {e}")
             return None
-    
+
     async def update_user(self, uid: str, updates: Dict[str, Any]) -> bool:
         """Update user information"""
         try:
@@ -58,7 +58,7 @@ class FirestoreService:
         except Exception as e:
             print(f"User update error: {e}")
             return False
-    
+
     # Business case operations
     async def create_business_case(self, business_case: BusinessCase) -> Optional[str]:
         """Create a new business case"""
@@ -70,7 +70,7 @@ class FirestoreService:
         except Exception as e:
             print(f"Business case creation error: {e}")
             return None
-    
+
     async def get_business_case(self, case_id: str) -> Optional[BusinessCase]:
         """Get business case by ID"""
         try:
@@ -83,7 +83,7 @@ class FirestoreService:
         except Exception as e:
             print(f"Business case retrieval error: {e}")
             return None
-    
+
     async def update_business_case(self, case_id: str, updates: Dict[str, Any]) -> bool:
         """Update business case"""
         try:
@@ -94,7 +94,7 @@ class FirestoreService:
         except Exception as e:
             print(f"Business case update error: {e}")
             return False
-    
+
     # Job operations
     async def create_job(self, job: Job) -> Optional[str]:
         """Create a new job"""
@@ -106,7 +106,7 @@ class FirestoreService:
         except Exception as e:
             print(f"Job creation error: {e}")
             return None
-    
+
     async def get_job(self, job_id: str) -> Optional[Job]:
         """Get job by ID"""
         try:
@@ -119,7 +119,7 @@ class FirestoreService:
         except Exception as e:
             print(f"Job retrieval error: {e}")
             return None
-    
+
     async def update_job(self, job_id: str, updates: Dict[str, Any]) -> bool:
         """Update job status and information"""
         try:
@@ -131,5 +131,6 @@ class FirestoreService:
             print(f"Job update error: {e}")
             return False
 
+
 # Global Firestore service instance
-firestore_service = FirestoreService() 
+firestore_service = FirestoreService()

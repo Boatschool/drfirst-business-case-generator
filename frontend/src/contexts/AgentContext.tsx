@@ -1,6 +1,5 @@
 import React, {
   createContext,
-  useContext,
   useState,
   ReactNode,
   useCallback,
@@ -79,9 +78,10 @@ interface AgentContextType extends AgentContextState {
   exportCaseToPdf: (caseId: string) => Promise<void>;
   clearAgentState: () => void;
   clearCurrentCaseDetails: () => void;
+  clearError: (errorType?: 'general' | 'cases' | 'caseDetails') => void;
 }
 
-const AgentContext = createContext<AgentContextType | undefined>(undefined);
+export const AgentContext = createContext<AgentContextType | undefined>(undefined);
 
 // Initialize the agent service instance
 const agentService: AgentService = new HttpAgentAdapter();
@@ -454,6 +454,15 @@ export const AgentProvider: React.FC<AgentProviderProps> = ({ children }) => {
     }));
   }, []);
 
+  const clearError = useCallback((errorType?: 'general' | 'cases' | 'caseDetails') => {
+    setState((prevState) => ({
+      ...prevState,
+      error: errorType === 'general' || !errorType ? null : prevState.error,
+      casesError: errorType === 'cases' || !errorType ? null : prevState.casesError,
+      caseDetailsError: errorType === 'caseDetails' || !errorType ? null : prevState.caseDetailsError,
+    }));
+  }, []);
+
   // SIMPLIFIED: Create stub implementations for all other functions to avoid breaking changes
   // These follow the same pattern as above but are shortened for brevity
   const updateStatus = useCallback(
@@ -724,6 +733,7 @@ export const AgentProvider: React.FC<AgentProviderProps> = ({ children }) => {
       exportCaseToPdf,
       clearAgentState,
       clearCurrentCaseDetails,
+      clearError,
     }),
     [
       state,
@@ -758,6 +768,7 @@ export const AgentProvider: React.FC<AgentProviderProps> = ({ children }) => {
       exportCaseToPdf,
       clearAgentState,
       clearCurrentCaseDetails,
+      clearError,
     ]
   );
 
@@ -766,10 +777,4 @@ export const AgentProvider: React.FC<AgentProviderProps> = ({ children }) => {
   );
 };
 
-export const useAgentContext = (): AgentContextType => {
-  const context = useContext(AgentContext);
-  if (context === undefined) {
-    throw new Error('useAgentContext must be used within an AgentProvider');
-  }
-  return context;
-};
+

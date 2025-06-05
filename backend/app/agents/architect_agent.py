@@ -16,29 +16,34 @@ from datetime import datetime
 # Set up logging
 logger = logging.getLogger(__name__)
 
+
 class ArchitectAgent:
     """
     The Architect Agent is responsible for generating system design proposals
     based on approved Product Requirements Documents (PRDs).
-    
+
     Enhanced with PRD analysis capabilities to provide more structured and
     specific architectural recommendations based on actual PRD content.
     """
 
     def __init__(self):
         self.name = "Architect Agent"
-        self.description = "Generates system design proposals based on PRDs with enhanced analysis."
+        self.description = (
+            "Generates system design proposals based on PRDs with enhanced analysis."
+        )
         self.status = "initialized"
-        
+
         # Use configuration from settings
         self.project_id = settings.google_cloud_project_id or "drfirst-genai-01"
         self.location = settings.vertex_ai_location
         self.model_name = settings.vertex_ai_model_name or "gemini-2.0-flash-lite"
-        
+
         try:
             vertexai.init(project=self.project_id, location=self.location)
             self.model = GenerativeModel(self.model_name)
-            print(f"ArchitectAgent: Vertex AI initialized successfully with model {self.model_name}.")
+            print(
+                f"ArchitectAgent: Vertex AI initialized successfully with model {self.model_name}."
+            )
             self.status = "available"
         except Exception as e:
             print(f"ArchitectAgent: Failed to initialize Vertex AI: {e}")
@@ -48,18 +53,18 @@ class ArchitectAgent:
     async def analyze_prd_content(self, prd_content: str) -> Dict[str, Any]:
         """
         Analyze PRD content to extract key architectural requirements.
-        
+
         Args:
             prd_content (str): The PRD content to analyze
-            
+
         Returns:
             Dict[str, Any]: Analysis results including features, entities, complexity, etc.
         """
         if not self.model:
             return {"error": "Model not available"}
-        
+
         try:
-            analysis_prompt = f"""Analyze the following PRD content and extract key architectural information:
+            analysis_prompt = """Analyze the following PRD content and extract key architectural information:
 
 --- PRD Content ---
 {prd_content}
@@ -95,27 +100,31 @@ Focus on extracting concrete, actionable architectural information that will gui
                 },
                 stream=False,
             )
-            
+
             if response.candidates and response.candidates[0].content.parts:
                 analysis_text = response.candidates[0].content.parts[0].text.strip()
-                
+
                 # Try to extract JSON from the response
                 try:
                     # Find JSON block in the response
-                    json_match = re.search(r'\{.*\}', analysis_text, re.DOTALL)
+                    json_match = re.search(r"\{.*\}", analysis_text, re.DOTALL)
                     if json_match:
                         analysis_data = json.loads(json_match.group())
-                        logger.info("[ArchitectAgent] PRD analysis completed successfully")
+                        logger.info(
+                            "[ArchitectAgent] PRD analysis completed successfully"
+                        )
                         return analysis_data
                     else:
                         # Fallback to basic analysis
                         return self._fallback_prd_analysis(prd_content)
                 except json.JSONDecodeError:
-                    logger.warning("[ArchitectAgent] Could not parse PRD analysis JSON, using fallback")
+                    logger.warning(
+                        "[ArchitectAgent] Could not parse PRD analysis JSON, using fallback"
+                    )
                     return self._fallback_prd_analysis(prd_content)
             else:
                 return self._fallback_prd_analysis(prd_content)
-                
+
         except Exception as e:
             logger.error(f"[ArchitectAgent] Error in PRD analysis: {str(e)}")
             return self._fallback_prd_analysis(prd_content)
@@ -126,15 +135,17 @@ Focus on extracting concrete, actionable architectural information that will gui
         """
         # Simple keyword-based analysis
         content_lower = prd_content.lower()
-        
+
         # Estimate complexity based on content length and keywords
         complexity = "low"
         if len(prd_content) > 5000:
             complexity = "medium"
-        if len(prd_content) > 10000 or any(keyword in content_lower for keyword in 
-                                           ['integration', 'api', 'real-time', 'scalability']):
+        if len(prd_content) > 10000 or any(
+            keyword in content_lower
+            for keyword in ["integration", "api", "real-time", "scalability"]
+        ):
             complexity = "high"
-        
+
         return {
             "key_features": ["Feature analysis requires AI model"],
             "user_roles": ["Multiple user types identified"],
@@ -146,36 +157,40 @@ Focus on extracting concrete, actionable architectural information that will gui
                 "user_roles_count": 3,
                 "features_count": 5,
                 "integrations_count": 2,
-                "estimated_complexity": complexity
+                "estimated_complexity": complexity,
             },
             "api_needs": ["RESTful API endpoints"],
-            "data_storage_needs": ["Database storage required"]
+            "data_storage_needs": ["Database storage required"],
         }
 
-    async def generate_system_design(self, prd_content: str, case_title: str) -> Dict[str, Any]:
+    async def generate_system_design(
+        self, prd_content: str, case_title: str
+    ) -> Dict[str, Any]:
         """
         Generates an enhanced system design proposal based on PRD analysis.
-        
+
         Args:
             prd_content (str): The content of the approved PRD
             case_title (str): Title of the business case
-            
+
         Returns:
             Dict[str, Any]: Response containing status and enhanced system design content
         """
-        print(f"[ArchitectAgent] Received request to generate enhanced system design for: {case_title}")
-        
+        print(
+            f"[ArchitectAgent] Received request to generate enhanced system design for: {case_title}"
+        )
+
         if not self.model:
             return {
                 "status": "error",
                 "message": "ArchitectAgent not properly initialized with Vertex AI model.",
-                "system_design_draft": None
+                "system_design_draft": None,
             }
 
         try:
             # First, analyze the PRD content
             prd_analysis = await self.analyze_prd_content(prd_content)
-            
+
             # Generate enhanced system design prompt based on analysis
             system_design_prompt = self._create_enhanced_design_prompt(
                 prd_content, case_title, prd_analysis
@@ -188,49 +203,59 @@ Focus on extracting concrete, actionable architectural information that will gui
                 "top_p": 0.8,
                 "top_k": 40,
             }
-            
+
             safety_settings = {
                 generative_models.HarmCategory.HARM_CATEGORY_HATE_SPEECH: generative_models.HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE,
                 generative_models.HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT: generative_models.HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE,
                 generative_models.HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT: generative_models.HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE,
                 generative_models.HarmCategory.HARM_CATEGORY_HARASSMENT: generative_models.HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE,
             }
-            
-            logger.info(f"[ArchitectAgent] Generating enhanced system design for case: {case_title}")
+
+            logger.info(
+                f"[ArchitectAgent] Generating enhanced system design for case: {case_title}"
+            )
             response = await self.model.generate_content_async(
                 [system_design_prompt],
                 generation_config=generation_config,
                 safety_settings=safety_settings,
                 stream=False,
             )
-            
+
             if response.candidates and response.candidates[0].content.parts:
-                system_design_content = response.candidates[0].content.parts[0].text.strip()
-                
+                system_design_content = (
+                    response.candidates[0].content.parts[0].text.strip()
+                )
+
                 system_design_draft = {
                     "content_markdown": system_design_content,
                     "generated_by": "ArchitectAgent (Enhanced)",
                     "version": "v2",
                     "generated_at": datetime.now().isoformat(),
-                    "prd_analysis": prd_analysis
+                    "prd_analysis": prd_analysis,
                 }
-                
-                logger.info(f"[ArchitectAgent] Successfully generated enhanced system design for {case_title}")
-                print(f"[ArchitectAgent] Generated enhanced system design ({len(system_design_content)} characters)")
-                
+
+                logger.info(
+                    f"[ArchitectAgent] Successfully generated enhanced system design for {case_title}"
+                )
+                print(
+                    f"[ArchitectAgent] Generated enhanced system design ({len(system_design_content)} characters)"
+                )
+
                 return {
                     "status": "success",
                     "message": "Enhanced system design generated successfully",
-                    "system_design_draft": system_design_draft
+                    "system_design_draft": system_design_draft,
                 }
             else:
-                logger.warning(f"[ArchitectAgent] No system design generated for {case_title}")
+                logger.warning(
+                    f"[ArchitectAgent] No system design generated for {case_title}"
+                )
                 return {
                     "status": "error",
                     "message": "No system design content generated by Vertex AI",
-                    "system_design_draft": None
+                    "system_design_draft": None,
                 }
-                
+
         except Exception as e:
             error_msg = f"Error generating enhanced system design: {str(e)}"
             logger.error(f"[ArchitectAgent] {error_msg} for case {case_title}")
@@ -238,19 +263,23 @@ Focus on extracting concrete, actionable architectural information that will gui
             return {
                 "status": "error",
                 "message": error_msg,
-                "system_design_draft": None
+                "system_design_draft": None,
             }
 
-    def _create_enhanced_design_prompt(self, prd_content: str, case_title: str, analysis: Dict[str, Any]) -> str:
+    def _create_enhanced_design_prompt(
+        self, prd_content: str, case_title: str, analysis: Dict[str, Any]
+    ) -> str:
         """
         Create an enhanced system design prompt based on PRD analysis.
         """
-        complexity = analysis.get("complexity_indicators", {}).get("estimated_complexity", "medium")
+        complexity = analysis.get("complexity_indicators", {}).get(
+            "estimated_complexity", "medium"
+        )
         features = analysis.get("key_features", [])
         integrations = analysis.get("external_integrations", [])
         api_needs = analysis.get("api_needs", [])
-        
-        return f"""You are a Senior Software Architect with expertise in healthcare technology and cloud-based systems. Based on the following approved PRD and its analysis for the project titled '{case_title}', generate a comprehensive, actionable system design.
+
+        return """You are a Senior Software Architect with expertise in healthcare technology and cloud-based systems. Based on the following approved PRD and its analysis for the project titled '{case_title}', generate a comprehensive, actionable system design.
 
 --- PRD Content ---
 {prd_content}
@@ -275,7 +304,7 @@ Please provide a structured system design that includes:
    - **List each major component with specific responsibilities**
    - **Data flow between components**
    - **Inter-service communication patterns**
-   
+
    ### Suggested Microservices (if applicable)
    - Service breakdown based on identified features
    - Service boundaries and responsibilities
@@ -286,7 +315,7 @@ Please provide a structured system design that includes:
    - Specific endpoint suggestions based on user journeys
    - Request/response data models
    - Authentication and authorization strategy
-   
+
    ### Example API Structure:
    ```
    GET /api/v1/resource
@@ -300,7 +329,7 @@ Please provide a structured system design that includes:
    - Recommended database type (SQL/NoSQL) with rationale
    - Core entity relationships and schema suggestions
    - Data access patterns and query optimization
-   
+
    ### Data Storage Strategy
    - Primary data storage solutions
    - Caching strategies
@@ -311,12 +340,12 @@ Please provide a structured system design that includes:
    - Framework recommendations with rationale
    - State management approach
    - UI component strategy
-   
+
    ### Backend Stack
    - Runtime and framework recommendations
    - Dependency management
    - Development and testing tools
-   
+
    ### Infrastructure & Cloud Services
    - Google Cloud Platform service recommendations
    - Containerization strategy (Docker/Kubernetes)
@@ -327,7 +356,7 @@ Please provide a structured system design that includes:
    - Identity provider integration (Google Identity Platform)
    - Role-based access control (RBAC) design
    - API security (OAuth 2.0, JWT tokens)
-   
+
    ### Healthcare Compliance
    - HIPAA compliance considerations
    - Data encryption (at rest and in transit)
@@ -338,7 +367,7 @@ Please provide a structured system design that includes:
    - Horizontal vs vertical scaling approach
    - Auto-scaling configuration
    - Load balancing strategy
-   
+
    ### Performance Optimization
    - Caching strategies (Redis, CDN)
    - Database optimization
@@ -349,12 +378,12 @@ Please provide a structured system design that includes:
    - Core infrastructure setup
    - Basic authentication
    - Primary data models
-   
+
    ### Phase 2: Core Features (Weeks 5-8)
    - Main business logic
    - API implementation
    - Basic UI development
-   
+
    ### Phase 3: Integration & Enhancement (Weeks 9-12)
    - External integrations
    - Advanced features
@@ -370,7 +399,7 @@ Please provide a structured system design that includes:
    - Local development setup
    - Testing strategy (unit, integration, e2e)
    - Code quality and review processes
-   
+
    ### Deployment Strategy
    - Environment promotion (dev → staging → prod)
    - Blue-green or canary deployment
@@ -388,23 +417,29 @@ Format your response in clear markdown with headers and bullet points for easy r
         case_title = requirements.get("case_title", "Untitled Case")
         return await self.generate_system_design(prd_content, case_title)
 
-    async def estimate_implementation_effort(self, architecture: Dict[str, Any]) -> Dict[str, Any]:
+    async def estimate_implementation_effort(
+        self, architecture: Dict[str, Any]
+    ) -> Dict[str, Any]:
         """
         Estimate implementation effort and timeline (placeholder for future enhancement)
         """
         return {
             "estimated_duration": "TBD",
-            "team_size_recommendation": "TBD", 
-            "complexity_assessment": "TBD"
+            "team_size_recommendation": "TBD",
+            "complexity_assessment": "TBD",
         }
 
-    async def identify_risks(self, technical_data: Dict[str, Any]) -> List[Dict[str, Any]]:
+    async def identify_risks(
+        self, technical_data: Dict[str, Any]
+    ) -> List[Dict[str, Any]]:
         """
         Identify technical risks and mitigation strategies (placeholder for future enhancement)
         """
         return []
 
-    async def recommend_technologies(self, requirements: Dict[str, Any]) -> List[Dict[str, Any]]:
+    async def recommend_technologies(
+        self, requirements: Dict[str, Any]
+    ) -> List[Dict[str, Any]]:
         """
         Recommend appropriate technologies and tools (placeholder for future enhancement)
         """
@@ -415,5 +450,5 @@ Format your response in clear markdown with headers and bullet points for easy r
         return {
             "name": self.name,
             "status": self.status,
-            "description": self.description
-        } 
+            "description": self.description,
+        }

@@ -1,10 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useAuth } from '../contexts/AuthContext';
+import { useAuth } from '../hooks/useAuth';
 import {
   Container,
   TextField,
-  Button,
   Typography,
   Box,
   CircularProgress,
@@ -16,6 +15,8 @@ import {
 } from '@mui/material';
 import { Google as GoogleIcon } from '@mui/icons-material';
 import { Link as RouterLink } from 'react-router-dom';
+import { LoadingButton } from '../components/common/LoadingIndicators';
+import { PAPER_ELEVATION, STANDARD_STYLES } from '../styles/constants';
 
 const SignUpPage: React.FC = () => {
   const [email, setEmail] = useState('');
@@ -105,14 +106,7 @@ const SignUpPage: React.FC = () => {
   if (loading) {
     return (
       <Container component="main" maxWidth="xs">
-        <Box
-          sx={{
-            marginTop: 8,
-            display: 'flex',
-            flexDirection: 'column',
-            alignItems: 'center',
-          }}
-        >
+        <Box sx={STANDARD_STYLES.authPageContainer}>
           <CircularProgress />
           <Typography sx={{ mt: 2 }}>Loading...</Typography>
         </Box>
@@ -122,21 +116,14 @@ const SignUpPage: React.FC = () => {
 
   return (
     <Container component="main" maxWidth="xs">
-      <Box
-        sx={{
-          marginTop: 8,
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'center',
-        }}
-      >
-        <Paper elevation={3} sx={{ padding: 4, width: '100%' }}>
-          <Typography component="h1" variant="h4" align="center" gutterBottom>
+      <Box sx={STANDARD_STYLES.authPageContainer}>
+        <Paper elevation={PAPER_ELEVATION.AUTH_FORM} sx={{ ...STANDARD_STYLES.authFormPaper, width: '100%' }}>
+          <Typography id="signup-title" component="h1" variant="h4" align="center" gutterBottom>
             Sign Up
           </Typography>
 
           {error && (
-            <Alert severity="error" sx={{ mb: 2 }}>
+            <Alert severity="error" sx={{ mb: 2 }} role="alert" aria-live="assertive">
               {error}
             </Alert>
           )}
@@ -146,6 +133,8 @@ const SignUpPage: React.FC = () => {
             onSubmit={handleEmailSignUp}
             noValidate
             sx={{ mt: 1 }}
+            role="form"
+            aria-labelledby="signup-title"
           >
             <TextField
               margin="normal"
@@ -187,20 +176,21 @@ const SignUpPage: React.FC = () => {
               disabled={isLoading}
             />
 
-            <Button
+            <LoadingButton
               type="submit"
               fullWidth
               variant="contained"
               sx={{ mt: 3, mb: 2 }}
               disabled={
-                isLoading ||
                 !email.trim() ||
                 !password.trim() ||
                 !confirmPassword.trim()
               }
+              loading={isLoading}
+              loadingText="Signing Up..."
             >
-              {isLoading ? <CircularProgress size={24} /> : 'Sign Up'}
-            </Button>
+              Sign Up
+            </LoadingButton>
 
             <Divider sx={{ my: 2 }}>
               <Typography variant="body2" color="text.secondary">
@@ -208,16 +198,18 @@ const SignUpPage: React.FC = () => {
               </Typography>
             </Divider>
 
-            <Button
+            <LoadingButton
               fullWidth
               variant="outlined"
               startIcon={<GoogleIcon />}
               onClick={handleGoogleSignUp}
-              disabled={isLoading}
+              loading={isLoading}
+              loadingText="Signing Up..."
               sx={{ mb: 2 }}
+              aria-label="Sign up with Google account"
             >
               Sign up with Google
-            </Button>
+            </LoadingButton>
 
             <Stack
               direction="row"

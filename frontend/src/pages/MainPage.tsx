@@ -26,7 +26,9 @@ import {
 } from '@mui/icons-material';
 import { Link as RouterLink } from 'react-router-dom';
 import { AuthContext } from '../contexts/AuthContext';
-import { useAgentContext } from '../contexts/AgentContext';
+import { useAgentContext } from '../hooks/useAgentContext';
+import { CardSkeleton } from '../components/common/LoadingIndicators';
+import { PAPER_ELEVATION, STANDARD_STYLES } from '../styles/constants';
 
 const MainPage: React.FC = () => {
   const authContext = useContext(AuthContext);
@@ -46,7 +48,7 @@ const MainPage: React.FC = () => {
   const approvedCases = cases.filter((c) => c.status === 'PRD_APPROVED').length;
 
   return (
-    <Container maxWidth="lg" sx={{ py: 4 }}>
+    <Container maxWidth="lg" sx={STANDARD_STYLES.pageContainer}>
       {/* Welcome Header */}
       <Box sx={{ mb: 4 }}>
         <Typography variant="h4" component="h1" gutterBottom>
@@ -65,57 +67,73 @@ const MainPage: React.FC = () => {
       <Grid container spacing={3} sx={{ mb: 4 }}>
         <Grid item xs={12} sm={6} md={3}>
           <Card>
-            <CardContent>
-              <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
-                <AssignmentIcon color="primary" sx={{ mr: 1 }} />
-                <Typography variant="h6">Total Cases</Typography>
-              </Box>
-              <Typography variant="h4" color="primary">
-                {isLoadingCases ? '...' : totalCases}
-              </Typography>
-            </CardContent>
+            {isLoadingCases ? (
+              <CardSkeleton rows={2} />
+            ) : (
+              <CardContent>
+                <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
+                  <AssignmentIcon color="primary" sx={{ mr: 1 }} />
+                  <Typography variant="h6" component="h3">Total Cases</Typography>
+                </Box>
+                <Typography variant="h4" color="primary">
+                  {totalCases}
+                </Typography>
+              </CardContent>
+            )}
           </Card>
         </Grid>
 
         <Grid item xs={12} sm={6} md={3}>
           <Card>
-            <CardContent>
-              <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
-                <SpeedIcon color="warning" sx={{ mr: 1 }} />
-                <Typography variant="h6">In Progress</Typography>
-              </Box>
-              <Typography variant="h4" color="warning.main">
-                {isLoadingCases ? '...' : draftCases}
-              </Typography>
-            </CardContent>
+            {isLoadingCases ? (
+              <CardSkeleton rows={2} />
+            ) : (
+              <CardContent>
+                <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
+                  <SpeedIcon color="warning" sx={{ mr: 1 }} />
+                  <Typography variant="h6" component="h3">In Progress</Typography>
+                </Box>
+                <Typography variant="h4" color="warning.main">
+                  {draftCases}
+                </Typography>
+              </CardContent>
+            )}
           </Card>
         </Grid>
 
         <Grid item xs={12} sm={6} md={3}>
           <Card>
-            <CardContent>
-              <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
-                <TrendingUpIcon color="info" sx={{ mr: 1 }} />
-                <Typography variant="h6">Under Review</Typography>
-              </Box>
-              <Typography variant="h4" color="info.main">
-                {isLoadingCases ? '...' : reviewCases}
-              </Typography>
-            </CardContent>
+            {isLoadingCases ? (
+              <CardSkeleton rows={2} />
+            ) : (
+              <CardContent>
+                <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
+                  <TrendingUpIcon color="info" sx={{ mr: 1 }} />
+                  <Typography variant="h6" component="h3">Under Review</Typography>
+                </Box>
+                <Typography variant="h4" color="info.main">
+                  {reviewCases}
+                </Typography>
+              </CardContent>
+            )}
           </Card>
         </Grid>
 
         <Grid item xs={12} sm={6} md={3}>
           <Card>
-            <CardContent>
-              <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
-                <CheckCircleIcon color="success" sx={{ mr: 1 }} />
-                <Typography variant="h6">Approved</Typography>
-              </Box>
-              <Typography variant="h4" color="success.main">
-                {isLoadingCases ? '...' : approvedCases}
-              </Typography>
-            </CardContent>
+            {isLoadingCases ? (
+              <CardSkeleton rows={2} />
+            ) : (
+              <CardContent>
+                <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
+                  <CheckCircleIcon color="success" sx={{ mr: 1 }} />
+                  <Typography variant="h6" component="h3">Approved</Typography>
+                </Box>
+                <Typography variant="h4" color="success.main">
+                  {approvedCases}
+                </Typography>
+              </CardContent>
+            )}
           </Card>
         </Grid>
       </Grid>
@@ -123,8 +141,8 @@ const MainPage: React.FC = () => {
       <Grid container spacing={3}>
         {/* Quick Actions */}
         <Grid item xs={12} md={6}>
-          <Paper sx={{ p: 3 }}>
-            <Typography variant="h6" gutterBottom>
+          <Paper elevation={PAPER_ELEVATION.MAIN_CONTENT} sx={STANDARD_STYLES.mainContentPaper}>
+            <Typography variant="h5" component="h2" gutterBottom>
               Quick Actions
             </Typography>
             <Stack spacing={2}>
@@ -154,8 +172,8 @@ const MainPage: React.FC = () => {
 
         {/* Recent Activity / System Status */}
         <Grid item xs={12} md={6}>
-          <Paper sx={{ p: 3 }}>
-            <Typography variant="h6" gutterBottom>
+          <Paper elevation={PAPER_ELEVATION.MAIN_CONTENT} sx={STANDARD_STYLES.mainContentPaper}>
+            <Typography variant="h5" component="h2" gutterBottom>
               System Features
             </Typography>
             <List dense>
@@ -196,10 +214,10 @@ const MainPage: React.FC = () => {
       {/* Recent Cases Preview */}
       {cases.length > 0 && (
         <Box sx={{ mt: 4 }}>
-          <Typography variant="h6" gutterBottom>
+          <Typography variant="h5" component="h2" gutterBottom>
             Recent Business Cases
           </Typography>
-          <Paper sx={{ p: 2 }}>
+          <Paper elevation={PAPER_ELEVATION.SUB_SECTION} sx={STANDARD_STYLES.subSectionPaper}>
             <List>
               {cases.slice(0, 3).map((businessCase, index) => (
                 <React.Fragment key={businessCase.case_id}>

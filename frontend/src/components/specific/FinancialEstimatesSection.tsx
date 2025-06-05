@@ -28,8 +28,8 @@ import {
   CheckCircle as CheckCircleIcon,
   Cancel as RejectIcon,
 } from '@mui/icons-material';
-import { useAgentContext } from '../../contexts/AgentContext';
-import { useAuth } from '../../contexts/AuthContext';
+import { useAgentContext } from '../../hooks/useAgentContext';
+import { useAuth } from '../../hooks/useAuth';
 import { BusinessCaseDetails } from '../../services/agent/AgentService';
 
 interface FinancialEstimatesSectionProps {
@@ -279,7 +279,7 @@ export const FinancialEstimatesSection: React.FC<FinancialEstimatesSectionProps>
             <Stack direction="row" justifyContent="space-between" alignItems="flex-start" sx={{ mb: 2 }}>
               <Stack direction="row" alignItems="center" spacing={1}>
                 <BusinessIcon color="primary" />
-                <Typography variant="h6">💼 Effort Estimate</Typography>
+                <Typography variant="h6" component="h3">💼 Effort Estimate</Typography>
               </Stack>
               <Stack direction="row" spacing={1}>
                 {canSubmitEffortEstimate() && (
@@ -358,7 +358,7 @@ export const FinancialEstimatesSection: React.FC<FinancialEstimatesSectionProps>
             <Stack direction="row" justifyContent="space-between" alignItems="flex-start" sx={{ mb: 2 }}>
               <Stack direction="row" alignItems="center" spacing={1}>
                 <MoneyIcon color="primary" />
-                <Typography variant="h6">💰 Cost Estimate</Typography>
+                <Typography variant="h6" component="h3">💰 Cost Estimate</Typography>
               </Stack>
               <Stack direction="row" spacing={1}>
                 {canSubmitCostEstimate() && (
@@ -440,7 +440,7 @@ export const FinancialEstimatesSection: React.FC<FinancialEstimatesSectionProps>
             <Stack direction="row" justifyContent="space-between" alignItems="flex-start" sx={{ mb: 2 }}>
               <Stack direction="row" alignItems="center" spacing={1}>
                 <TrendingUpIcon color="primary" />
-                <Typography variant="h6">📈 Value Projection</Typography>
+                <Typography variant="h6" component="h3">📈 Value Projection</Typography>
               </Stack>
               <Stack direction="row" spacing={1}>
                 {canSubmitValueProjection() && (

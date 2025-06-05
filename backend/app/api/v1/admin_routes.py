@@ -16,9 +16,11 @@ from pydantic import BaseModel, Field
 router = APIRouter()
 security = HTTPBearer()
 
+
 # Pydantic models for response structures
 class RateCard(BaseModel):
     """Rate card model for API responses"""
+
     id: str
     name: str
     description: str
@@ -28,8 +30,10 @@ class RateCard(BaseModel):
     created_at: str
     updated_at: str
 
+
 class PricingTemplate(BaseModel):
     """Pricing template model for API responses"""
+
     id: str
     name: str
     description: str
@@ -38,46 +42,98 @@ class PricingTemplate(BaseModel):
     created_at: str
     updated_at: str
 
+
 # Pydantic models for request bodies
 class RoleRate(BaseModel):
     """Role with hourly rate"""
+
     roleName: str = Field(..., description="Name of the role")
     hourlyRate: float = Field(..., gt=0, description="Hourly rate for the role")
 
+
 class CreateRateCardRequest(BaseModel):
     """Request model for creating a new rate card"""
-    name: str = Field(..., min_length=1, max_length=100, description="Name of the rate card")
-    description: str = Field(..., min_length=1, max_length=500, description="Description of the rate card")
+
+    name: str = Field(
+        ..., min_length=1, max_length=100, description="Name of the rate card"
+    )
+    description: str = Field(
+        ..., min_length=1, max_length=500, description="Description of the rate card"
+    )
     isActive: bool = Field(True, description="Whether the rate card is active")
-    defaultOverallRate: float = Field(..., gt=0, description="Default overall hourly rate")
-    roles: List[RoleRate] = Field(default=[], description="List of roles with specific rates")
+    defaultOverallRate: float = Field(
+        ..., gt=0, description="Default overall hourly rate"
+    )
+    roles: List[RoleRate] = Field(
+        default=[], description="List of roles with specific rates"
+    )
+
 
 class UpdateRateCardRequest(BaseModel):
     """Request model for updating an existing rate card"""
-    name: Optional[str] = Field(None, min_length=1, max_length=100, description="Name of the rate card")
-    description: Optional[str] = Field(None, min_length=1, max_length=500, description="Description of the rate card")
-    isActive: Optional[bool] = Field(None, description="Whether the rate card is active")
-    defaultOverallRate: Optional[float] = Field(None, gt=0, description="Default overall hourly rate")
-    roles: Optional[List[RoleRate]] = Field(None, description="List of roles with specific rates")
+
+    name: Optional[str] = Field(
+        None, min_length=1, max_length=100, description="Name of the rate card"
+    )
+    description: Optional[str] = Field(
+        None, min_length=1, max_length=500, description="Description of the rate card"
+    )
+    isActive: Optional[bool] = Field(
+        None, description="Whether the rate card is active"
+    )
+    defaultOverallRate: Optional[float] = Field(
+        None, gt=0, description="Default overall hourly rate"
+    )
+    roles: Optional[List[RoleRate]] = Field(
+        None, description="List of roles with specific rates"
+    )
+
 
 # Pydantic models for Pricing Template operations
 class CreatePricingTemplateRequest(BaseModel):
     """Request model for creating a new pricing template"""
-    name: str = Field(..., min_length=1, max_length=100, description="Name of the pricing template")
-    description: str = Field(..., min_length=1, max_length=500, description="Description of the pricing template")
-    version: str = Field(..., min_length=1, max_length=20, description="Version of the pricing template")
-    structureDefinition: Dict[str, Any] = Field(..., description="Structure definition (JSON object)")
+
+    name: str = Field(
+        ..., min_length=1, max_length=100, description="Name of the pricing template"
+    )
+    description: str = Field(
+        ...,
+        min_length=1,
+        max_length=500,
+        description="Description of the pricing template",
+    )
+    version: str = Field(
+        ..., min_length=1, max_length=20, description="Version of the pricing template"
+    )
+    structureDefinition: Dict[str, Any] = Field(
+        ..., description="Structure definition (JSON object)"
+    )
+
 
 class UpdatePricingTemplateRequest(BaseModel):
     """Request model for updating an existing pricing template"""
-    name: Optional[str] = Field(None, min_length=1, max_length=100, description="Name of the pricing template")
-    description: Optional[str] = Field(None, min_length=1, max_length=500, description="Description of the pricing template")
-    version: Optional[str] = Field(None, min_length=1, max_length=20, description="Version of the pricing template")
-    structureDefinition: Optional[Dict[str, Any]] = Field(None, description="Structure definition (JSON object)")
+
+    name: Optional[str] = Field(
+        None, min_length=1, max_length=100, description="Name of the pricing template"
+    )
+    description: Optional[str] = Field(
+        None,
+        min_length=1,
+        max_length=500,
+        description="Description of the pricing template",
+    )
+    version: Optional[str] = Field(
+        None, min_length=1, max_length=20, description="Version of the pricing template"
+    )
+    structureDefinition: Optional[Dict[str, Any]] = Field(
+        None, description="Structure definition (JSON object)"
+    )
+
 
 # Add User Pydantic model near the top with other models
 class User(BaseModel):
     """User model for API responses"""
+
     uid: str
     email: str
     display_name: Optional[str] = None
@@ -86,6 +142,27 @@ class User(BaseModel):
     created_at: Optional[str] = None
     updated_at: Optional[str] = None
     last_login: Optional[str] = None
+
+
+# Global Configuration Models
+class FinalApproverRoleConfig(BaseModel):
+    """Final approver role configuration model"""
+
+    finalApproverRoleName: str
+    updatedAt: Optional[str] = None
+    description: Optional[str] = None
+
+
+class UpdateFinalApproverRoleRequest(BaseModel):
+    """Request model for updating final approver role"""
+
+    finalApproverRoleName: str = Field(
+        ...,
+        min_length=1,
+        max_length=50,
+        description="System role name to use for final approvals",
+    )
+
 
 # Initialize Firestore client
 db = None
@@ -97,56 +174,57 @@ except Exception as e:
 
 # Rate Cards CRUD Operations
 
-@router.get("/rate-cards", response_model=List[Dict[str, Any]], summary="List all rate cards")
+
+@router.get(
+    "/rate-cards", response_model=List[Dict[str, Any]], summary="List all rate cards"
+)
 async def list_rate_cards(current_user: dict = Depends(require_admin_role)):
     """Get a list of all rate cards (admin only)"""
     if not db:
-        raise HTTPException(
-            status_code=500,
-            detail="Database connection not available"
-        )
-    
+        raise HTTPException(status_code=500, detail="Database connection not available")
+
     try:
         # Fetch all documents from rateCards collection
         rate_cards_ref = db.collection("rateCards")
         docs = await asyncio.to_thread(lambda: list(rate_cards_ref.stream()))
-        
+
         rate_cards = []
         for doc in docs:
             rate_card_data = doc.to_dict()
-            rate_card_data['id'] = doc.id  # Add document ID
+            rate_card_data["id"] = doc.id  # Add document ID
             rate_cards.append(rate_card_data)
-        
-        print(f"[AdminAPI] Retrieved {len(rate_cards)} rate cards for user: {current_user.get('email', 'unknown')}")
+
+        print(
+            f"[AdminAPI] Retrieved {len(rate_cards)} rate cards for user: {current_user.get('email', 'unknown')}"
+        )
         return rate_cards
-        
+
     except Exception as e:
         print(f"[AdminAPI] Error fetching rate cards: {e}")
         raise HTTPException(
-            status_code=500,
-            detail=f"Failed to fetch rate cards: {str(e)}"
+            status_code=500, detail=f"Failed to fetch rate cards: {str(e)}"
         )
 
-@router.post("/rate-cards", response_model=Dict[str, Any], summary="Create a new rate card")
+
+@router.post(
+    "/rate-cards", response_model=Dict[str, Any], summary="Create a new rate card"
+)
 async def create_rate_card(
     rate_card_data: CreateRateCardRequest,
-    current_user: dict = Depends(require_admin_role)
+    current_user: dict = Depends(require_admin_role),
 ):
     """Create a new rate card (admin only)"""
     if not db:
-        raise HTTPException(
-            status_code=500,
-            detail="Database connection not available"
-        )
-    
+        raise HTTPException(status_code=500, detail="Database connection not available")
+
     try:
         # Generate unique ID for the new rate card
         card_id = str(uuid.uuid4())
         current_time = datetime.now(timezone.utc).isoformat()
-        
+
         # Convert RoleRate objects to dictionaries
         roles_data = [role.model_dump() for role in rate_card_data.roles]
-        
+
         # Prepare the rate card document
         rate_card_doc = {
             "name": rate_card_data.name,
@@ -156,52 +234,54 @@ async def create_rate_card(
             "roles": roles_data,
             "created_at": current_time,
             "updated_at": current_time,
-            "created_by": current_user.get('email', 'unknown'),
-            "updated_by": current_user.get('email', 'unknown')
+            "created_by": current_user.get("email", "unknown"),
+            "updated_by": current_user.get("email", "unknown"),
         }
-        
+
         # Save to Firestore
         rate_cards_ref = db.collection("rateCards")
         await asyncio.to_thread(rate_cards_ref.document(card_id).set, rate_card_doc)
-        
+
         # Return the created rate card with ID
-        rate_card_doc['id'] = card_id
-        
-        print(f"[AdminAPI] Created new rate card '{rate_card_data.name}' with ID {card_id} by user: {current_user.get('email', 'unknown')}")
+        rate_card_doc["id"] = card_id
+
+        print(
+            f"[AdminAPI] Created new rate card '{rate_card_data.name}' with ID {card_id} by user: {current_user.get('email', 'unknown')}"
+        )
         return rate_card_doc
-        
+
     except Exception as e:
         print(f"[AdminAPI] Error creating rate card: {e}")
         raise HTTPException(
-            status_code=500,
-            detail=f"Failed to create rate card: {str(e)}"
+            status_code=500, detail=f"Failed to create rate card: {str(e)}"
         )
 
-@router.put("/rate-cards/{card_id}", response_model=Dict[str, Any], summary="Update an existing rate card")
+
+@router.put(
+    "/rate-cards/{card_id}",
+    response_model=Dict[str, Any],
+    summary="Update an existing rate card",
+)
 async def update_rate_card(
     card_id: str,
     rate_card_data: UpdateRateCardRequest,
-    current_user: dict = Depends(require_admin_role)
+    current_user: dict = Depends(require_admin_role),
 ):
     """Update an existing rate card (admin only)"""
     if not db:
-        raise HTTPException(
-            status_code=500,
-            detail="Database connection not available"
-        )
-    
+        raise HTTPException(status_code=500, detail="Database connection not available")
+
     try:
         # Check if rate card exists
         rate_cards_ref = db.collection("rateCards")
         doc_ref = rate_cards_ref.document(card_id)
         doc = await asyncio.to_thread(doc_ref.get)
-        
+
         if not doc.exists:
             raise HTTPException(
-                status_code=404,
-                detail=f"Rate card with ID {card_id} not found"
+                status_code=404, detail=f"Rate card with ID {card_id} not found"
             )
-        
+
         # Prepare update data (only include non-None fields)
         update_data = {}
         if rate_card_data.name is not None:
@@ -214,124 +294,129 @@ async def update_rate_card(
             update_data["defaultOverallRate"] = rate_card_data.defaultOverallRate
         if rate_card_data.roles is not None:
             update_data["roles"] = [role.model_dump() for role in rate_card_data.roles]
-        
+
         # Always update timestamp and user
         update_data["updated_at"] = datetime.now(timezone.utc).isoformat()
-        update_data["updated_by"] = current_user.get('email', 'unknown')
-        
+        update_data["updated_by"] = current_user.get("email", "unknown")
+
         # Update the document
         await asyncio.to_thread(doc_ref.update, update_data)
-        
+
         # Fetch and return the updated document
         updated_doc = await asyncio.to_thread(doc_ref.get)
         updated_data = updated_doc.to_dict()
-        updated_data['id'] = card_id
-        
-        print(f"[AdminAPI] Updated rate card {card_id} by user: {current_user.get('email', 'unknown')}")
+        updated_data["id"] = card_id
+
+        print(
+            f"[AdminAPI] Updated rate card {card_id} by user: {current_user.get('email', 'unknown')}"
+        )
         return updated_data
-        
+
     except HTTPException:
         raise
     except Exception as e:
         print(f"[AdminAPI] Error updating rate card: {e}")
         raise HTTPException(
-            status_code=500,
-            detail=f"Failed to update rate card: {str(e)}"
+            status_code=500, detail=f"Failed to update rate card: {str(e)}"
         )
 
-@router.delete("/rate-cards/{card_id}", response_model=Dict[str, str], summary="Delete a rate card")
+
+@router.delete(
+    "/rate-cards/{card_id}", response_model=Dict[str, str], summary="Delete a rate card"
+)
 async def delete_rate_card(
-    card_id: str,
-    current_user: dict = Depends(require_admin_role)
+    card_id: str, current_user: dict = Depends(require_admin_role)
 ):
     """Delete a rate card (admin only)"""
     if not db:
-        raise HTTPException(
-            status_code=500,
-            detail="Database connection not available"
-        )
-    
+        raise HTTPException(status_code=500, detail="Database connection not available")
+
     try:
         # Check if rate card exists
         rate_cards_ref = db.collection("rateCards")
         doc_ref = rate_cards_ref.document(card_id)
         doc = await asyncio.to_thread(doc_ref.get)
-        
+
         if not doc.exists:
             raise HTTPException(
-                status_code=404,
-                detail=f"Rate card with ID {card_id} not found"
+                status_code=404, detail=f"Rate card with ID {card_id} not found"
             )
-        
+
         # Get rate card name for logging
         rate_card_data = doc.to_dict()
-        rate_card_name = rate_card_data.get('name', 'Unknown')
-        
+        rate_card_name = rate_card_data.get("name", "Unknown")
+
         # Delete the document
         await asyncio.to_thread(doc_ref.delete)
-        
-        print(f"[AdminAPI] Deleted rate card '{rate_card_name}' (ID: {card_id}) by user: {current_user.get('email', 'unknown')}")
+
+        print(
+            f"[AdminAPI] Deleted rate card '{rate_card_name}' (ID: {card_id}) by user: {current_user.get('email', 'unknown')}"
+        )
         return {
             "message": f"Rate card '{rate_card_name}' deleted successfully",
-            "deleted_id": card_id
+            "deleted_id": card_id,
         }
-        
+
     except HTTPException:
         raise
     except Exception as e:
         print(f"[AdminAPI] Error deleting rate card: {e}")
         raise HTTPException(
-            status_code=500,
-            detail=f"Failed to delete rate card: {str(e)}"
+            status_code=500, detail=f"Failed to delete rate card: {str(e)}"
         )
 
-@router.get("/pricing-templates", response_model=List[Dict[str, Any]], summary="List all pricing templates")
+
+@router.get(
+    "/pricing-templates",
+    response_model=List[Dict[str, Any]],
+    summary="List all pricing templates",
+)
 async def list_pricing_templates(current_user: dict = Depends(require_admin_role)):
     """Get a list of all pricing templates (admin only)"""
     if not db:
-        raise HTTPException(
-            status_code=500,
-            detail="Database connection not available"
-        )
-    
+        raise HTTPException(status_code=500, detail="Database connection not available")
+
     try:
         # Fetch all documents from pricingTemplates collection
         templates_ref = db.collection("pricingTemplates")
         docs = await asyncio.to_thread(lambda: list(templates_ref.stream()))
-        
+
         pricing_templates = []
         for doc in docs:
             template_data = doc.to_dict()
-            template_data['id'] = doc.id  # Add document ID
+            template_data["id"] = doc.id  # Add document ID
             pricing_templates.append(template_data)
-        
-        print(f"[AdminAPI] Retrieved {len(pricing_templates)} pricing templates for user: {current_user.get('email', 'unknown')}")
+
+        print(
+            f"[AdminAPI] Retrieved {len(pricing_templates)} pricing templates for user: {current_user.get('email', 'unknown')}"
+        )
         return pricing_templates
-        
+
     except Exception as e:
         print(f"[AdminAPI] Error fetching pricing templates: {e}")
         raise HTTPException(
-            status_code=500,
-            detail=f"Failed to fetch pricing templates: {str(e)}"
+            status_code=500, detail=f"Failed to fetch pricing templates: {str(e)}"
         )
 
-@router.post("/pricing-templates", response_model=Dict[str, Any], summary="Create a new pricing template")
+
+@router.post(
+    "/pricing-templates",
+    response_model=Dict[str, Any],
+    summary="Create a new pricing template",
+)
 async def create_pricing_template(
     template_data: CreatePricingTemplateRequest,
-    current_user: dict = Depends(require_admin_role)
+    current_user: dict = Depends(require_admin_role),
 ):
     """Create a new pricing template (admin only)"""
     if not db:
-        raise HTTPException(
-            status_code=500,
-            detail="Database connection not available"
-        )
-    
+        raise HTTPException(status_code=500, detail="Database connection not available")
+
     try:
         # Generate unique ID for the new pricing template
         template_id = str(uuid.uuid4())
         current_time = datetime.now(timezone.utc).isoformat()
-        
+
         # Prepare the pricing template document
         template_doc = {
             "name": template_data.name,
@@ -340,52 +425,55 @@ async def create_pricing_template(
             "structureDefinition": template_data.structureDefinition,
             "created_at": current_time,
             "updated_at": current_time,
-            "created_by": current_user.get('email', 'unknown'),
-            "updated_by": current_user.get('email', 'unknown')
+            "created_by": current_user.get("email", "unknown"),
+            "updated_by": current_user.get("email", "unknown"),
         }
-        
+
         # Save to Firestore
         templates_ref = db.collection("pricingTemplates")
         await asyncio.to_thread(templates_ref.document(template_id).set, template_doc)
-        
+
         # Return the created template with ID
-        template_doc['id'] = template_id
-        
-        print(f"[AdminAPI] Created new pricing template '{template_data.name}' with ID {template_id} by user: {current_user.get('email', 'unknown')}")
+        template_doc["id"] = template_id
+
+        print(
+            f"[AdminAPI] Created new pricing template '{template_data.name}' with ID {template_id} by user: {current_user.get('email', 'unknown')}"
+        )
         return template_doc
-        
+
     except Exception as e:
         print(f"[AdminAPI] Error creating pricing template: {e}")
         raise HTTPException(
-            status_code=500,
-            detail=f"Failed to create pricing template: {str(e)}"
+            status_code=500, detail=f"Failed to create pricing template: {str(e)}"
         )
 
-@router.put("/pricing-templates/{template_id}", response_model=Dict[str, Any], summary="Update an existing pricing template")
+
+@router.put(
+    "/pricing-templates/{template_id}",
+    response_model=Dict[str, Any],
+    summary="Update an existing pricing template",
+)
 async def update_pricing_template(
     template_id: str,
     template_data: UpdatePricingTemplateRequest,
-    current_user: dict = Depends(require_admin_role)
+    current_user: dict = Depends(require_admin_role),
 ):
     """Update an existing pricing template (admin only)"""
     if not db:
-        raise HTTPException(
-            status_code=500,
-            detail="Database connection not available"
-        )
-    
+        raise HTTPException(status_code=500, detail="Database connection not available")
+
     try:
         # Check if pricing template exists
         templates_ref = db.collection("pricingTemplates")
         doc_ref = templates_ref.document(template_id)
         doc = await asyncio.to_thread(doc_ref.get)
-        
+
         if not doc.exists:
             raise HTTPException(
                 status_code=404,
-                detail=f"Pricing template with ID {template_id} not found"
+                detail=f"Pricing template with ID {template_id} not found",
             )
-        
+
         # Prepare update data (only include non-None fields)
         update_data = {}
         if template_data.name is not None:
@@ -396,121 +484,122 @@ async def update_pricing_template(
             update_data["version"] = template_data.version
         if template_data.structureDefinition is not None:
             update_data["structureDefinition"] = template_data.structureDefinition
-        
+
         # Always update timestamp and user
         update_data["updated_at"] = datetime.now(timezone.utc).isoformat()
-        update_data["updated_by"] = current_user.get('email', 'unknown')
-        
+        update_data["updated_by"] = current_user.get("email", "unknown")
+
         # Update the document
         await asyncio.to_thread(doc_ref.update, update_data)
-        
+
         # Fetch and return the updated document
         updated_doc = await asyncio.to_thread(doc_ref.get)
         updated_data = updated_doc.to_dict()
-        updated_data['id'] = template_id
-        
-        print(f"[AdminAPI] Updated pricing template {template_id} by user: {current_user.get('email', 'unknown')}")
+        updated_data["id"] = template_id
+
+        print(
+            f"[AdminAPI] Updated pricing template {template_id} by user: {current_user.get('email', 'unknown')}"
+        )
         return updated_data
-        
+
     except HTTPException:
         raise
     except Exception as e:
         print(f"[AdminAPI] Error updating pricing template: {e}")
         raise HTTPException(
-            status_code=500,
-            detail=f"Failed to update pricing template: {str(e)}"
+            status_code=500, detail=f"Failed to update pricing template: {str(e)}"
         )
 
-@router.delete("/pricing-templates/{template_id}", response_model=Dict[str, str], summary="Delete a pricing template")
+
+@router.delete(
+    "/pricing-templates/{template_id}",
+    response_model=Dict[str, str],
+    summary="Delete a pricing template",
+)
 async def delete_pricing_template(
-    template_id: str,
-    current_user: dict = Depends(require_admin_role)
+    template_id: str, current_user: dict = Depends(require_admin_role)
 ):
     """Delete a pricing template (admin only)"""
     if not db:
-        raise HTTPException(
-            status_code=500,
-            detail="Database connection not available"
-        )
-    
+        raise HTTPException(status_code=500, detail="Database connection not available")
+
     try:
         # Check if pricing template exists
         templates_ref = db.collection("pricingTemplates")
         doc_ref = templates_ref.document(template_id)
         doc = await asyncio.to_thread(doc_ref.get)
-        
+
         if not doc.exists:
             raise HTTPException(
                 status_code=404,
-                detail=f"Pricing template with ID {template_id} not found"
+                detail=f"Pricing template with ID {template_id} not found",
             )
-        
+
         # Get template name for logging
         template_data = doc.to_dict()
-        template_name = template_data.get('name', 'Unknown')
-        
+        template_name = template_data.get("name", "Unknown")
+
         # Delete the document
         await asyncio.to_thread(doc_ref.delete)
-        
-        print(f"[AdminAPI] Deleted pricing template '{template_name}' (ID: {template_id}) by user: {current_user.get('email', 'unknown')}")
+
+        print(
+            f"[AdminAPI] Deleted pricing template '{template_name}' (ID: {template_id}) by user: {current_user.get('email', 'unknown')}"
+        )
         return {
             "message": f"Pricing template '{template_name}' deleted successfully",
-            "deleted_id": template_id
+            "deleted_id": template_id,
         }
-        
+
     except HTTPException:
         raise
     except Exception as e:
         print(f"[AdminAPI] Error deleting pricing template: {e}")
         raise HTTPException(
-            status_code=500,
-            detail=f"Failed to delete pricing template: {str(e)}"
+            status_code=500, detail=f"Failed to delete pricing template: {str(e)}"
         )
+
 
 # Replace the placeholder users endpoint with complete implementation
 @router.get("/users", response_model=List[User], summary="List all users")
 async def list_users(current_user: dict = Depends(require_admin_role)):
     """Get a list of all users with their system roles (admin only)"""
     if not db:
-        raise HTTPException(
-            status_code=500,
-            detail="Database connection not available"
-        )
-    
+        raise HTTPException(status_code=500, detail="Database connection not available")
+
     try:
         # Fetch all documents from users collection
         users_ref = db.collection("users")
         docs = await asyncio.to_thread(lambda: list(users_ref.stream()))
-        
+
         users = []
         for doc in docs:
             user_data = doc.to_dict()
             # Add document ID as uid if not present
-            if 'uid' not in user_data:
-                user_data['uid'] = doc.id
-            
+            if "uid" not in user_data:
+                user_data["uid"] = doc.id
+
             # Create User object with safe field access
             user = User(
-                uid=user_data.get('uid', doc.id),
-                email=user_data.get('email', 'N/A'),
-                display_name=user_data.get('display_name'),
-                systemRole=user_data.get('systemRole'),
-                is_active=user_data.get('is_active', True),
-                created_at=user_data.get('created_at'),
-                updated_at=user_data.get('updated_at'),
-                last_login=user_data.get('last_login')
+                uid=user_data.get("uid", doc.id),
+                email=user_data.get("email", "N/A"),
+                display_name=user_data.get("display_name"),
+                systemRole=user_data.get("systemRole"),
+                is_active=user_data.get("is_active", True),
+                created_at=user_data.get("created_at"),
+                updated_at=user_data.get("updated_at"),
+                last_login=user_data.get("last_login"),
             )
             users.append(user)
-        
-        print(f"[AdminAPI] Retrieved {len(users)} users for admin: {current_user.get('email', 'unknown')}")
+
+        print(
+            f"[AdminAPI] Retrieved {len(users)} users for admin: {current_user.get('email', 'unknown')}"
+        )
         return users
-        
+
     except Exception as e:
         print(f"[AdminAPI] Error fetching users: {e}")
-        raise HTTPException(
-            status_code=500,
-            detail=f"Failed to fetch users: {str(e)}"
-        )
+        raise HTTPException(status_code=500, detail=f"Failed to fetch users: {str(e)}")
+
 
 @router.get("/analytics", summary="Get system analytics")
 async def get_analytics(current_user: dict = Depends(require_admin_role)):
@@ -518,8 +607,134 @@ async def get_analytics(current_user: dict = Depends(require_admin_role)):
     # TODO: Implement analytics retrieval
     return {"message": "Admin analytics endpoint - implementation pending"}
 
+
 @router.post("/agent/deploy", summary="Deploy agent updates")
 async def deploy_agent_updates(current_user: dict = Depends(require_admin_role)):
     """Deploy updates to the agent system (admin only)"""
     # TODO: Implement agent deployment logic
-    return {"message": "Agent deployment endpoint - implementation pending"} 
+    return {"message": "Agent deployment endpoint - implementation pending"}
+
+
+# Global Configuration Endpoints
+
+
+@router.get(
+    "/config/final-approver-role",
+    response_model=FinalApproverRoleConfig,
+    summary="Get global final approver role setting",
+)
+async def get_final_approver_role(current_user: dict = Depends(require_admin_role)):
+    """Get the currently configured global final approver role (admin only)"""
+    if not db:
+        raise HTTPException(status_code=500, detail="Database connection not available")
+
+    try:
+        # Fetch configuration from Firestore
+        config_ref = db.collection("systemConfiguration").document("approvalSettings")
+        doc = await asyncio.to_thread(config_ref.get)
+
+        if not doc.exists:
+            # Return default configuration if not found
+            print(
+                "[AdminAPI] No final approver configuration found, returning default"
+            )
+            return FinalApproverRoleConfig(
+                finalApproverRoleName="FINAL_APPROVER",
+                description="Default final approver role (configuration not yet initialized)",
+            )
+
+        config_data = doc.to_dict()
+        final_approver_role = config_data.get("finalApproverRoleName", "FINAL_APPROVER")
+
+        # Convert datetime to string if it exists
+        updated_at = config_data.get("updatedAt")
+        if updated_at and hasattr(updated_at, "isoformat"):
+            updated_at = updated_at.isoformat()
+        elif updated_at and not isinstance(updated_at, str):
+            updated_at = str(updated_at)
+
+        print(
+            f"[AdminAPI] Retrieved final approver role configuration: {final_approver_role} for admin: {current_user.get('email', 'unknown')}"
+        )
+
+        return FinalApproverRoleConfig(
+            finalApproverRoleName=final_approver_role,
+            updatedAt=updated_at,
+            description=config_data.get("description"),
+        )
+
+    except Exception as e:
+        print(f"[AdminAPI] Error fetching final approver role configuration: {e}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to fetch final approver role configuration: {str(e)}",
+        )
+
+
+@router.put(
+    "/config/final-approver-role",
+    response_model=FinalApproverRoleConfig,
+    summary="Update global final approver role setting",
+)
+async def update_final_approver_role(
+    config_update: UpdateFinalApproverRoleRequest,
+    current_user: dict = Depends(require_admin_role),
+):
+    """Update the global final approver role configuration (admin only)"""
+    if not db:
+        raise HTTPException(status_code=500, detail="Database connection not available")
+
+    try:
+        new_role = config_update.finalApproverRoleName.strip()
+
+        # Validate role name (basic validation - could be enhanced)
+        valid_roles = [
+            "ADMIN",
+            "DEVELOPER",
+            "SALES_MANAGER_APPROVER",
+            "FINAL_APPROVER",
+            "CASE_INITIATOR",
+        ]
+        if new_role not in valid_roles:
+            print(f"[AdminAPI] Invalid role name provided: {new_role}")
+            raise HTTPException(
+                status_code=400,
+                detail=f"Invalid role name. Must be one of: {', '.join(valid_roles)}",
+            )
+
+        # Prepare update data
+        current_time = datetime.now(timezone.utc).isoformat()
+        update_data = {
+            "finalApproverRoleName": new_role,
+            "updatedAt": current_time,
+            "updatedBy": current_user.get("email", "unknown"),
+            "description": "Global configuration for which systemRole acts as the final approver for business cases",
+        }
+
+        # Update or create configuration document
+        config_ref = db.collection("systemConfiguration").document("approvalSettings")
+        await asyncio.to_thread(config_ref.set, update_data, merge=True)
+
+        # Clear cache to ensure immediate effect
+        from app.utils.config_helpers import clear_final_approver_role_cache
+
+        clear_final_approver_role_cache()
+
+        print(
+            f"[AdminAPI] Updated final approver role to '{new_role}' by admin: {current_user.get('email', 'unknown')}"
+        )
+
+        return FinalApproverRoleConfig(
+            finalApproverRoleName=new_role,
+            updatedAt=current_time,
+            description=update_data["description"],
+        )
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"[AdminAPI] Error updating final approver role configuration: {e}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to update final approver role configuration: {str(e)}",
+        )

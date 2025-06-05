@@ -19,7 +19,9 @@ import { ProfilePage } from './pages/ProfilePage';
 import BusinessCaseDetailPageSimplified from './pages/BusinessCaseDetailPage_Simplified';
 import ReadOnlyCaseViewPage from './pages/ReadOnlyCaseViewPage';
 import AdminPage from './pages/AdminPage';
+import ErrorDemoPage from './pages/ErrorDemoPage';
 import AppLayout from './layouts/AppLayout';
+import ErrorBoundary from './components/common/ErrorBoundary';
 import {
   Container,
   Typography,
@@ -29,6 +31,8 @@ import {
   Stack,
 } from '@mui/material';
 import { Link as RouterLink } from 'react-router-dom';
+
+
 
 // Smart Home Page component that redirects based on auth status
 const HomePage: React.FC = () => {
@@ -93,7 +97,7 @@ const HomePage: React.FC = () => {
 
 // ProtectedRoute component
 interface ProtectedRouteProps {
-  // children?: React.ReactNode; // Outlet handles children now
+  children?: React.ReactNode; // Outlet handles children now
 }
 
 const ProtectedRoute: React.FC<ProtectedRouteProps> = () => {
@@ -136,7 +140,7 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = () => {
 
 // AdminProtectedRoute component - requires ADMIN role
 interface AdminProtectedRouteProps {
-  // children?: React.ReactNode; // Outlet handles children now
+  children?: React.ReactNode; // Outlet handles children now
 }
 
 const AdminProtectedRoute: React.FC<AdminProtectedRouteProps> = () => {
@@ -212,43 +216,46 @@ const AdminProtectedRoute: React.FC<AdminProtectedRouteProps> = () => {
 
 function App() {
   return (
-    <AuthProvider>
-      <AgentProvider>
-        <Router>
-          <Routes>
-            <Route element={<AppLayout />}>
-              {' '}
-              {/* AppLayout wraps all pages */}
-              <Route path="/login" element={<LoginPage />} />
-              <Route path="/signup" element={<SignUpPage />} />
-              <Route path="/" element={<HomePage />} />
-              {/* Protected Routes */}
-              <Route element={<ProtectedRoute />}>
-                <Route path="/main" element={<MainPage />} />
+    <ErrorBoundary title="Application Error">
+      <AuthProvider>
+        <AgentProvider>
+          <Router>
+            <Routes>
+              <Route element={<AppLayout />}>
+                {' '}
+                {/* AppLayout wraps all pages */}
+                <Route path="/login" element={<LoginPage />} />
+                <Route path="/signup" element={<SignUpPage />} />
+                <Route path="/" element={<HomePage />} />
+                {/* Protected Routes */}
+                <Route element={<ProtectedRoute />}>
+                                  <Route path="/main" element={<MainPage />} />
                 <Route path="/dashboard" element={<DashboardPage />} />
                 <Route path="/new-case" element={<NewCasePage />} />
                 <Route path="/profile" element={<ProfilePage />} />
-                <Route
-                  path="/cases/:caseId"
-                  element={<BusinessCaseDetailPageSimplified />}
-                />
-                <Route
-                  path="/cases/:caseId/view"
-                  element={<ReadOnlyCaseViewPage />}
-                />
-                <Route path="/admin" element={<AdminProtectedRoute />}>
-                  <Route index element={<AdminPage />} />
-                  <Route path=":adminAction" element={<AdminPage />} />
+                <Route path="/error-demo" element={<ErrorDemoPage />} />
+                  <Route
+                    path="/cases/:caseId"
+                    element={<BusinessCaseDetailPageSimplified />}
+                  />
+                  <Route
+                    path="/cases/:caseId/view"
+                    element={<ReadOnlyCaseViewPage />}
+                  />
+                  <Route path="/admin" element={<AdminProtectedRoute />}>
+                    <Route index element={<AdminPage />} />
+                    <Route path=":adminAction" element={<AdminPage />} />
+                  </Route>
+                  {/* Add other protected routes here */}
                 </Route>
-                {/* Add other protected routes here */}
+                {/* Catch-all for unmatched routes (optional) */}
+                <Route path="*" element={<Navigate to="/" replace />} />
               </Route>
-              {/* Catch-all for unmatched routes (optional) */}
-              <Route path="*" element={<Navigate to="/" replace />} />
-            </Route>
-          </Routes>
-        </Router>
-      </AgentProvider>
-    </AuthProvider>
+            </Routes>
+          </Router>
+        </AgentProvider>
+      </AuthProvider>
+    </ErrorBoundary>
   );
 }
 

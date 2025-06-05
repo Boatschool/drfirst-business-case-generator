@@ -4,7 +4,6 @@ import {
   Container,
   Typography,
   Paper,
-  CircularProgress,
   Alert,
   Box,
   Button,
@@ -18,13 +17,16 @@ import {
   Architecture as ArchitectureIcon,
 } from '@mui/icons-material';
 import ReactMarkdown from 'react-markdown';
-import { useAgentContext } from '../contexts/AgentContext';
+import { useAgentContext } from '../hooks/useAgentContext';
+import { PageLoading } from '../components/common/LoadingIndicators';
+import useDocumentTitle from '../hooks/useDocumentTitle';
+import { PAPER_ELEVATION, STANDARD_STYLES } from '../styles/constants';
 
 // Helper function to improve text formatting for better readability
 const formatMarkdownContent = (content: string): string => {
   if (!content) return content;
 
-  let formatted = content
+  const formatted = content
     .replace(/^(#{1,6}\s.+)$/gm, '$1\n')
     .replace(/([^\n])\n(#{1,6}\s)/g, '$1\n\n$2')
     .replace(/^(\s*[-*+]\s.+)$/gm, '$1')
@@ -95,6 +97,12 @@ const ReadOnlyCaseViewPage: React.FC = () => {
     caseDetailsError 
   } = useAgentContext();
 
+  // Set document title dynamically based on case title
+  useDocumentTitle(
+    currentCaseDetails?.title ? `${currentCaseDetails.title} (View)` : `Case ${caseId?.substring(0, 8)}... (View)` || 'Business Case View',
+    currentCaseDetails?.title
+  );
+
   useEffect(() => {
     if (caseId) {
       fetchCaseDetails(caseId);
@@ -103,8 +111,12 @@ const ReadOnlyCaseViewPage: React.FC = () => {
 
   if (isLoadingCaseDetails) {
     return (
-      <Container sx={{ display: 'flex', justifyContent: 'center', mt: 4 }}>
-        <CircularProgress />
+      <Container maxWidth="lg" sx={STANDARD_STYLES.pageContainer}>
+        <PageLoading
+          message="Loading business case details..."
+          variant="skeleton"
+          skeletonLines={8}
+        />
       </Container>
     );
   }
@@ -146,9 +158,9 @@ const ReadOnlyCaseViewPage: React.FC = () => {
   const status = currentCaseDetails.status;
 
   return (
-    <Container maxWidth="lg" sx={{ mt: 4, mb: 4 }}>
+    <Container maxWidth="lg" sx={STANDARD_STYLES.pageContainer}>
       {/* Header Section */}
-      <Paper elevation={2} sx={{ p: 3, mb: 3, backgroundColor: '#f8f9fa' }}>
+      <Paper elevation={PAPER_ELEVATION.MAIN_CONTENT} sx={{ ...STANDARD_STYLES.mainContentPaper, mb: 3, backgroundColor: '#f8f9fa' }}>
         <Stack spacing={2}>
           <Box display="flex" alignItems="center" justifyContent="space-between">
             <Typography
@@ -176,7 +188,7 @@ const ReadOnlyCaseViewPage: React.FC = () => {
           </Alert>
 
           <Box>
-            <Typography variant="h5" gutterBottom>
+            <Typography variant="h5" component="h2" gutterBottom>
               {currentCaseDetails.title}
             </Typography>
             <Box display="flex" alignItems="center" gap={2}>
@@ -204,7 +216,7 @@ const ReadOnlyCaseViewPage: React.FC = () => {
       </Paper>
 
       {/* Problem Statement */}
-      <Paper elevation={1} sx={{ p: 3, mb: 3 }}>
+      <Paper elevation={PAPER_ELEVATION.SUB_SECTION} sx={{ ...STANDARD_STYLES.subSectionPaper, mb: 3 }}>
         <Typography
           variant="h5"
           gutterBottom
@@ -220,7 +232,7 @@ const ReadOnlyCaseViewPage: React.FC = () => {
 
       {/* PRD Section */}
       {currentCaseDetails.prd_draft && (
-        <Paper elevation={1} sx={{ p: 3, mb: 3 }}>
+        <Paper elevation={PAPER_ELEVATION.SUB_SECTION} sx={{ ...STANDARD_STYLES.subSectionPaper, mb: 3 }}>
           <Typography
             variant="h5"
             gutterBottom
@@ -239,7 +251,7 @@ const ReadOnlyCaseViewPage: React.FC = () => {
 
       {/* System Design Section */}
       {currentCaseDetails.system_design_v1_draft && (
-        <Paper elevation={1} sx={{ p: 3, mb: 3 }}>
+        <Paper elevation={PAPER_ELEVATION.SUB_SECTION} sx={{ ...STANDARD_STYLES.subSectionPaper, mb: 3 }}>
           <Typography
             variant="h5"
             gutterBottom
@@ -260,7 +272,7 @@ const ReadOnlyCaseViewPage: React.FC = () => {
 
       {/* Basic financial information display without complex structures */}
       {currentCaseDetails.effort_estimate_v1 && (
-        <Paper elevation={1} sx={{ p: 3, mb: 3 }}>
+        <Paper elevation={PAPER_ELEVATION.SUB_SECTION} sx={{ ...STANDARD_STYLES.subSectionPaper, mb: 3 }}>
           <Typography variant="h5" gutterBottom>
             Effort Estimate Available
           </Typography>
@@ -274,7 +286,7 @@ const ReadOnlyCaseViewPage: React.FC = () => {
       )}
 
       {currentCaseDetails.cost_estimate_v1 && (
-        <Paper elevation={1} sx={{ p: 3, mb: 3 }}>
+        <Paper elevation={PAPER_ELEVATION.SUB_SECTION} sx={{ ...STANDARD_STYLES.subSectionPaper, mb: 3 }}>
           <Typography variant="h5" gutterBottom>
             Cost Estimate Available
           </Typography>
@@ -285,7 +297,7 @@ const ReadOnlyCaseViewPage: React.FC = () => {
       )}
 
       {currentCaseDetails.value_projection_v1 && (
-        <Paper elevation={1} sx={{ p: 3, mb: 3 }}>
+        <Paper elevation={PAPER_ELEVATION.SUB_SECTION} sx={{ ...STANDARD_STYLES.subSectionPaper, mb: 3 }}>
           <Typography variant="h5" gutterBottom>
             Value Projection Available
           </Typography>

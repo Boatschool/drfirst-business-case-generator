@@ -176,4 +176,17 @@ export interface AdminService {
    * @returns Promise<User[]> List of users with their system roles
    */
   listUsers(): Promise<User[]>;
+
+  /**
+   * Get the global final approver role setting
+   * @returns Promise<{ finalApproverRoleName: string }> Current final approver role configuration
+   */
+  getFinalApproverRoleSetting(): Promise<{ finalApproverRoleName: string; updatedAt?: string; description?: string }>;
+
+  /**
+   * Set the global final approver role setting
+   * @param roleName System role name to use for final approvals
+   * @returns Promise<{ finalApproverRoleName: string }> Updated final approver role configuration
+   */
+  setFinalApproverRoleSetting(roleName: string): Promise<{ finalApproverRoleName: string; updatedAt?: string; description?: string }>;
 }

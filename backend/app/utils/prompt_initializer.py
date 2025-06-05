@@ -6,19 +6,20 @@ from google.cloud import firestore
 from ..models.agent_prompt import AgentPromptCreate
 from ..services.prompt_service import PromptService
 
+
 async def initialize_default_prompts():
     """Initialize default prompts for all agents if they don't exist."""
     db = firestore.Client()
     prompt_service = PromptService(db)
-    
+
     # Check if ProductManagerAgent PRD generation prompt exists
     existing_prompt = await prompt_service.get_prompt_by_agent_function(
         "ProductManagerAgent", "prd_generation"
     )
-    
+
     if not existing_prompt:
         print("Initializing default ProductManagerAgent PRD generation prompt...")
-        
+
         # Default PRD generation prompt with placeholders
         default_prd_prompt = """You are an experienced Product Manager at DrFirst, a healthcare technology company. You are tasked with creating a comprehensive Product Requirements Document (PRD) based on the information provided below.
 
@@ -66,7 +67,7 @@ List 3-5 open questions that need to be resolved and potential risks that should
 - Leave blank lines between sections and use consistent formatting throughout
 
 Generate the PRD now:"""
-        
+
         prompt_data = AgentPromptCreate(
             agent_name="ProductManagerAgent",
             agent_function="prd_generation",
@@ -79,15 +80,16 @@ Generate the PRD now:"""
                 "temperature": 0.7,
                 "max_tokens": 4096,
                 "top_p": 0.9,
-                "top_k": 40
+                "top_k": 40,
             },
-            version_description="Initial default prompt with 8-section structure"
+            version_description="Initial default prompt with 8-section structure",
         )
-        
+
         prompt_id = await prompt_service.create_prompt(prompt_data, "system")
         print(f"✅ Created default ProductManagerAgent prompt with ID: {prompt_id}")
     else:
         print("✅ ProductManagerAgent PRD generation prompt already exists")
+
 
 # Additional agent prompts can be added here as the system grows
 DEFAULT_PROMPTS = [
@@ -116,6 +118,6 @@ Use DrFirst's cloud-first, microservices architecture patterns. Consider HIPAA c
 
 Generate the system design now:""",
         "category": "system_design",
-        "placeholders": ["prd_content"]
+        "placeholders": ["prd_content"],
     }
-] 
+]

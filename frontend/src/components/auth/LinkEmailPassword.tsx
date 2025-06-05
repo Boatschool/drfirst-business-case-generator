@@ -10,7 +10,7 @@ import {
   CircularProgress 
 } from '@mui/material';
 import { EmailAuthProvider, linkWithCredential, getAuth } from 'firebase/auth';
-import { useAuth } from '../../contexts/AuthContext';
+import { useAuth } from '../../hooks/useAuth';
 
 interface LinkEmailPasswordProps {
   onSuccess?: () => void;

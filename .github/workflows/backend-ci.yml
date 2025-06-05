@@ -57,10 +57,11 @@ jobs:
           flake8 --config=backend/.flake8 backend/app backend/tests
 
       - name: Run Tests
+        working-directory: ./backend
         env:
           PYTHONPATH: .
         run: |
-          pytest backend/tests -v --cov=backend/app
+          python -m pytest tests/ --verbose --cov=app --cov-report=term-missing
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3

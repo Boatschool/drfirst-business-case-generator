@@ -748,9 +748,7 @@ const AdminPage: React.FC = () => {
     }
   };
 
-  const handleApproverRoleChange = (event: React.ChangeEvent<{ value: unknown }>) => {
-    setSelectedApproverRole(event.target.value as string);
-  };
+
 
   return (
     <Container maxWidth="lg" sx={STANDARD_STYLES.pageContainer}>
@@ -1641,7 +1639,7 @@ const AdminPage: React.FC = () => {
               isSubmitting ? <CircularProgress size={20} /> : <SaveIcon />
             }
           >
-            {isSubmitting ? 'Updating...' : 'Update Rate Card'}
+            {isSubmitting ? 'Saving...' : 'Save Changes'}
           </Button>
         </DialogActions>
       </Dialog>
@@ -1872,7 +1870,7 @@ const AdminPage: React.FC = () => {
               isSubmitting ? <CircularProgress size={20} /> : <SaveIcon />
             }
           >
-            {isSubmitting ? 'Updating...' : 'Update Pricing Template'}
+            {isSubmitting ? 'Saving...' : 'Save Changes'}
           </Button>
         </DialogActions>
       </Dialog>

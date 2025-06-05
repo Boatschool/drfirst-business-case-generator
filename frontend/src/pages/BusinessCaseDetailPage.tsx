@@ -1549,7 +1549,7 @@ const BusinessCaseDetailPage: React.FC = () => {
                           onClick={handleApproveEffortEstimate}
                           disabled={isLoading}
                         >
-                          Approve Effort
+                          Approve Effort Estimate
                         </Button>
                         <Button
                           variant="outlined"
@@ -1559,7 +1559,7 @@ const BusinessCaseDetailPage: React.FC = () => {
                           onClick={handleOpenEffortRejectDialog}
                           disabled={isLoading}
                         >
-                          Reject Effort
+                          Reject Effort Estimate
                         </Button>
                       </>
                     )}
@@ -1803,7 +1803,7 @@ const BusinessCaseDetailPage: React.FC = () => {
                         onClick={handleApproveCostEstimate}
                         disabled={isLoading}
                       >
-                        Approve Cost
+                        Approve Cost Estimate
                       </Button>
                       <Button
                         variant="outlined"
@@ -1813,7 +1813,7 @@ const BusinessCaseDetailPage: React.FC = () => {
                         onClick={handleOpenCostRejectDialog}
                         disabled={isLoading}
                       >
-                        Reject Cost
+                        Reject Cost Estimate
                       </Button>
                     </>
                   )}
@@ -2075,7 +2075,7 @@ const BusinessCaseDetailPage: React.FC = () => {
                           onClick={handleApproveValueProjection}
                           disabled={isLoading}
                         >
-                          Approve Value
+                          Approve Value Projection
                         </Button>
                         <Button
                           variant="outlined"
@@ -2085,7 +2085,7 @@ const BusinessCaseDetailPage: React.FC = () => {
                           onClick={handleOpenValueRejectDialog}
                           disabled={isLoading}
                         >
-                          Reject Value
+                          Reject Value Projection
                         </Button>
                       </>
                     )}

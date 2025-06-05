@@ -119,7 +119,7 @@ const AppLayout: React.FC = () => {
                 to="/new-case"
                 sx={getNavButtonStyle('/new-case')}
               >
-                Create New Case
+                Create New Business Case
               </Button>
               
               {/* Conditional Admin Link - Only show for admin users */}

@@ -13,7 +13,7 @@ import {
 } from '@mui/material';
 import { Google as GoogleIcon } from '@mui/icons-material';
 import { useLocation, useNavigate, Link as RouterLink } from 'react-router-dom';
-import { useAuth } from '../contexts/AuthContext';
+import { useAuth } from '../hooks/useAuth';
 import { LoadingButton } from '../components/common/LoadingIndicators';
 import { PAPER_ELEVATION, STANDARD_STYLES } from '../styles/constants';
 import { formatAuthError } from '../utils/errorFormatting';

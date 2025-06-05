@@ -20,8 +20,8 @@ import {
   Cancel as RejectIcon,
   Send as SendIcon,
 } from '@mui/icons-material';
-import { useAgentContext } from '../../contexts/AgentContext';
-import { useAuth } from '../../contexts/AuthContext';
+import { useAgentContext } from '../../hooks/useAgentContext';
+import { useAuth } from '../../hooks/useAuth';
 
 interface FinalApprovalSectionProps {
   currentCaseDetails: any;

@@ -15,7 +15,7 @@ import {
 import AddCircleOutlineIcon from '@mui/icons-material/AddCircleOutline';
 import RemoveCircleOutlineIcon from '@mui/icons-material/RemoveCircleOutline';
 import HelpOutlineIcon from '@mui/icons-material/HelpOutline';
-import { useAgentContext } from '../contexts/AgentContext';
+import { useAgentContext } from '../hooks/useAgentContext';
 import { InitiateCasePayload } from '../services/agent/AgentService';
 import { LoadingButton } from '../components/common/LoadingIndicators';
 import { isNotEmpty, validateRelevantLink } from '../utils/validation';

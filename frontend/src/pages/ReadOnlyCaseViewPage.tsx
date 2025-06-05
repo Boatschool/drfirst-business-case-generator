@@ -4,7 +4,6 @@ import {
   Container,
   Typography,
   Paper,
-  CircularProgress,
   Alert,
   Box,
   Button,
@@ -18,7 +17,7 @@ import {
   Architecture as ArchitectureIcon,
 } from '@mui/icons-material';
 import ReactMarkdown from 'react-markdown';
-import { useAgentContext } from '../contexts/AgentContext';
+import { useAgentContext } from '../hooks/useAgentContext';
 import { PageLoading } from '../components/common/LoadingIndicators';
 import useDocumentTitle from '../hooks/useDocumentTitle';
 import { PAPER_ELEVATION, STANDARD_STYLES } from '../styles/constants';

@@ -26,7 +26,7 @@ import {
 } from '@mui/icons-material';
 import { Link as RouterLink } from 'react-router-dom';
 import { AuthContext } from '../contexts/AuthContext';
-import { useAgentContext } from '../contexts/AgentContext';
+import { useAgentContext } from '../hooks/useAgentContext';
 import { CardSkeleton } from '../components/common/LoadingIndicators';
 import { PAPER_ELEVATION, STANDARD_STYLES } from '../styles/constants';
 

@@ -131,6 +131,7 @@ export class HttpAgentAdapter implements AgentService {
 
   onAgentUpdate(
     caseId: string,
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     _onUpdateCallback: (update: AgentUpdate) => void
   ): () => void {
     console.warn(

@@ -28,8 +28,8 @@ import {
   CheckCircle as CheckCircleIcon,
   Cancel as RejectIcon,
 } from '@mui/icons-material';
-import { useAgentContext } from '../../contexts/AgentContext';
-import { useAuth } from '../../contexts/AuthContext';
+import { useAgentContext } from '../../hooks/useAgentContext';
+import { useAuth } from '../../hooks/useAuth';
 import { BusinessCaseDetails } from '../../services/agent/AgentService';
 
 interface FinancialEstimatesSectionProps {

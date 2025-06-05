@@ -19,7 +19,7 @@ import {
   Check as CheckIcon,
 } from '@mui/icons-material';
 import { Link as RouterLink, useNavigate } from 'react-router-dom';
-import { useAgentContext } from '../contexts/AgentContext';
+import { useAgentContext } from '../hooks/useAgentContext';
 import { BusinessCaseSummary } from '../services/agent/AgentService';
 import StatusBadge from '../components/common/StatusBadge';
 import StatusFilter from '../components/common/StatusFilter';
@@ -66,7 +66,7 @@ const DashboardPage: React.FC = () => {
   useEffect(() => {
     console.log('🔄 DashboardPage: Calling fetchUserCases');
     fetchUserCases();
-  }, []);
+  }, [fetchUserCases]);
 
   // Sort function
   const sortCases = (cases: BusinessCaseSummary[], sortOption: SortOption): BusinessCaseSummary[] => {

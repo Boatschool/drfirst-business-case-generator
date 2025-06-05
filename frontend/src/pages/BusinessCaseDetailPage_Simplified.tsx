@@ -17,7 +17,7 @@ import {
   Refresh as RefreshIcon,
   Share as ShareIcon
 } from '@mui/icons-material';
-import { useAgentContext } from '../contexts/AgentContext';
+import { useAgentContext } from '../hooks/useAgentContext';
 import useDocumentTitle from '../hooks/useDocumentTitle';
 import { STANDARD_STYLES } from '../styles/constants';
 
@@ -93,7 +93,7 @@ const BusinessCaseDetailPageSimplified: React.FC = () => {
     return () => {
       clearCurrentCaseDetails();
     };
-  }, [caseId]); // SIMPLIFIED: Only caseId dependency, no function dependencies
+  }, [caseId, fetchCaseDetails, clearCurrentCaseDetails]); // Include all function dependencies
 
   // Loading state
   if (isLoadingCaseDetails && !currentCaseDetails) {

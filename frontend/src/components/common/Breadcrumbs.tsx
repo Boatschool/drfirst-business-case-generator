@@ -6,7 +6,7 @@ import {
   Box,
 } from '@mui/material';
 import { Link as RouterLink, useLocation } from 'react-router-dom';
-import { useAgentContext } from '../../contexts/AgentContext';
+import { useAgentContext } from '../../hooks/useAgentContext';
 import type { BusinessCaseDetails, BusinessCaseSummary } from '../../services/agent/AgentService';
 
 interface BreadcrumbItem {

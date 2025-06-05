@@ -45,14 +45,14 @@ import {
   PictureAsPdf as PdfIcon,
 } from '@mui/icons-material';
 import ReactMarkdown from 'react-markdown';
-import { useAgentContext } from '../contexts/AgentContext';
+import { useAgentContext } from '../hooks/useAgentContext';
 import {
   EffortEstimate,
   CostEstimate,
   ValueProjection,
 } from '../services/agent/AgentService';
 
-import { useAuth } from '../contexts/AuthContext';
+import { useAuth } from '../hooks/useAuth';
 import { PageLoading, LoadingButton } from '../components/common/LoadingIndicators';
 import { PAPER_ELEVATION, STANDARD_STYLES } from '../styles/constants';
 

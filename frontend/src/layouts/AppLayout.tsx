@@ -7,7 +7,7 @@ import {
   useLocation,
 } from 'react-router-dom';
 import { AuthContext } from '../contexts/AuthContext';
-import { useAgentContext } from '../contexts/AgentContext';
+import { useAgentContext } from '../hooks/useAgentContext';
 import FloatingChat from '../components/common/FloatingChat';
 import Breadcrumbs from '../components/common/Breadcrumbs';
 

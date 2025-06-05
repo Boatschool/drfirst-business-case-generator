@@ -24,8 +24,8 @@ import {
 } from '@mui/icons-material';
 import ReactMarkdown from 'react-markdown';
 import { BusinessCaseDetails } from '../../services/agent/AgentService';
-import { useAgentContext } from '../../contexts/AgentContext';
-import { useAuth } from '../../contexts/AuthContext';
+import { useAgentContext } from '../../hooks/useAgentContext';
+import { useAuth } from '../../hooks/useAuth';
 import { PAPER_ELEVATION, STANDARD_STYLES } from '../../styles/constants';
 
 interface PRDSectionProps {

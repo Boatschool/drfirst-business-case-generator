@@ -9,7 +9,7 @@ import {
   Divider,
   Alert
 } from '@mui/material';
-import { useAuth } from '../contexts/AuthContext';
+import { useAuth } from '../hooks/useAuth';
 import { LinkEmailPassword } from '../components/auth/LinkEmailPassword';
 import useDocumentTitle from '../hooks/useDocumentTitle';
 

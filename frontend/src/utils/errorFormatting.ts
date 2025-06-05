@@ -288,7 +288,7 @@ export function isRetryableError(error: any): boolean {
  * Extracts a user-friendly message from various error object structures
  * Legacy function for backward compatibility - prefer formatErrorMessage
  */
-export function getUserFriendlyMessage(error: any, fallback?: string): string {
+export function getUserFriendlyMessage(error: any): string {
   const formatted = formatErrorMessage(error);
   return formatted.actionable 
     ? `${formatted.message}. ${formatted.actionable}`

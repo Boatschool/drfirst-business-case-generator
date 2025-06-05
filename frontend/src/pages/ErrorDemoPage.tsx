@@ -9,7 +9,6 @@ import {
   Divider,
   Card,
   CardContent,
-  CardActions,
 } from '@mui/material';
 import {
   Warning as WarningIcon,
@@ -24,7 +23,6 @@ import ErrorDisplay, {
 import { 
   formatErrorMessage, 
   formatAuthError, 
-  createGenericError,
   isRetryableError 
 } from '../utils/errorFormatting';
 import { PAPER_ELEVATION } from '../styles/constants';

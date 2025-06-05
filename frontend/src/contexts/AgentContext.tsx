@@ -82,7 +82,7 @@ interface AgentContextType extends AgentContextState {
   clearError: (errorType?: 'general' | 'cases' | 'caseDetails') => void;
 }
 
-const AgentContext = createContext<AgentContextType | undefined>(undefined);
+export const AgentContext = createContext<AgentContextType | undefined>(undefined);
 
 // Initialize the agent service instance
 const agentService: AgentService = new HttpAgentAdapter();
@@ -778,10 +778,4 @@ export const AgentProvider: React.FC<AgentProviderProps> = ({ children }) => {
   );
 };
 
-export const useAgentContext = (): AgentContextType => {
-  const context = useContext(AgentContext);
-  if (context === undefined) {
-    throw new Error('useAgentContext must be used within an AgentProvider');
-  }
-  return context;
-};
+

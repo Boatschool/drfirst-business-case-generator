@@ -135,6 +135,7 @@ export const FinalApprovalSection: React.FC<FinalApprovalSectionProps> = ({
       <Box mb={3}>
         <Typography
           variant="h5"
+          component="h2"
           gutterBottom
           sx={{ display: 'flex', alignItems: 'center', mb: 3 }}
         >
@@ -182,7 +183,7 @@ export const FinalApprovalSection: React.FC<FinalApprovalSectionProps> = ({
             <CardContent>
               <Stack spacing={2}>
                 <Box>
-                  <Typography variant="h6" gutterBottom>
+                  <Typography variant="h6" component="h3" gutterBottom>
                     Current Status:
                     <Chip
                       label={
@@ -237,7 +238,7 @@ export const FinalApprovalSection: React.FC<FinalApprovalSectionProps> = ({
         {/* Submit for Final Approval */}
         {canSubmitForFinalApproval() && (
           <Box sx={{ mt: 3, pt: 2, borderTop: '1px solid #eee' }}>
-            <Typography variant="h6" gutterBottom>
+            <Typography variant="h6" component="h3" gutterBottom>
               Ready for Final Approval
             </Typography>
             <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
@@ -262,7 +263,7 @@ export const FinalApprovalSection: React.FC<FinalApprovalSectionProps> = ({
         {/* Final Approval Actions (for FINAL_APPROVER role) */}
         {canApproveRejectFinalCase() && (
           <Box sx={{ mt: 3, pt: 2, borderTop: '1px solid #eee' }}>
-            <Typography variant="h6" gutterBottom>
+            <Typography variant="h6" component="h3" gutterBottom>
               Final Approval Actions
             </Typography>
             <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>

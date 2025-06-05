@@ -5,7 +5,6 @@ import {
   Box,
   List,
   ListItem,
-  ListItemText,
   CircularProgress,
   Alert,
   Button,
@@ -260,7 +259,7 @@ const DashboardPage: React.FC = () => {
                   Showing {processedCases.length} of {cases.length} cases
                   {selectedStatusFilter && (
                     <>
-                      {' '}with status: <StatusBadge status={selectedStatusFilter} size="small" />
+                      {' '}with status: <StatusBadge status={selectedStatusFilter} />
                     </>
                   )}
                   {currentSort !== 'date-newest' && (

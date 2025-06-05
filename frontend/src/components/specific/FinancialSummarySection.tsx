@@ -56,6 +56,7 @@ export const FinancialSummarySection: React.FC<FinancialSummaryProps> = ({
       
       <Typography
         variant="h5"
+        component="h2"
         gutterBottom
         sx={{ display: 'flex', alignItems: 'center', mb: 3 }}
       >
@@ -66,7 +67,7 @@ export const FinancialSummarySection: React.FC<FinancialSummaryProps> = ({
       {/* Executive Dashboard */}
       <Card sx={{ mb: 3 }}>
         <CardContent>
-          <Typography variant="h6" gutterBottom sx={{ display: 'flex', alignItems: 'center' }}>
+          <Typography variant="h6" component="h3" gutterBottom sx={{ display: 'flex', alignItems: 'center' }}>
             <AssessmentIcon sx={{ mr: 1, color: 'primary.main' }} />
             Executive Dashboard
           </Typography>
@@ -122,7 +123,7 @@ export const FinancialSummarySection: React.FC<FinancialSummaryProps> = ({
       {/* Multi-Scenario Analysis */}
       <Card sx={{ mb: 3 }}>
         <CardContent>
-          <Typography variant="h6" gutterBottom sx={{ display: 'flex', alignItems: 'center' }}>
+          <Typography variant="h6" component="h3" gutterBottom sx={{ display: 'flex', alignItems: 'center' }}>
             <TrendingUpIcon sx={{ mr: 1, color: 'success.main' }} />
             Multi-Scenario Analysis
           </Typography>
@@ -198,7 +199,7 @@ export const FinancialSummarySection: React.FC<FinancialSummaryProps> = ({
       {/* Methodology */}
       <Card>
         <CardContent>
-          <Typography variant="h6" gutterBottom sx={{ display: 'flex', alignItems: 'center' }}>
+          <Typography variant="h6" component="h3" gutterBottom sx={{ display: 'flex', alignItems: 'center' }}>
             <MoneyIcon sx={{ mr: 1, color: 'info.main' }} />
             Calculation Methodology
           </Typography>

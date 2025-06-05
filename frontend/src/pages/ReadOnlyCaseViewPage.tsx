@@ -184,7 +184,7 @@ const ReadOnlyCaseViewPage: React.FC = () => {
           </Alert>
 
           <Box>
-            <Typography variant="h5" gutterBottom>
+            <Typography variant="h5" component="h2" gutterBottom>
               {currentCaseDetails.title}
             </Typography>
             <Box display="flex" alignItems="center" gap={2}>

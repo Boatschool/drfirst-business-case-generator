@@ -1137,7 +1137,7 @@ const BusinessCaseDetailPage: React.FC = () => {
         )}
 
         <Box mb={3}>
-          <Typography variant="h6" gutterBottom>
+          <Typography variant="h5" component="h2" gutterBottom>
             Problem Statement
           </Typography>
           <Typography paragraph sx={{ whiteSpace: 'pre-wrap' }}>
@@ -1147,7 +1147,7 @@ const BusinessCaseDetailPage: React.FC = () => {
 
         {relevant_links && relevant_links.length > 0 && (
           <Box mb={3}>
-            <Typography variant="h6" gutterBottom>
+            <Typography variant="h5" component="h2" gutterBottom>
               Relevant Links
             </Typography>
             <Stack spacing={1}>
@@ -1177,7 +1177,7 @@ const BusinessCaseDetailPage: React.FC = () => {
             alignItems="center"
             mb={1}
           >
-            <Typography variant="h5" gutterBottom>
+            <Typography variant="h5" component="h2" gutterBottom>
               PRD Draft
             </Typography>
             {!isEditingPrd && (
@@ -1352,7 +1352,7 @@ const BusinessCaseDetailPage: React.FC = () => {
                 justifyContent="space-between"
                 mb={2}
               >
-                <Typography variant="h5">System Design (v1)</Typography>
+                <Typography variant="h5" component="h2">System Design (v1)</Typography>
                 <Stack direction="row" spacing={1}>
                   {/* Edit System Design Button - Show for owner or DEVELOPER role in appropriate statuses */}
                   {!isEditingSystemDesign &&
@@ -1511,7 +1511,7 @@ const BusinessCaseDetailPage: React.FC = () => {
               >
                 <Stack direction="row" alignItems="center" spacing={1}>
                   <TimeIcon color="primary" />
-                  <Typography variant="h5" gutterBottom sx={{ mb: 0 }}>
+                  <Typography variant="h5" component="h2" gutterBottom sx={{ mb: 0 }}>
                     Effort Estimate
                   </Typography>
                 </Stack>
@@ -1766,7 +1766,7 @@ const BusinessCaseDetailPage: React.FC = () => {
               >
                 <Stack direction="row" alignItems="center" spacing={1}>
                   <MoneyIcon color="primary" />
-                  <Typography variant="h5" gutterBottom sx={{ mb: 0 }}>
+                  <Typography variant="h5" component="h2" gutterBottom sx={{ mb: 0 }}>
                     Cost Estimate
                   </Typography>
                 </Stack>
@@ -1864,7 +1864,7 @@ const BusinessCaseDetailPage: React.FC = () => {
                         )}
                       </Stack>
 
-                      <Typography variant="h6" gutterBottom>
+                      <Typography variant="h6" component="h3" gutterBottom>
                         Cost Breakdown by Role
                       </Typography>
                       <TableContainer>
@@ -2037,7 +2037,7 @@ const BusinessCaseDetailPage: React.FC = () => {
               >
                 <Stack direction="row" alignItems="center" spacing={1}>
                   <ValueIcon color="primary" />
-                  <Typography variant="h5" gutterBottom sx={{ mb: 0 }}>
+                  <Typography variant="h5" component="h2" gutterBottom sx={{ mb: 0 }}>
                     Value/Revenue Projection
                   </Typography>
                 </Stack>
@@ -2138,7 +2138,7 @@ const BusinessCaseDetailPage: React.FC = () => {
                         )}
                       </Stack>
 
-                      <Typography variant="h6" gutterBottom>
+                      <Typography variant="h6" component="h3" gutterBottom>
                         Value Scenarios
                       </Typography>
                       <Stack spacing={2} mb={3}>
@@ -2186,7 +2186,7 @@ const BusinessCaseDetailPage: React.FC = () => {
                       {value_projection_v1.assumptions &&
                         value_projection_v1.assumptions.length > 0 && (
                           <Box mb={2}>
-                            <Typography variant="h6" gutterBottom>
+                            <Typography variant="h6" component="h3" gutterBottom>
                               Key Assumptions
                             </Typography>
                             <List dense>
@@ -2335,7 +2335,7 @@ const BusinessCaseDetailPage: React.FC = () => {
             <Box mb={3}>
               <Stack direction="row" alignItems="center" spacing={1} mb={2}>
                 <MoneyIcon color="primary" />
-                <Typography variant="h5" gutterBottom sx={{ mb: 0 }}>
+                <Typography variant="h5" component="h2" gutterBottom sx={{ mb: 0 }}>
                   Financial Model Summary
                 </Typography>
               </Stack>
@@ -2348,7 +2348,7 @@ const BusinessCaseDetailPage: React.FC = () => {
                   <Stack spacing={3}>
                     {/* Key Financial Metrics */}
                     <Box>
-                      <Typography variant="h6" gutterBottom color="primary">
+                      <Typography variant="h6" component="h3" gutterBottom color="primary">
                         Key Financial Metrics
                       </Typography>
                       <Stack direction="row" spacing={4} mb={2}>
@@ -2426,7 +2426,7 @@ const BusinessCaseDetailPage: React.FC = () => {
                       currentCaseDetails.financial_summary_v1.value_scenarios
                     ).length > 0 && (
                       <Box>
-                        <Typography variant="h6" gutterBottom>
+                        <Typography variant="h6" component="h3" gutterBottom>
                           Value Scenarios Analysis
                         </Typography>
                         <Stack direction="row" spacing={2}>
@@ -2507,7 +2507,7 @@ const BusinessCaseDetailPage: React.FC = () => {
 
                     {/* Methodology and Sources */}
                     <Box>
-                      <Typography variant="h6" gutterBottom>
+                      <Typography variant="h6" component="h3" gutterBottom>
                         Analysis Methodology
                       </Typography>
                       <Stack spacing={1}>

@@ -237,7 +237,7 @@ export const PRDSection: React.FC<PRDSectionProps> = ({
           justifyContent="space-between"
           mb={2}
         >
-          <Typography variant="h5" gutterBottom sx={{ mb: 0 }}>
+          <Typography variant="h5" component="h2" gutterBottom sx={{ mb: 0 }}>
             Product Requirements Document (PRD)
           </Typography>
           <Stack direction="row" spacing={1}>

@@ -1381,7 +1381,7 @@ const AdminPage: React.FC = () => {
                   mb: 2,
                 }}
               >
-                <Typography variant="h6">Roles</Typography>
+                <Typography variant="h6" component="h3">Roles</Typography>
                 <Button variant="outlined" size="small" onClick={handleAddRole}>
                   Add Role
                 </Button>
@@ -1553,7 +1553,7 @@ const AdminPage: React.FC = () => {
                   mb: 2,
                 }}
               >
-                <Typography variant="h6">Roles</Typography>
+                <Typography variant="h6" component="h3">Roles</Typography>
                 <Button variant="outlined" size="small" onClick={handleAddRole}>
                   Add Role
                 </Button>

@@ -69,7 +69,7 @@ const MainPage: React.FC = () => {
             <CardContent>
               <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
                 <AssignmentIcon color="primary" sx={{ mr: 1 }} />
-                <Typography variant="h6">Total Cases</Typography>
+                <Typography variant="h6" component="h3">Total Cases</Typography>
               </Box>
               <Typography variant="h4" color="primary">
                 {isLoadingCases ? '...' : totalCases}
@@ -83,7 +83,7 @@ const MainPage: React.FC = () => {
             <CardContent>
               <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
                 <SpeedIcon color="warning" sx={{ mr: 1 }} />
-                <Typography variant="h6">In Progress</Typography>
+                <Typography variant="h6" component="h3">In Progress</Typography>
               </Box>
               <Typography variant="h4" color="warning.main">
                 {isLoadingCases ? '...' : draftCases}
@@ -97,7 +97,7 @@ const MainPage: React.FC = () => {
             <CardContent>
               <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
                 <TrendingUpIcon color="info" sx={{ mr: 1 }} />
-                <Typography variant="h6">Under Review</Typography>
+                <Typography variant="h6" component="h3">Under Review</Typography>
               </Box>
               <Typography variant="h4" color="info.main">
                 {isLoadingCases ? '...' : reviewCases}
@@ -111,7 +111,7 @@ const MainPage: React.FC = () => {
             <CardContent>
               <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
                 <CheckCircleIcon color="success" sx={{ mr: 1 }} />
-                <Typography variant="h6">Approved</Typography>
+                <Typography variant="h6" component="h3">Approved</Typography>
               </Box>
               <Typography variant="h4" color="success.main">
                 {isLoadingCases ? '...' : approvedCases}
@@ -125,7 +125,7 @@ const MainPage: React.FC = () => {
         {/* Quick Actions */}
         <Grid item xs={12} md={6}>
           <Paper elevation={PAPER_ELEVATION.MAIN_CONTENT} sx={STANDARD_STYLES.mainContentPaper}>
-            <Typography variant="h6" gutterBottom>
+            <Typography variant="h5" component="h2" gutterBottom>
               Quick Actions
             </Typography>
             <Stack spacing={2}>
@@ -156,7 +156,7 @@ const MainPage: React.FC = () => {
         {/* Recent Activity / System Status */}
         <Grid item xs={12} md={6}>
           <Paper elevation={PAPER_ELEVATION.MAIN_CONTENT} sx={STANDARD_STYLES.mainContentPaper}>
-            <Typography variant="h6" gutterBottom>
+            <Typography variant="h5" component="h2" gutterBottom>
               System Features
             </Typography>
             <List dense>
@@ -197,7 +197,7 @@ const MainPage: React.FC = () => {
       {/* Recent Cases Preview */}
       {cases.length > 0 && (
         <Box sx={{ mt: 4 }}>
-          <Typography variant="h6" gutterBottom>
+          <Typography variant="h5" component="h2" gutterBottom>
             Recent Business Cases
           </Typography>
           <Paper elevation={PAPER_ELEVATION.SUB_SECTION} sx={STANDARD_STYLES.subSectionPaper}>

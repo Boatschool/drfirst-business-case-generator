@@ -245,7 +245,7 @@ const NewCasePage: React.FC = () => {
             </Tooltip>
           </Box>
 
-          <Typography variant="h6" sx={{ mt: 3, mb: 1 }}>
+          <Typography variant="h5" component="h2" sx={{ mt: 3, mb: 1 }}>
             Relevant Links (Optional)
           </Typography>
           <FormHelperText sx={{ mb: 2 }}>

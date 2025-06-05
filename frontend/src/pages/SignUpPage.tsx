@@ -4,7 +4,6 @@ import { useAuth } from '../contexts/AuthContext';
 import {
   Container,
   TextField,
-  Button,
   Typography,
   Box,
   CircularProgress,
@@ -119,12 +118,12 @@ const SignUpPage: React.FC = () => {
     <Container component="main" maxWidth="xs">
       <Box sx={STANDARD_STYLES.authPageContainer}>
         <Paper elevation={PAPER_ELEVATION.AUTH_FORM} sx={{ ...STANDARD_STYLES.authFormPaper, width: '100%' }}>
-          <Typography component="h1" variant="h4" align="center" gutterBottom>
+          <Typography id="signup-title" component="h1" variant="h4" align="center" gutterBottom>
             Sign Up
           </Typography>
 
           {error && (
-            <Alert severity="error" sx={{ mb: 2 }}>
+            <Alert severity="error" sx={{ mb: 2 }} role="alert" aria-live="assertive">
               {error}
             </Alert>
           )}
@@ -134,6 +133,8 @@ const SignUpPage: React.FC = () => {
             onSubmit={handleEmailSignUp}
             noValidate
             sx={{ mt: 1 }}
+            role="form"
+            aria-labelledby="signup-title"
           >
             <TextField
               margin="normal"
@@ -205,6 +206,7 @@ const SignUpPage: React.FC = () => {
               loading={isLoading}
               loadingText="Signing Up..."
               sx={{ mb: 2 }}
+              aria-label="Sign up with Google account"
             >
               Sign up with Google
             </LoadingButton>

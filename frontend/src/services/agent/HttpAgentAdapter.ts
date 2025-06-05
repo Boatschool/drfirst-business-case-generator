@@ -26,49 +26,78 @@ console.log('🔗 HttpAgentAdapter using API_BASE_URL:', API_BASE_URL);
 export class HttpAgentAdapter implements AgentService {
   private async getAuthHeaders(): Promise<HeadersInit> {
     console.log('🔑 Getting auth headers...');
-    const token = await authService.getIdToken();
-    console.log(
-      '🎫 Token received:',
-      token ? `${token.substring(0, 20)}...` : 'NULL'
-    );
+    try {
+      const token = await authService.getIdToken();
+      console.log(
+        '🎫 Token received:',
+        token ? `${token.substring(0, 20)}...` : 'NULL'
+      );
 
-    if (!token) {
-      throw new Error('User not authenticated. Cannot make API call.');
+      if (!token) {
+        const authError = new Error('Authentication required');
+        (authError as any).code = 'auth/no-token';
+        throw authError;
+      }
+      
+      return {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      };
+    } catch (error) {
+      // Enhance auth errors with better context
+      if (error instanceof Error) {
+        const authError = new Error(error.message || 'Authentication failed');
+        (authError as any).code = error.message?.includes('expired') ? 'auth/token-expired' : 'auth/failed';
+        throw authError;
+      }
+      throw error;
     }
-    return {
-      'Content-Type': 'application/json',
-      Authorization: `Bearer ${token}`,
-    };
   }
 
   private async fetchWithAuth<T>(
     endpoint: string,
     options: RequestInit = {}
   ): Promise<T> {
-    const headers = await this.getAuthHeaders();
-    const response = await fetch(`${API_BASE_URL}${endpoint}`, {
-      ...options,
-      headers: {
-        ...headers,
-        ...options.headers,
-      },
-    });
+    try {
+      const headers = await this.getAuthHeaders();
+      const response = await fetch(`${API_BASE_URL}${endpoint}`, {
+        ...options,
+        headers: {
+          ...headers,
+          ...options.headers,
+        },
+      });
 
-    if (!response.ok) {
-      let errorData;
-      try {
-        errorData = await response.json();
-      } catch (e) {
-        // If response is not JSON, use status text
-        errorData = { detail: response.statusText };
+      if (!response.ok) {
+        let errorData;
+        try {
+          errorData = await response.json();
+        } catch (e) {
+          // If response is not JSON, use status text
+          errorData = { detail: response.statusText };
+        }
+        
+        // Create enhanced error object with status and context
+        const error = new Error(errorData?.detail || 'Unknown error');
+        (error as any).status = response.status;
+        (error as any).endpoint = endpoint;
+        (error as any).method = options.method || 'GET';
+        
+        throw error;
       }
-      throw new Error(
-        `API request failed with status ${response.status}: ${
-          errorData?.detail || 'Unknown error'
-        }`
-      );
+      return response.json() as Promise<T>;
+    } catch (error) {
+      // Handle network errors and other exceptions
+      if (error instanceof TypeError && error.message.includes('fetch')) {
+        const networkError = new Error('Network connection failed');
+        (networkError as any).name = 'NetworkError';
+        (networkError as any).endpoint = endpoint;
+        throw networkError;
+      }
+      
+      // Re-throw API errors with additional context
+      throw error;
     }
-    return response.json() as Promise<T>;
   }
 
   async initiateCase(

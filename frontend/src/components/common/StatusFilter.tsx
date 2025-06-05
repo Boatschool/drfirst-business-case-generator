@@ -1,14 +1,10 @@
 import React from 'react';
 import {
-  FormControl,
-  FormControlProps,
-  Select,
-  MenuItem,
-  SelectChangeEvent,
   Box,
   Tooltip,
   IconButton,
-  Menu
+  Menu,
+  MenuItem
 } from '@mui/material';
 import { FilterList as FilterListIcon } from '@mui/icons-material';
 
@@ -17,7 +13,7 @@ interface StatusFilterProps {
   selectedStatus: string;
   onStatusChange: (newStatus: string) => void;
   fullWidth?: boolean;
-  size?: FormControlProps['size'];
+  size?: 'small' | 'medium';
 }
 
 /**
@@ -76,12 +72,17 @@ const StatusFilter: React.FC<StatusFilterProps> = ({
               backgroundColor: selectedStatus ? 'primary.100' : 'action.hover',
             },
           }}
+          aria-label={`Filter by status. Current filter: ${currentStatusText}`}
+          aria-expanded={open}
+          aria-haspopup="menu"
+          aria-controls={open ? 'status-filter-menu' : undefined}
         >
           <FilterListIcon />
         </IconButton>
       </Tooltip>
       
       <Menu
+        id="status-filter-menu"
         anchorEl={anchorEl}
         open={open}
         onClose={handleClose}
@@ -93,12 +94,18 @@ const StatusFilter: React.FC<StatusFilterProps> = ({
         }}
         transformOrigin={{ horizontal: 'right', vertical: 'top' }}
         anchorOrigin={{ horizontal: 'right', vertical: 'bottom' }}
+        MenuListProps={{
+          'aria-labelledby': 'status-filter-button',
+          role: 'menu',
+        }}
       >
         {/* All Statuses option */}
         <MenuItem 
           onClick={() => handleStatusSelect('')}
           selected={selectedStatus === ''}
           sx={{ fontStyle: selectedStatus === '' ? 'normal' : 'italic' }}
+          role="menuitem"
+          aria-label="Show all statuses"
         >
           All Statuses
         </MenuItem>
@@ -109,6 +116,8 @@ const StatusFilter: React.FC<StatusFilterProps> = ({
             key={status} 
             onClick={() => handleStatusSelect(status)}
             selected={selectedStatus === status}
+            role="menuitem"
+            aria-label={`Filter by ${formatStatusText(status)}`}
           >
             {formatStatusText(status)}
           </MenuItem>

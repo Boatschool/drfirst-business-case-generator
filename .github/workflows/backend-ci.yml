@@ -11,10 +11,21 @@ on:
       - main
       - develop
 
+env:
+  GAR_REGION: us-central1
+  GAR_PROJECT_ID: drfirst-business-case-gen
+  GAR_REPOSITORY: drfirst-backend
+  IMAGE_NAME: drfirst-backend
+
 jobs:
   build-and-test:
     runs-on: ubuntu-latest
     
+    # Add permissions for Workload Identity Federation
+    permissions:
+      contents: read
+      id-token: write
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -23,6 +34,14 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: '3.11'
+
+      - name: Cache Python dependencies
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-${{ hashFiles('backend/requirements.txt') }}
+          restore-keys: |
+            ${{ runner.os }}-pip-
 
       - name: Install Dependencies
         run: |
@@ -49,12 +68,149 @@ jobs:
           file: ./backend/Dockerfile
           platforms: linux/amd64
           push: false
-          tags: drfirst-backend:ci-${{ github.sha }}
+          tags: |
+            ${{ env.IMAGE_NAME }}:ci-${{ github.sha }}
+            ${{ env.IMAGE_NAME }}:ci-latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
 
-      - name: Push Docker Image to GCR/GAR
+      # GCP Authentication and Image Push (only on push to main/develop)
+      - name: Authenticate to Google Cloud
+        if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop')
+        id: auth
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ secrets.GCP_SERVICE_ACCOUNT_EMAIL }}
+
+      - name: Set up Cloud SDK
+        if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop')
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Configure Docker for Artifact Registry
+        if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop')
+        run: |-
+          gcloud auth configure-docker ${{ env.GAR_REGION }}-docker.pkg.dev
+
+      - name: Generate image tags
+        if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop')
+        id: image-tags
         run: |
-          echo "# TODO: Implement Docker image push (Task 11.1.4)"
-          echo "# This step will be conditional on push to main/develop branches"
-          # gcloud auth configure-docker us-central1-docker.pkg.dev
-          # docker tag drfirst-backend:${{ github.sha }} us-central1-docker.pkg.dev/drfirst-business-case-gen/drfirst-backend/drfirst-backend:${{ github.sha }}
-          # docker push us-central1-docker.pkg.dev/drfirst-business-case-gen/drfirst-backend/drfirst-backend:${{ github.sha }} 
+          # Base image path
+          IMAGE_BASE="${{ env.GAR_REGION }}-docker.pkg.dev/${{ env.GAR_PROJECT_ID }}/${{ env.GAR_REPOSITORY }}/${{ env.IMAGE_NAME }}"
+          
+          # Always tag with commit SHA
+          TAGS="${IMAGE_BASE}:${{ github.sha }}"
+          
+          # Add branch-specific tags
+          if [[ "${{ github.ref }}" == "refs/heads/main" ]]; then
+            TAGS="${TAGS}
+          ${IMAGE_BASE}:latest
+          ${IMAGE_BASE}:main"
+          elif [[ "${{ github.ref }}" == "refs/heads/develop" ]]; then
+            TAGS="${TAGS}
+          ${IMAGE_BASE}:develop"
+          fi
+          
+          # Set output for next step
+          echo "tags<<EOF" >> $GITHUB_OUTPUT
+          echo "$TAGS" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+          
+          # Also set base path for easy reference
+          echo "image_base=${IMAGE_BASE}" >> $GITHUB_OUTPUT
+
+      - name: Build and Push Docker image to Artifact Registry
+        if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop')
+        uses: docker/build-push-action@v5
+        with:
+          context: ./backend
+          file: ./backend/Dockerfile
+          platforms: linux/amd64
+          push: true
+          tags: ${{ steps.image-tags.outputs.tags }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          labels: |
+            org.opencontainers.image.title=DrFirst Backend
+            org.opencontainers.image.description=Backend API for DrFirst Business Case Generator
+            org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
+            org.opencontainers.image.revision=${{ github.sha }}
+            org.opencontainers.image.created=${{ github.event.head_commit.timestamp }}
+
+      - name: Output image details
+        if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop')
+        run: |
+          echo "🚀 Successfully pushed Docker image to Google Artifact Registry!"
+          echo ""
+          echo "📋 Image Details:"
+          echo "Repository: ${{ steps.image-tags.outputs.image_base }}"
+          echo "Tags pushed:"
+          echo "${{ steps.image-tags.outputs.tags }}" | sed 's/^/  - /'
+          echo ""
+          echo "🔗 View in Google Cloud Console:"
+          echo "https://console.cloud.google.com/artifacts/docker/${{ env.GAR_PROJECT_ID }}/${{ env.GAR_REGION }}/${{ env.GAR_REPOSITORY }}?project=${{ env.GAR_PROJECT_ID }}"
+
+      - name: Security scan with Trivy
+        if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop')
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: ${{ steps.image-tags.outputs.image_base }}:${{ github.sha }}
+          format: 'sarif'
+          output: 'trivy-results.sarif'
+
+      - name: Upload Trivy scan results to GitHub Security tab
+        if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop')
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: 'trivy-results.sarif'
+
+  # Optional: Job to verify the image can be pulled (integration test)
+  verify-image:
+    if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop')
+    needs: build-and-test
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+
+    steps:
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ secrets.GCP_SERVICE_ACCOUNT_EMAIL }}
+
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Configure Docker for Artifact Registry
+        run: |-
+          gcloud auth configure-docker ${{ env.GAR_REGION }}-docker.pkg.dev
+
+      - name: Verify image can be pulled
+        run: |
+          IMAGE_PATH="${{ env.GAR_REGION }}-docker.pkg.dev/${{ env.GAR_PROJECT_ID }}/${{ env.GAR_REPOSITORY }}/${{ env.IMAGE_NAME }}:${{ github.sha }}"
+          echo "🔍 Attempting to pull image: ${IMAGE_PATH}"
+          
+          if docker pull "${IMAGE_PATH}"; then
+            echo "✅ Successfully pulled image from Artifact Registry"
+            
+            # Optional: Run basic health check
+            echo "🏥 Running basic container health check..."
+            CONTAINER_ID=$(docker run -d -p 8000:8000 "${IMAGE_PATH}")
+            sleep 10
+            
+            # Check if container is still running
+            if docker ps | grep -q "${CONTAINER_ID}"; then
+              echo "✅ Container started successfully"
+              docker stop "${CONTAINER_ID}"
+            else
+              echo "❌ Container failed to start"
+              docker logs "${CONTAINER_ID}"
+              exit 1
+            fi
+          else
+            echo "❌ Failed to pull image from Artifact Registry"
+            exit 1
+          fi 

@@ -1,0 +1,162 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // =============================================================================
+    // HELPER FUNCTIONS
+    // =============================================================================
+    
+    // Get user's system role from custom claims (primary method)
+    function getUserRoleFromClaims() {
+      return request.auth.token.systemRole;
+    }
+    
+    // Get user's system role from Firestore user document (fallback method)
+    function getUserRoleFromFirestore() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.systemRole;
+    }
+    
+    // Get user's system role with fallback strategy
+    function getUserRole() {
+      return getUserRoleFromClaims() != null ? getUserRoleFromClaims() : getUserRoleFromFirestore();
+    }
+    
+    // Check if user has admin role
+    function isAdmin() {
+      return getUserRole() == 'ADMIN';
+    }
+    
+    // Check if user has specific role
+    function hasRole(role) {
+      return getUserRole() == role;
+    }
+    
+    // Check if user is authenticated
+    function isAuthenticated() {
+      return request.auth != null && request.auth.uid != null;
+    }
+    
+    // Check if user is the owner of a document with user_id field
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+    
+    // =============================================================================
+    // USERS COLLECTION
+    // =============================================================================
+    
+    match /users/{userId} {
+      // Users can read their own document; Admins can read any user document
+      allow read: if isAuthenticated() && 
+                     (request.auth.uid == userId || isAdmin());
+      
+      // Only admins can create user documents
+      // Note: User creation typically handled by backend service account
+      allow create: if isAdmin();
+      
+      // Users can update basic fields of their own document; Admins can update any user document
+      allow update: if isAuthenticated() && 
+                       (request.auth.uid == userId || isAdmin()) &&
+                       // Restrict which fields can be updated by non-admin users
+                       (isAdmin() || 
+                        (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['systemRole', 'uid', 'created_at'])));
+      
+      // Only admins can delete user documents
+      allow delete: if isAdmin();
+    }
+    
+    // =============================================================================
+    // BUSINESS CASES COLLECTION
+    // =============================================================================
+    
+    match /businessCases/{caseId} {
+      // Read permissions:
+      // 1. Case initiator can always read their own case
+      // 2. Admins can read any case
+      // 3. Authenticated users can read approved cases (shareable)
+      // 4. DEVELOPERs can read cases pending system design review
+      // 5. Users can read cases pending final approval by their role
+      allow read: if isAuthenticated() && 
+                     (isOwner(resource.data.user_id) ||
+                      isAdmin() ||
+                      (resource.data.status == 'CASE_APPROVED') ||
+                      (resource.data.status == 'PENDING_FINAL_APPROVAL') ||
+                      (hasRole('DEVELOPER') && resource.data.status == 'SYSTEM_DESIGN_PENDING_REVIEW') ||
+                      (hasRole('DEVELOPER') && resource.data.status == 'SYSTEM_DESIGN_DRAFTED'));
+      
+      // Create permissions:
+      // Any authenticated user can create a business case
+      // Must set themselves as the user_id
+      allow create: if isAuthenticated() && 
+                       request.resource.data.user_id == request.auth.uid &&
+                       // Ensure required fields are present
+                       request.resource.data.keys().hasAll(['user_id', 'title', 'status', 'created_at']);
+      
+      // Update permissions:
+      // 1. Case initiator can update their own case content (but not status changes)
+      // 2. Admins can update any case
+      // 3. Restrict direct status changes (should go through backend APIs)
+      allow update: if isAuthenticated() && 
+                       (isAdmin() ||
+                        (isOwner(resource.data.user_id) && 
+                         // Don't allow direct status changes or user_id changes
+                         (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['status', 'user_id', 'created_at']))));
+      
+      // Delete permissions:
+      // Only admins can delete business cases
+      allow delete: if isAdmin();
+    }
+    
+    // =============================================================================
+    // ADMIN-ONLY COLLECTIONS
+    // =============================================================================
+    
+    // Rate Cards - Admin-managed cost estimation data
+    match /rateCards/{cardId} {
+      allow read, write: if isAdmin();
+    }
+    
+    // Pricing Templates - Admin-managed value projection templates
+    match /pricingTemplates/{templateId} {
+      allow read, write: if isAdmin();
+    }
+    
+    // System Configuration - Global application settings
+    match /systemConfiguration/{configId} {
+      allow read, write: if isAdmin();
+    }
+    
+    // =============================================================================
+    // AUDIT LOGS COLLECTION
+    // =============================================================================
+    
+    // Audit Logs - Backend service account only
+    // No direct client access to maintain audit integrity
+    match /auditLogs/{logId} {
+      allow read, write: if false;
+    }
+    
+    // =============================================================================
+    // JOBS COLLECTION (if exists)
+    // =============================================================================
+    
+    // Jobs collection for background processing
+    match /jobs/{jobId} {
+      // Users can read their own job status
+      allow read: if isAuthenticated() && 
+                     resource.data.user_id == request.auth.uid;
+      
+      // Only backend service can create/update jobs
+      allow write: if false;
+    }
+    
+    // =============================================================================
+    // DEFAULT DENY
+    // =============================================================================
+    
+    // Deny access to any other collections not explicitly defined
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+} 

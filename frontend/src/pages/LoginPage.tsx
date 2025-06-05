@@ -5,7 +5,6 @@ import {
   Box,
   Alert,
   TextField,
-  Button,
   Stack,
   Divider,
   Link as MuiLink,
@@ -17,6 +16,8 @@ import { useLocation, useNavigate, Link as RouterLink } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { LoadingButton } from '../components/common/LoadingIndicators';
 import { PAPER_ELEVATION, STANDARD_STYLES } from '../styles/constants';
+import { formatAuthError } from '../utils/errorFormatting';
+import ErrorDisplay from '../components/common/ErrorDisplay';
 
 const LoginPage: React.FC = () => {
   const location = useLocation();
@@ -26,7 +27,7 @@ const LoginPage: React.FC = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<any>(null);
   const message = location.state?.message;
 
   // Redirect if already logged in
@@ -51,22 +52,7 @@ const LoginPage: React.FC = () => {
       // Navigation will happen automatically via useEffect when currentUser updates
     } catch (err: any) {
       console.error('Login error:', err);
-      // Firebase error messages can be quite technical, so let's provide user-friendly messages
-      let errorMessage = 'Failed to log in. Please try again.';
-
-      if (err.code === 'auth/user-not-found') {
-        errorMessage = 'No account found with this email address.';
-      } else if (err.code === 'auth/wrong-password') {
-        errorMessage = 'Incorrect password.';
-      } else if (err.code === 'auth/invalid-email') {
-        errorMessage = 'Invalid email address.';
-      } else if (err.code === 'auth/too-many-requests') {
-        errorMessage = 'Too many failed attempts. Please try again later.';
-      } else if (err.message) {
-        errorMessage = err.message;
-      }
-
-      setError(errorMessage);
+      setError(err);
     } finally {
       setIsLoading(false);
     }
@@ -81,17 +67,7 @@ const LoginPage: React.FC = () => {
       // Navigation will happen automatically via useEffect when currentUser updates
     } catch (err: any) {
       console.error('Google login error:', err);
-      let errorMessage = 'Failed to log in with Google. Please try again.';
-
-      if (err.code === 'auth/popup-closed-by-user') {
-        errorMessage = 'Sign-in was cancelled.';
-      } else if (err.code === 'auth/unauthorized-domain') {
-        errorMessage = 'This domain is not authorized for Google Sign-In.';
-      } else if (err.message) {
-        errorMessage = err.message;
-      }
-
-      setError(errorMessage);
+      setError(err);
     } finally {
       setIsLoading(false);
     }
@@ -113,23 +89,25 @@ const LoginPage: React.FC = () => {
     <Container component="main" maxWidth="xs">
       <Box sx={STANDARD_STYLES.authPageContainer}>
         <Paper elevation={PAPER_ELEVATION.AUTH_FORM} sx={{ ...STANDARD_STYLES.authFormPaper, width: '100%' }}>
-          <Typography component="h1" variant="h4" align="center" gutterBottom>
+          <Typography id="login-title" component="h1" variant="h4" align="center" gutterBottom>
             Sign In
           </Typography>
 
           {message && (
-            <Alert severity="success" sx={{ mb: 2 }}>
+            <Alert severity="success" sx={{ mb: 2 }} role="status">
               {message}
             </Alert>
           )}
 
-          {error && (
-            <Alert severity="error" sx={{ mb: 2 }}>
-              {error}
-            </Alert>
-          )}
+          <ErrorDisplay 
+            error={error}
+            formattedError={error ? formatAuthError(error) : undefined}
+            showClose={true}
+            onClose={() => setError(null)}
+            sx={{ mb: 2 }}
+          />
 
-          <Box component="form" onSubmit={handleEmailLogin} sx={{ mt: 1 }}>
+          <Box component="form" onSubmit={handleEmailLogin} sx={{ mt: 1 }} role="form" aria-labelledby="login-title">
             <TextField
               margin="normal"
               required
@@ -142,6 +120,7 @@ const LoginPage: React.FC = () => {
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               disabled={isLoading}
+              aria-describedby={error ? 'login-error' : undefined}
             />
             <TextField
               margin="normal"
@@ -155,6 +134,7 @@ const LoginPage: React.FC = () => {
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               disabled={isLoading}
+              aria-describedby={error ? 'login-error' : undefined}
             />
 
             <LoadingButton
@@ -165,6 +145,7 @@ const LoginPage: React.FC = () => {
               disabled={!email.trim() || !password.trim()}
               loading={isLoading}
               loadingText="Signing In..."
+              aria-describedby="login-help"
             >
               Sign In
             </LoadingButton>
@@ -183,6 +164,7 @@ const LoginPage: React.FC = () => {
               loading={isLoading}
               loadingText="Signing In..."
               sx={{ mb: 2 }}
+              aria-label="Sign in with Google account"
             >
               Sign in with Google
             </LoadingButton>

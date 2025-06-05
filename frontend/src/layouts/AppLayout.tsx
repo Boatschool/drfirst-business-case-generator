@@ -92,6 +92,36 @@ const AppLayout: React.FC = () => {
 
   return (
     <Box sx={{ display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
+      {/* Skip to main content link for keyboard users */}
+      <Box
+        component="a"
+        href="#main-content"
+        sx={{
+          position: 'absolute',
+          left: '-9999px',
+          top: 'auto',
+          width: '1px',
+          height: '1px',
+          overflow: 'hidden',
+          '&:focus': {
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            width: 'auto',
+            height: 'auto',
+            padding: '8px 16px',
+            backgroundColor: 'primary.main',
+            color: 'primary.contrastText',
+            textDecoration: 'none',
+            zIndex: 9999,
+            border: '2px solid',
+            borderRadius: '4px',
+          },
+        }}
+      >
+        Skip to main content
+      </Box>
+
       <AppBar position="static">
         <Toolbar>
           <Typography
@@ -103,13 +133,19 @@ const AppLayout: React.FC = () => {
             DrFirst Business Case Gen
           </Typography>
           {authContext?.currentUser ? (
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+            <Box 
+              component="nav" 
+              sx={{ display: 'flex', alignItems: 'center', gap: 1 }}
+              role="navigation"
+              aria-label="Main navigation"
+            >
               {/* Primary Navigation Links */}
               <Button 
                 color="inherit" 
                 component={RouterLink} 
                 to="/dashboard"
                 sx={getNavButtonStyle('/dashboard')}
+                aria-current={isActivePath('/dashboard') ? 'page' : undefined}
               >
                 Dashboard
               </Button>
@@ -118,6 +154,7 @@ const AppLayout: React.FC = () => {
                 component={RouterLink} 
                 to="/new-case"
                 sx={getNavButtonStyle('/new-case')}
+                aria-current={isActivePath('/new-case') ? 'page' : undefined}
               >
                 Create New Business Case
               </Button>
@@ -129,6 +166,7 @@ const AppLayout: React.FC = () => {
                   component={RouterLink} 
                   to="/admin"
                   sx={getNavButtonStyle('/admin')}
+                  aria-current={isActivePath('/admin') ? 'page' : undefined}
                 >
                   Admin
                 </Button>
@@ -139,6 +177,7 @@ const AppLayout: React.FC = () => {
                 color="inherit" 
                 onClick={handleSignOut}
                 sx={{ ml: 2 }}
+                aria-label={`Sign out ${authContext.currentUser.email}`}
               >
                 Sign Out ({authContext.currentUser.email})
               </Button>
@@ -150,7 +189,12 @@ const AppLayout: React.FC = () => {
           )}
         </Toolbar>
       </AppBar>
-      <Box component="main" sx={{ flexGrow: 1, p: 3 }}>
+      <Box 
+        component="main" 
+        id="main-content"
+        sx={{ flexGrow: 1, p: 3 }}
+        role="main"
+      >
         <Breadcrumbs />
         <Outlet /> {/* Child routes will render here */}
       </Box>
@@ -162,6 +206,7 @@ const AppLayout: React.FC = () => {
           backgroundColor: 'grey.200',
           textAlign: 'center',
         }}
+        role="contentinfo"
       >
         <Typography variant="body2" color="text.secondary">
           © {new Date().getFullYear()} DrFirst

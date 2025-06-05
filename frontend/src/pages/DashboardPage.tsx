@@ -5,8 +5,6 @@ import {
   Box,
   List,
   ListItem,
-  CircularProgress,
-  Alert,
   Button,
   Paper,
   IconButton,
@@ -29,6 +27,7 @@ import { ListSkeleton } from '../components/common/LoadingIndicators';
 import { ALL_BUSINESS_CASE_STATUSES } from '../constants/businessCaseStatuses';
 import useDocumentTitle from '../hooks/useDocumentTitle';
 import { PAPER_ELEVATION, STANDARD_STYLES } from '../styles/constants';
+import { LoadingErrorDisplay } from '../components/common/ErrorDisplay';
 
 type SortOption = 'title-asc' | 'title-desc' | 'date-newest' | 'date-oldest' | 'status-asc' | 'status-desc';
 
@@ -145,7 +144,10 @@ const DashboardPage: React.FC = () => {
         >
           <Stack direction="row" alignItems="center" spacing={2}>
             <Tooltip title="Back to Home">
-              <IconButton onClick={() => navigate('/main')}>
+              <IconButton 
+                onClick={() => navigate('/main')}
+                aria-label="Back to home page"
+              >
                 <ArrowBackIcon />
               </IconButton>
             </Tooltip>
@@ -174,7 +176,7 @@ const DashboardPage: React.FC = () => {
 
           {/* Sort and Filter Controls - only show if there are cases */}
           {!isLoadingCases && cases.length > 0 && (
-            <Stack direction="row" spacing={1}>
+            <Stack direction="row" spacing={1} role="toolbar" aria-label="Dashboard controls">
               {/* Sort Button */}
               <Tooltip title={`Sort by: ${getCurrentSortLabel()}`}>
                 <IconButton
@@ -186,6 +188,10 @@ const DashboardPage: React.FC = () => {
                       backgroundColor: 'action.hover',
                     },
                   }}
+                  aria-label={`Sort business cases. Current sort: ${getCurrentSortLabel()}`}
+                  aria-expanded={Boolean(sortAnchorEl)}
+                  aria-haspopup="menu"
+                  aria-controls={Boolean(sortAnchorEl) ? 'sort-menu' : undefined}
                 >
                   <SortIcon />
                 </IconButton>
@@ -203,6 +209,7 @@ const DashboardPage: React.FC = () => {
 
         {/* Sort Menu */}
         <Menu
+          id="sort-menu"
           anchorEl={sortAnchorEl}
           open={Boolean(sortAnchorEl)}
           onClose={handleSortClose}
@@ -213,6 +220,10 @@ const DashboardPage: React.FC = () => {
           }}
           transformOrigin={{ horizontal: 'right', vertical: 'top' }}
           anchorOrigin={{ horizontal: 'right', vertical: 'bottom' }}
+          MenuListProps={{
+            'aria-labelledby': 'sort-button',
+            role: 'menu',
+          }}
         >
           {SORT_OPTIONS.map((option) => (
             <MenuItem
@@ -224,10 +235,15 @@ const DashboardPage: React.FC = () => {
                 justifyContent: 'space-between',
                 alignItems: 'center',
               }}
+              role="menuitem"
+              aria-label={`Sort by ${option.label}`}
             >
               <span>{option.label}</span>
               {currentSort === option.value && (
-                <CheckIcon sx={{ ml: 1, fontSize: 16, color: 'primary.main' }} />
+                <CheckIcon 
+                  sx={{ ml: 1, fontSize: 16, color: 'primary.main' }} 
+                  aria-hidden="true"
+                />
               )}
             </MenuItem>
           ))}
@@ -239,11 +255,11 @@ const DashboardPage: React.FC = () => {
           </Paper>
         )}
 
-        {casesError && (
-          <Alert severity="error" sx={{ width: '100%', mb: 3 }}>
-            {casesError.message || 'Failed to load business cases.'}
-          </Alert>
-        )}
+        <LoadingErrorDisplay 
+          error={casesError}
+          context="load_cases"
+          onRetry={fetchUserCases}
+        />
 
         {!isLoadingCases && !casesError && cases.length === 0 && (
           <Typography sx={{ mt: 2 }}>
@@ -271,12 +287,15 @@ const DashboardPage: React.FC = () => {
             )}
 
             {processedCases.length === 0 && selectedStatusFilter ? (
-              <Typography sx={{ mt: 2 }}>
+              <Typography sx={{ mt: 2 }} role="status" aria-live="polite">
                 No business cases found with the selected status. Try a different filter or select "All Statuses".
               </Typography>
             ) : (
               <Paper elevation={PAPER_ELEVATION.MAIN_CONTENT} sx={{ width: '100%' }}>
-                <List>
+                <List 
+                  role="list"
+                  aria-label={`Business cases list (${processedCases.length} items)`}
+                >
                   {processedCases.map((caseItem: BusinessCaseSummary) => (
                     <ListItem
                       key={caseItem.case_id}
@@ -290,6 +309,8 @@ const DashboardPage: React.FC = () => {
                         alignItems: 'center',
                         py: 2,
                       }}
+                      role="listitem"
+                      aria-label={`Business case: ${caseItem.title}, Status: ${caseItem.status}, Updated: ${new Date(caseItem.updated_at).toLocaleDateString()}`}
                     >
                       <Box sx={{ flex: 1, minWidth: 0 }}>
                         <Typography variant="h6" component="div" sx={{ mb: 0.5 }}>

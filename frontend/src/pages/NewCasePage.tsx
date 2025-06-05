@@ -6,8 +6,6 @@ import {
   Button,
   Typography,
   Box,
-  CircularProgress,
-  Alert,
   Grid,
   IconButton,
   Paper,
@@ -23,6 +21,7 @@ import { LoadingButton } from '../components/common/LoadingIndicators';
 import { isNotEmpty, validateRelevantLink } from '../utils/validation';
 import useDocumentTitle from '../hooks/useDocumentTitle';
 import { PAPER_ELEVATION, STANDARD_STYLES } from '../styles/constants';
+import { FormErrorDisplay } from '../components/common/ErrorDisplay';
 
 interface FormErrors {
   projectTitle: string;
@@ -45,7 +44,7 @@ const NewCasePage: React.FC = () => {
     relevantLinks: [false],
   });
   
-  const { initiateBusinessCase, isLoading, error } = useAgentContext();
+  const { initiateBusinessCase, isLoading, error, clearError } = useAgentContext();
   const navigate = useNavigate();
 
   // Form validation logic
@@ -191,151 +190,173 @@ const NewCasePage: React.FC = () => {
         <Typography component="h1" variant="h4" gutterBottom align="center">
           Initiate New Business Case
         </Typography>
-        {error && (
-          <Alert severity="error" sx={{ mb: 2 }}>
-            {error.message || 'Failed to initiate business case.'}
-          </Alert>
-        )}
-        <Box component="form" onSubmit={handleSubmit} noValidate sx={{ mt: 1 }}>
-          <TextField
-            margin="normal"
-            required
-            fullWidth
-            id="projectTitle"
-            label="Project Title"
-            name="projectTitle"
-            autoFocus
-            placeholder="Enter a concise and descriptive title for your business case"
-            value={projectTitle}
-            onChange={(e) => handleProjectTitleChange(e.target.value)}
-            onBlur={() => setTouched(prev => ({ ...prev, projectTitle: true }))}
-            disabled={isLoading}
-            error={touched.projectTitle && !!formErrors.projectTitle}
-            helperText={touched.projectTitle ? formErrors.projectTitle : ''}
-          />
-          
-          <Box sx={{ position: 'relative', mt: 2 }}>
+        <FormErrorDisplay 
+          error={error}
+          onClose={() => clearError('general')}
+        />
+        <Box 
+          component="form" 
+          onSubmit={handleSubmit} 
+          noValidate 
+          sx={{ mt: 1 }}
+          role="form"
+          aria-labelledby="new-case-title"
+        >
+          <fieldset style={{ border: 'none', padding: 0, margin: 0 }}>
+            <legend className="sr-only">Basic Information</legend>
             <TextField
               margin="normal"
               required
               fullWidth
-              id="problemStatement"
-              label="Problem Statement"
-              name="problemStatement"
-              multiline
-              rows={4}
-              placeholder="Clearly describe the problem you are trying to solve, the opportunity, or the core idea. What pain points does this address? Who is affected?"
-              value={problemStatement}
-              onChange={(e) => handleProblemStatementChange(e.target.value)}
-              onBlur={() => setTouched(prev => ({ ...prev, problemStatement: true }))}
+              id="projectTitle"
+              label="Project Title"
+              name="projectTitle"
+              autoFocus
+              placeholder="Enter a concise and descriptive title for your business case"
+              value={projectTitle}
+              onChange={(e) => handleProjectTitleChange(e.target.value)}
+              onBlur={() => setTouched(prev => ({ ...prev, projectTitle: true }))}
               disabled={isLoading}
-              error={touched.problemStatement && !!formErrors.problemStatement}
-              helperText={touched.problemStatement ? formErrors.problemStatement : ''}
+              error={touched.projectTitle && !!formErrors.projectTitle}
+              helperText={touched.projectTitle ? formErrors.projectTitle : ''}
+              aria-describedby={touched.projectTitle && formErrors.projectTitle ? 'projectTitle-error' : undefined}
             />
-            <Tooltip title="Provide a detailed description of the business problem or opportunity. Include background context, current pain points, target users or stakeholders, and the expected impact of solving this problem.">
-              <IconButton
-                size="small"
-                sx={{
-                  position: 'absolute',
-                  top: 16,
-                  right: 8,
-                }}
-              >
-                <HelpOutlineIcon fontSize="small" />
-              </IconButton>
-            </Tooltip>
-          </Box>
-
-          <Typography variant="h5" component="h2" sx={{ mt: 3, mb: 1 }}>
-            Relevant Links (Optional)
-          </Typography>
-          <FormHelperText sx={{ mb: 2 }}>
-            Add links to related documentation, Confluence pages, Jira tickets, or other resources that provide context for this business case.
-          </FormHelperText>
-          
-          {relevantLinks.map((link, index) => (
-            <Grid
-              container
-              spacing={2}
-              key={index}
-              alignItems="flex-start"
-              sx={{ mb: 1 }}
-            >
-              <Grid item xs={12} sm={5}>
-                <TextField
-                  fullWidth
-                  label="Link Name"
-                  placeholder="e.g., Confluence Page, Jira Epic, Requirements Doc"
-                  value={link.name}
-                  onChange={(e) =>
-                    handleLinkChange(index, 'name', e.target.value)
-                  }
-                  onBlur={() => {
-                    if (!touched.relevantLinks[index]) {
-                      const newTouched = [...touched.relevantLinks];
-                      newTouched[index] = true;
-                      setTouched(prev => ({
-                        ...prev,
-                        relevantLinks: newTouched,
-                      }));
-                    }
-                  }}
-                  disabled={isLoading}
-                  size="small"
-                  error={touched.relevantLinks[index] && !!formErrors.relevantLinks[index]?.name}
-                  helperText={touched.relevantLinks[index] ? formErrors.relevantLinks[index]?.name : ''}
-                />
-              </Grid>
-              <Grid item xs={12} sm={6}>
-                <TextField
-                  fullWidth
-                  label="Link URL"
-                  placeholder="https://your.confluence.link/..."
-                  value={link.url}
-                  onChange={(e) =>
-                    handleLinkChange(index, 'url', e.target.value)
-                  }
-                  onBlur={() => {
-                    if (!touched.relevantLinks[index]) {
-                      const newTouched = [...touched.relevantLinks];
-                      newTouched[index] = true;
-                      setTouched(prev => ({
-                        ...prev,
-                        relevantLinks: newTouched,
-                      }));
-                    }
-                  }}
-                  disabled={isLoading}
-                  size="small"
-                  error={touched.relevantLinks[index] && !!formErrors.relevantLinks[index]?.url}
-                  helperText={touched.relevantLinks[index] ? formErrors.relevantLinks[index]?.url : ''}
-                />
-              </Grid>
-              <Grid item xs={12} sm={1}>
+            
+            <Box sx={{ position: 'relative', mt: 2 }}>
+              <TextField
+                margin="normal"
+                required
+                fullWidth
+                id="problemStatement"
+                label="Problem Statement"
+                name="problemStatement"
+                multiline
+                rows={4}
+                placeholder="Clearly describe the problem you are trying to solve, the opportunity, or the core idea. What pain points does this address? Who is affected?"
+                value={problemStatement}
+                onChange={(e) => handleProblemStatementChange(e.target.value)}
+                onBlur={() => setTouched(prev => ({ ...prev, problemStatement: true }))}
+                disabled={isLoading}
+                error={touched.problemStatement && !!formErrors.problemStatement}
+                helperText={touched.problemStatement ? formErrors.problemStatement : ''}
+                aria-describedby={`problemStatement-help ${touched.problemStatement && formErrors.problemStatement ? 'problemStatement-error' : ''}`.trim()}
+              />
+              <Tooltip title="Provide a detailed description of the business problem or opportunity. Include background context, current pain points, target users or stakeholders, and the expected impact of solving this problem.">
                 <IconButton
-                  onClick={() => handleRemoveLink(index)}
-                  disabled={
-                    isLoading ||
-                    (relevantLinks.length === 1 &&
-                      index === 0 &&
-                      !link.name &&
-                      !link.url)
-                  }
-                  sx={{ mt: 1 }}
+                  size="small"
+                  sx={{
+                    position: 'absolute',
+                    top: 16,
+                    right: 8,
+                  }}
+                  aria-label="Help for problem statement field"
                 >
-                  <RemoveCircleOutlineIcon />
+                  <HelpOutlineIcon fontSize="small" />
                 </IconButton>
+              </Tooltip>
+            </Box>
+          </fieldset>
+
+          <fieldset style={{ border: 'none', padding: 0, margin: 0 }}>
+            <legend>
+              <Typography variant="h5" component="h2" sx={{ mt: 3, mb: 1 }}>
+                Relevant Links (Optional)
+              </Typography>
+            </legend>
+            <FormHelperText sx={{ mb: 2 }} id="relevant-links-help">
+              Add links to related documentation, Confluence pages, Jira tickets, or other resources that provide context for this business case.
+            </FormHelperText>
+            
+            {relevantLinks.map((link, index) => (
+              <Grid
+                container
+                spacing={2}
+                key={index}
+                alignItems="flex-start"
+                sx={{ mb: 1 }}
+                role="group"
+                aria-labelledby={`link-group-${index}`}
+              >
+                <Grid item xs={12} sm={5}>
+                  <TextField
+                    fullWidth
+                    label="Link Name"
+                    placeholder="e.g., Confluence Page, Jira Epic, Requirements Doc"
+                    value={link.name}
+                    onChange={(e) =>
+                      handleLinkChange(index, 'name', e.target.value)
+                    }
+                    onBlur={() => {
+                      if (!touched.relevantLinks[index]) {
+                        const newTouched = [...touched.relevantLinks];
+                        newTouched[index] = true;
+                        setTouched(prev => ({
+                          ...prev,
+                          relevantLinks: newTouched,
+                        }));
+                      }
+                    }}
+                    disabled={isLoading}
+                    size="small"
+                    error={touched.relevantLinks[index] && !!formErrors.relevantLinks[index]?.name}
+                    helperText={touched.relevantLinks[index] ? formErrors.relevantLinks[index]?.name : ''}
+                    aria-describedby={`relevant-links-help ${touched.relevantLinks[index] && formErrors.relevantLinks[index]?.name ? `linkName-${index}-error` : ''}`.trim()}
+                  />
+                </Grid>
+                <Grid item xs={12} sm={6}>
+                  <TextField
+                    fullWidth
+                    label="Link URL"
+                    placeholder="https://your.confluence.link/..."
+                    value={link.url}
+                    onChange={(e) =>
+                      handleLinkChange(index, 'url', e.target.value)
+                    }
+                    onBlur={() => {
+                      if (!touched.relevantLinks[index]) {
+                        const newTouched = [...touched.relevantLinks];
+                        newTouched[index] = true;
+                        setTouched(prev => ({
+                          ...prev,
+                          relevantLinks: newTouched,
+                        }));
+                      }
+                    }}
+                    disabled={isLoading}
+                    size="small"
+                    error={touched.relevantLinks[index] && !!formErrors.relevantLinks[index]?.url}
+                    helperText={touched.relevantLinks[index] ? formErrors.relevantLinks[index]?.url : ''}
+                    aria-describedby={`relevant-links-help ${touched.relevantLinks[index] && formErrors.relevantLinks[index]?.url ? `linkUrl-${index}-error` : ''}`.trim()}
+                  />
+                </Grid>
+                <Grid item xs={12} sm={1}>
+                  <IconButton
+                    onClick={() => handleRemoveLink(index)}
+                    disabled={
+                      isLoading ||
+                      (relevantLinks.length === 1 &&
+                        index === 0 &&
+                        !link.name &&
+                        !link.url)
+                    }
+                    sx={{ mt: 1 }}
+                    aria-label={`Remove link ${index + 1}`}
+                  >
+                    <RemoveCircleOutlineIcon />
+                  </IconButton>
+                </Grid>
               </Grid>
-            </Grid>
-          ))}
-          <Button
-            startIcon={<AddCircleOutlineIcon />}
-            onClick={handleAddLink}
-            disabled={isLoading}
-            sx={{ mt: 1 }}
-          >
-            Add Link
-          </Button>
+            ))}
+            <Button
+              startIcon={<AddCircleOutlineIcon />}
+              onClick={handleAddLink}
+              disabled={isLoading}
+              sx={{ mt: 1 }}
+              aria-label="Add another link"
+            >
+              Add Link
+            </Button>
+          </fieldset>
 
           <LoadingButton
             type="submit"
@@ -345,9 +366,13 @@ const NewCasePage: React.FC = () => {
             disabled={!isFormValid}
             loading={isLoading}
             loadingText="Initiating Case..."
+            aria-describedby="submit-help"
           >
             Initiate Case
           </LoadingButton>
+          <FormHelperText id="submit-help" sx={{ textAlign: 'center' }}>
+            {!isFormValid && 'Please fill in all required fields to continue'}
+          </FormHelperText>
         </Box>
       </Paper>
     </Container>

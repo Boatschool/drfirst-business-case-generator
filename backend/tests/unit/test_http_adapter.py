@@ -2,6 +2,7 @@
 Unit tests for HTTP adapter and service layer functionality.
 Tests the logic that would be used by the frontend HTTP client.
 """
+
 import pytest
 from unittest.mock import Mock, patch
 import json
@@ -22,7 +23,7 @@ class TestHttpAdapterLogic:
             "problem_statement": "Test problem statement",
             "relevant_links": [
                 {"name": "Confluence", "url": "https://confluence.example.com"},
-                {"name": "Jira", "url": "https://jira.example.com"}
+                {"name": "Jira", "url": "https://jira.example.com"},
             ],
             "status": "PRD_DRAFTING",
             "history": [
@@ -30,20 +31,20 @@ class TestHttpAdapterLogic:
                     "timestamp": datetime.now(timezone.utc),
                     "source": "USER",
                     "messageType": "TEXT",
-                    "content": "Initial message"
+                    "content": "Initial message",
                 }
             ],
             "prd_draft": {
                 "title": "Test PRD - Draft",
                 "content_markdown": "# Test PRD\n\nContent here",
-                "version": "1.0.0"
+                "version": "1.0.0",
             },
             "created_at": datetime.now(timezone.utc),
-            "updated_at": datetime.now(timezone.utc)
+            "updated_at": datetime.now(timezone.utc),
         }
-        
+
         model = BusinessCaseDetailsModel(**case_data)
-        
+
         # Test model fields
         assert model.case_id == "test-case-123"
         assert model.user_id == "test-user-123"
@@ -53,7 +54,7 @@ class TestHttpAdapterLogic:
         assert model.relevant_links[0]["name"] == "Confluence"
         assert model.status == "PRD_DRAFTING"
         assert model.prd_draft["content_markdown"] == "# Test PRD\n\nContent here"
-        
+
         # Test serialization
         serialized = model.model_dump()
         assert serialized["case_id"] == "test-case-123"
@@ -71,9 +72,9 @@ class TestHttpAdapterLogic:
             "history": [],
             "prd_draft": None,
             "created_at": datetime.now(timezone.utc),
-            "updated_at": datetime.now(timezone.utc)
+            "updated_at": datetime.now(timezone.utc),
         }
-        
+
         model = BusinessCaseDetailsModel(**case_data)
         assert model.prd_draft is None
 
@@ -81,11 +82,11 @@ class TestHttpAdapterLogic:
         """Test that PrdUpdateRequest can be converted to JSON for HTTP requests."""
         content = "# Updated PRD\n\n## Overview\nThis is updated content."
         request = PrdUpdateRequest(content_markdown=content)
-        
+
         # Test dictionary conversion (for HTTP request body)
         request_dict = request.model_dump()
         assert request_dict == {"content_markdown": content}
-        
+
         # Test JSON serialization
         json_str = request.model_dump_json()
         parsed = json.loads(json_str)
@@ -99,10 +100,10 @@ class TestHttpAdapterLogic:
             "updated_prd_draft": {
                 "title": "Test Business Case - Draft",
                 "content_markdown": "# Updated PRD\n\nNew content",
-                "version": "1.0.0"
-            }
+                "version": "1.0.0",
+            },
         }
-        
+
         # Verify response structure
         assert "message" in expected_response
         assert "updated_prd_draft" in expected_response
@@ -116,9 +117,9 @@ class TestHttpAdapterLogic:
             {"detail": "Business case test-case-123 not found."},
             {"detail": "You do not have permission to edit this business case."},
             {"detail": "User ID not found in token."},
-            {"detail": "Failed to update PRD draft: Connection error"}
+            {"detail": "Failed to update PRD draft: Connection error"},
         ]
-        
+
         for error_response in error_responses:
             assert "detail" in error_response
             assert isinstance(error_response["detail"], str)
@@ -129,9 +130,9 @@ class TestHttpAdapterLogic:
         # This simulates what the frontend HTTP adapter needs to send
         required_headers = {
             "Content-Type": "application/json",
-            "Authorization": "Bearer eyJhbGciOiJSUzI1NiIsImtpZCI6..."
+            "Authorization": "Bearer eyJhbGciOiJSUzI1NiIsImtpZCI6...",
         }
-        
+
         assert "Content-Type" in required_headers
         assert required_headers["Content-Type"] == "application/json"
         assert "Authorization" in required_headers
@@ -142,10 +143,10 @@ class TestHttpAdapterLogic:
         base_url = "https://api.example.com"
         api_version = "v1"
         case_id = "test-case-123"
-        
+
         expected_url = f"{base_url}/api/{api_version}/cases/{case_id}/prd"
         constructed_url = f"{base_url}/api/{api_version}/cases/{case_id}/prd"
-        
+
         assert constructed_url == expected_url
         assert "/cases/" in constructed_url
         assert "/prd" in constructed_url
@@ -154,20 +155,18 @@ class TestHttpAdapterLogic:
     def test_request_payload_validation(self):
         """Test validation of request payloads that would be sent from frontend."""
         # Valid payload
-        valid_payload = {
-            "content_markdown": "# Valid PRD\n\nThis is valid content."
-        }
-        
+        valid_payload = {"content_markdown": "# Valid PRD\n\nThis is valid content."}
+
         request = PrdUpdateRequest(**valid_payload)
         assert request.content_markdown == valid_payload["content_markdown"]
-        
+
         # Test that extra fields are ignored (frontend might send them)
         payload_with_extra = {
             "content_markdown": "# Valid PRD\n\nContent",
             "extra_field": "should be ignored",
-            "another_extra": 123
+            "another_extra": 123,
         }
-        
+
         request = PrdUpdateRequest(**payload_with_extra)
         assert request.content_markdown == payload_with_extra["content_markdown"]
         # Extra fields should not be in the model
@@ -186,9 +185,12 @@ class TestHttpAdapterLogic:
             # Case not found
             {"error": "404 Not Found", "expected_handling": "redirect_to_dashboard"},
             # Server error
-            {"error": "500 Internal Server Error", "expected_handling": "show_generic_error"}
+            {
+                "error": "500 Internal Server Error",
+                "expected_handling": "show_generic_error",
+            },
         ]
-        
+
         for scenario in scenarios:
             assert "error" in scenario
             assert "expected_handling" in scenario
@@ -201,18 +203,18 @@ class TestHttpAdapterLogic:
             "# Unicode PRD 🚀\n\nContent with émojis and accénts",
             "# Code PRD\n\n```python\nprint('Hello, 世界!')\n```",
             "# Math PRD\n\nFormula: ∑(x) = α + β × γ",
-            "# Special chars: <>\"'&\n\nContent with HTML-like chars"
+            "# Special chars: <>\"'&\n\nContent with HTML-like chars",
         ]
-        
+
         for content in test_contents:
             request = PrdUpdateRequest(content_markdown=content)
-            
+
             # Should serialize and deserialize correctly
             json_str = request.model_dump_json()
             parsed = json.loads(json_str)
-            
+
             assert parsed["content_markdown"] == content
-            
+
             # Should handle round-trip correctly
             new_request = PrdUpdateRequest(**parsed)
-            assert new_request.content_markdown == content 
+            assert new_request.content_markdown == content

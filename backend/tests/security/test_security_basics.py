@@ -21,14 +21,14 @@ class TestBasicSecurityPatterns:
             UserRole.USER,
             UserRole.DEVELOPER,
             UserRole.BUSINESS_ANALYST,
-            UserRole.SALES_REP
+            UserRole.SALES_REP,
         ]
-        
+
         for role in valid_roles:
             user_data = {
                 "uid": "test-uid",
                 "email": "test@example.com",
-                "systemRole": role
+                "systemRole": role,
             }
             user = User(**user_data)
             assert user.systemRole == role
@@ -47,14 +47,14 @@ class TestBasicSecurityPatterns:
             UserRole.LEGAL_APPROVER: 5,
             UserRole.TECHNICAL_ARCHITECT: 5,
             UserRole.PRODUCT_OWNER: 5,
-            UserRole.ADMIN: 10
+            UserRole.ADMIN: 10,
         }
-        
+
         # Verify admin has highest privilege
         assert role_privileges[UserRole.ADMIN] > max(
             priv for role, priv in role_privileges.items() if role != UserRole.ADMIN
         )
-        
+
         # Verify viewer has lowest privilege
         assert role_privileges[UserRole.VIEWER] == min(role_privileges.values())
 
@@ -67,23 +67,25 @@ class TestBasicSecurityPatterns:
             "key",
             "credential",
             "api_key",
-            "private_key"
+            "private_key",
         ]
-        
+
         # Test that User model doesn't expose sensitive fields
         user_data = {
             "uid": "test-uid",
             "email": "test@example.com",
-            "systemRole": UserRole.USER
+            "systemRole": UserRole.USER,
         }
-        
+
         user = User(**user_data)
         user_dict = user.model_dump()
-        
+
         # Check that no sensitive patterns appear in serialized data
         serialized_text = str(user_dict).lower()
         for pattern in sensitive_patterns:
-            assert pattern not in serialized_text, f"Sensitive pattern '{pattern}' found in user data"
+            assert (
+                pattern not in serialized_text
+            ), f"Sensitive pattern '{pattern}' found in user data"
 
     def test_email_validation_security(self):
         """Test email validation for security"""
@@ -91,15 +93,11 @@ class TestBasicSecurityPatterns:
         valid_emails = [
             "user@example.com",
             "test.user@company.org",
-            "admin+tag@domain.co.uk"
+            "admin+tag@domain.co.uk",
         ]
-        
+
         for email in valid_emails:
-            user_data = {
-                "uid": "test-uid",
-                "email": email,
-                "systemRole": UserRole.USER
-            }
+            user_data = {"uid": "test-uid", "email": email, "systemRole": UserRole.USER}
             user = User(**user_data)
             assert user.email == email
 
@@ -110,18 +108,18 @@ class TestBasicSecurityPatterns:
             "<script>alert('xss')</script>",
             "'; DROP TABLE users; --",
             "${7*7}",  # Template injection
-            "{{constructor.constructor('return process')().exit()}}", # Node.js injection
+            "{{constructor.constructor('return process')().exit()}}",  # Node.js injection
             "%{#context.stop}",  # Struts injection
         ]
-        
+
         for dangerous_input in dangerous_inputs:
             user_data = {
                 "uid": dangerous_input,
                 "email": "test@example.com",
                 "systemRole": UserRole.USER,
-                "display_name": dangerous_input
+                "display_name": dangerous_input,
             }
-            
+
             # Should not raise exceptions (sanitization/validation should handle)
             try:
                 user = User(**user_data)
@@ -137,18 +135,20 @@ class TestBasicSecurityPatterns:
         for status in JobStatus:
             assert status.value.islower(), f"Status {status} should be lowercase"
             assert " " not in status.value, f"Status {status} should not contain spaces"
-            assert status.value.isalpha() or "_" in status.value, f"Status {status} should only contain letters and underscores"
+            assert (
+                status.value.isalpha() or "_" in status.value
+            ), f"Status {status} should only contain letters and underscores"
 
     def test_user_model_field_types(self):
         """Test user model field type security"""
         user_data = {
             "uid": "test-uid",
             "email": "test@example.com",
-            "systemRole": UserRole.USER
+            "systemRole": UserRole.USER,
         }
-        
+
         user = User(**user_data)
-        
+
         # Verify critical fields have expected types
         assert isinstance(user.uid, str)
         assert isinstance(user.email, str)
@@ -164,21 +164,21 @@ class TestInputValidationSecurity:
         # Test very long inputs
         long_string = "A" * 10000  # 10KB string
         very_long_string = "B" * 100000  # 100KB string
-        
+
         test_cases = [
             {"field": "uid", "value": long_string},
             {"field": "email", "value": f"{long_string}@example.com"},
-            {"field": "display_name", "value": very_long_string}
+            {"field": "display_name", "value": very_long_string},
         ]
-        
+
         for test_case in test_cases:
             user_data = {
                 "uid": "test-uid",
                 "email": "test@example.com",
-                "systemRole": UserRole.USER
+                "systemRole": UserRole.USER,
             }
             user_data[test_case["field"]] = test_case["value"]
-            
+
             # Should either accept or reject gracefully, not crash
             try:
                 user = User(**user_data)
@@ -192,21 +192,21 @@ class TestInputValidationSecurity:
         """Test Unicode character handling security"""
         unicode_test_cases = [
             "测试用户",  # Chinese
-            "пользователь",  # Russian  
+            "пользователь",  # Russian
             "🚀🔥💯",  # Emojis
             "user\x00name",  # Null byte
             "user\r\nname",  # CRLF injection attempt
-            "user\tname"  # Tab character
+            "user\tname",  # Tab character
         ]
-        
+
         for unicode_input in unicode_test_cases:
             user_data = {
                 "uid": "test-uid",
-                "email": "test@example.com", 
+                "email": "test@example.com",
                 "systemRole": UserRole.USER,
-                "display_name": unicode_input
+                "display_name": unicode_input,
             }
-            
+
             # Should handle Unicode gracefully
             try:
                 user = User(**user_data)
@@ -222,15 +222,15 @@ class TestInputValidationSecurity:
             {"field": "display_name", "value": None, "should_work": True},
             {"field": "display_name", "value": "", "should_work": True},
         ]
-        
+
         for test_case in test_cases:
             user_data = {
                 "uid": "test-uid",
                 "email": "test@example.com",
-                "systemRole": UserRole.USER
+                "systemRole": UserRole.USER,
             }
             user_data[test_case["field"]] = test_case["value"]
-            
+
             if test_case["should_work"]:
                 try:
                     user = User(**user_data)
@@ -245,18 +245,18 @@ class TestInputValidationSecurity:
         type_test_cases = [
             {"field": "is_active", "value": "true", "expected_type": bool},
             {"field": "is_active", "value": 1, "expected_type": bool},
-            {"field": "systemRole", "value": "ADMIN", "expected_type": UserRole}
+            {"field": "systemRole", "value": "ADMIN", "expected_type": UserRole},
         ]
-        
+
         for test_case in type_test_cases:
             user_data = {
                 "uid": "test-uid",
                 "email": "test@example.com",
                 "systemRole": UserRole.USER,
-                "is_active": True
+                "is_active": True,
             }
             user_data[test_case["field"]] = test_case["value"]
-            
+
             try:
                 user = User(**user_data)
                 # Verify proper type coercion
@@ -276,15 +276,24 @@ class TestDataExposurePrevention:
             "uid": "sensitive-uid-12345",
             "email": "user@example.com",
             "systemRole": UserRole.USER,
-            "display_name": "Test User"
+            "display_name": "Test User",
         }
-        
+
         user = User(**user_data)
         serialized = user.model_dump()
-        
+
         # Verify structure is as expected
-        expected_fields = ["uid", "email", "systemRole", "display_name", "created_at", "updated_at", "last_login", "is_active"]
-        
+        expected_fields = [
+            "uid",
+            "email",
+            "systemRole",
+            "display_name",
+            "created_at",
+            "updated_at",
+            "last_login",
+            "is_active",
+        ]
+
         for field in expected_fields:
             assert field in serialized or getattr(user, field) is not None
 
@@ -295,31 +304,30 @@ class TestDataExposurePrevention:
             User(uid="", email="")
         except Exception as e:
             error_message = str(e).lower()
-            
+
             # Error message should not contain sensitive patterns
             forbidden_patterns = [
                 "database",
-                "sql", 
+                "sql",
                 "firestore",
                 "connection",
                 "secret",
                 "password",
                 "key",
-                "token"
+                "token",
             ]
-            
+
             for pattern in forbidden_patterns:
-                assert pattern not in error_message, f"Error message contains sensitive pattern: {pattern}"
+                assert (
+                    pattern not in error_message
+                ), f"Error message contains sensitive pattern: {pattern}"
 
     def test_default_values_security(self):
         """Test that default values are secure"""
-        minimal_user_data = {
-            "uid": "test-uid",
-            "email": "test@example.com"
-        }
-        
+        minimal_user_data = {"uid": "test-uid", "email": "test@example.com"}
+
         user = User(**minimal_user_data)
-        
+
         # Verify secure defaults
         assert user.systemRole == UserRole.USER  # Not admin by default
         assert user.is_active is True  # Active by default is OK
@@ -329,4 +337,4 @@ class TestDataExposurePrevention:
 
 if __name__ == "__main__":
     # Run tests with: python -m pytest backend/tests/security/test_security_basics.py -v
-    pytest.main([__file__, "-v"]) 
+    pytest.main([__file__, "-v"])

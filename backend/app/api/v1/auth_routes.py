@@ -11,8 +11,10 @@ from app.services.auth_service import auth_service
 router = APIRouter()
 security = HTTPBearer()
 
+
 class TokenRequest(BaseModel):
     id_token: str
+
 
 class UserResponse(BaseModel):
     uid: str
@@ -21,7 +23,10 @@ class UserResponse(BaseModel):
     picture: Optional[str]
     email_verified: bool
 
-@router.post("/verify-token", summary="Verify Firebase ID token", response_model=UserResponse)
+
+@router.post(
+    "/verify-token", summary="Verify Firebase ID token", response_model=UserResponse
+)
 async def verify_token(token_request: TokenRequest):
     """Verify Firebase ID token and return user information"""
     try:
@@ -29,86 +34,92 @@ async def verify_token(token_request: TokenRequest):
         if not user_info:
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Invalid or expired token"
+                detail="Invalid or expired token",
             )
-        
+
         # Check if user email is from DrFirst domain
-        if not user_info.get('email', '').endswith('@drfirst.com'):
+        if not user_info.get("email", "").endswith("@drfirst.com"):
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
-                detail="Access restricted to DrFirst employees"
+                detail="Access restricted to DrFirst employees",
             )
-        
+
         return UserResponse(
-            uid=user_info['uid'],
-            email=user_info.get('email'),
-            name=user_info.get('name'),
-            picture=user_info.get('picture'),
-            email_verified=user_info.get('email_verified', False)
+            uid=user_info["uid"],
+            email=user_info.get("email"),
+            name=user_info.get("name"),
+            picture=user_info.get("picture"),
+            email_verified=user_info.get("email_verified", False),
         )
     except HTTPException:
         raise
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Authentication error: {str(e)}"
+            detail=f"Authentication error: {str(e)}",
         )
 
+
 @router.get("/me", summary="Get current user profile")
-async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(security)):
+async def get_current_user(
+    credentials: HTTPAuthorizationCredentials = Depends(security),
+):
     """Get current user profile information using Bearer token"""
     try:
         # Extract token from Authorization header
         id_token = credentials.credentials
-        
+
         user_info = await auth_service.verify_token(id_token)
         if not user_info:
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Invalid or expired token"
+                detail="Invalid or expired token",
             )
-        
+
         return UserResponse(
-            uid=user_info['uid'],
-            email=user_info.get('email'),
-            name=user_info.get('name'),
-            picture=user_info.get('picture'),
-            email_verified=user_info.get('email_verified', False)
+            uid=user_info["uid"],
+            email=user_info.get("email"),
+            name=user_info.get("name"),
+            picture=user_info.get("picture"),
+            email_verified=user_info.get("email_verified", False),
         )
     except HTTPException:
         raise
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Authentication error: {str(e)}"
+            detail=f"Authentication error: {str(e)}",
         )
 
+
 @router.post("/revoke", summary="Revoke user sessions")
-async def revoke_user_sessions(credentials: HTTPAuthorizationCredentials = Depends(security)):
+async def revoke_user_sessions(
+    credentials: HTTPAuthorizationCredentials = Depends(security),
+):
     """Revoke all refresh tokens for current user (signs them out of all sessions)"""
     try:
         # Extract token from Authorization header
         id_token = credentials.credentials
-        
+
         user_info = await auth_service.verify_token(id_token)
         if not user_info:
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Invalid or expired token"
+                detail="Invalid or expired token",
             )
-        
-        success = await auth_service.revoke_refresh_tokens(user_info['uid'])
+
+        success = await auth_service.revoke_refresh_tokens(user_info["uid"])
         if not success:
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail="Failed to revoke user sessions"
+                detail="Failed to revoke user sessions",
             )
-        
+
         return {"message": "All user sessions revoked successfully"}
     except HTTPException:
         raise
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Session revocation error: {str(e)}"
-        ) 
+            detail=f"Session revocation error: {str(e)}",
+        )

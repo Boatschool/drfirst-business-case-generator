@@ -2,6 +2,7 @@
 Unit tests for PRD update functionality.
 Tests the PrdUpdateRequest model and related validation logic.
 """
+
 import pytest
 from datetime import datetime, timezone
 from pydantic import ValidationError
@@ -15,7 +16,7 @@ class TestPrdUpdateRequest:
         """Test creating a valid PRD update request."""
         content = "# Updated PRD\n\nThis is a test PRD content."
         request = PrdUpdateRequest(content_markdown=content)
-        
+
         assert request.content_markdown == content
         assert isinstance(request.content_markdown, str)
 
@@ -65,7 +66,7 @@ def example_code():
         """Test that missing content_markdown raises validation error."""
         with pytest.raises(ValidationError) as exc_info:
             PrdUpdateRequest()
-        
+
         error = exc_info.value
         assert "content_markdown" in str(error)
         assert "Field required" in str(error)
@@ -74,7 +75,7 @@ def example_code():
         """Test that non-string content_markdown raises validation error."""
         with pytest.raises(ValidationError) as exc_info:
             PrdUpdateRequest(content_markdown=123)
-        
+
         error = exc_info.value
         assert "content_markdown" in str(error)
         assert "str_type" in str(error) or "string" in str(error)
@@ -83,7 +84,7 @@ def example_code():
         """Test that None content raises validation error."""
         with pytest.raises(ValidationError) as exc_info:
             PrdUpdateRequest(content_markdown=None)
-        
+
         error = exc_info.value
         assert "content_markdown" in str(error)
 
@@ -91,11 +92,11 @@ def example_code():
         """Test that the model can be serialized to JSON."""
         content = "# Test PRD\n\nContent with unicode: 🚀"
         request = PrdUpdateRequest(content_markdown=content)
-        
+
         # Test model_dump
         data = request.model_dump()
         assert data == {"content_markdown": content}
-        
+
         # Test JSON serialization
         json_str = request.model_dump_json()
         assert "Test PRD" in json_str
@@ -133,7 +134,7 @@ console.log(message);
         # Test with whitespace-only content
         request = PrdUpdateRequest(content_markdown="   \n\t   ")
         assert request.content_markdown == "   \n\t   "
-        
+
         # Test with newlines
         request = PrdUpdateRequest(content_markdown="\n\n\n")
-        assert request.content_markdown == "\n\n\n" 
+        assert request.content_markdown == "\n\n\n"

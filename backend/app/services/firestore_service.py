@@ -3,7 +3,6 @@ Firestore service for database operations
 """
 
 from typing import Optional, List, Dict, Any
-from google.cloud import firestore
 from app.core.config import settings
 from app.models.firestore_models import User, BusinessCase, Job
 

@@ -11,7 +11,7 @@ import asyncio
 from app.auth.firebase_auth import get_current_active_user, require_role
 from app.utils.config_helpers import require_dynamic_final_approver_role
 from app.core.config import settings
-from app.core.dependencies import get_db, get_array_union, get_increment
+from app.core.dependencies import get_db, get_array_union
 from app.core.database import DatabaseClient
 
 # Assuming BusinessCaseStatus is defined in orchestrator_agent or a shared models location

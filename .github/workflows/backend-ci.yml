@@ -60,6 +60,14 @@ jobs:
         working-directory: ./backend
         env:
           PYTHONPATH: .
+          SECRET_KEY: test-secret-key-for-ci
+          GOOGLE_CLOUD_PROJECT_ID: test-project
+          FIREBASE_PROJECT_ID: test-project
+          VERTEX_AI_LOCATION: us-central1
+          VERTEX_AI_MODEL_NAME: gemini-2.0-flash-lite
+          LOG_LEVEL: INFO
+          DEBUG: false
+          ENVIRONMENT: test
         run: |
           python -m pytest tests/ --verbose --cov=app --cov-report=term-missing
 

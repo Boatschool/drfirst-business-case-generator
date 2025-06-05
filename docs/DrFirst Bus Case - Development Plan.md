@@ -193,6 +193,30 @@ The application now provides a professional, persistent chat experience that sup
 
 ---
 
+**Phase 11: CI/CD Hardening**
+
+* **Focus:** Implement comprehensive CI/CD pipelines for both backend and frontend applications using GitHub Actions. Establish automated testing, building, and deployment processes for staging and production environments.  
+* **Status:** Tasks 11.1.1-11.1.2 COMPLETE - Backend CI workflow foundation and implementation complete. Ready for Docker build and deployment steps.
+
+| Task ID | Title | Status | Priority | Complexity | Dependencies | Notes |
+| :---- | :---- | :---- | :---- | :---- | :---- | :---- |
+| 11.1 | **Backend CI/CD Pipeline** |  |  |  |  |  |
+| 11.1.1 | Define Backend CI GitHub Actions Workflow File (.github/workflows/backend-ci.yml) - Basic structure with placeholders | COMPLETE | highest | low | (GitHub repository access) | ✅ COMPLETE: Professional workflow file created with triggers, job structure, Python setup, and implementation placeholders for Tasks 11.1.2-11.1.4. Ready for CI implementation. |
+| 11.1.2 | Implement Backend CI Steps: Dependencies, Linting, Testing (pip install, flake8, pytest) | COMPLETE | highest | low | 11.1.1 | ✅ COMPLETE: Professional CI implementation with pip upgrade + requirements.txt, flake8 linting with project configuration (.flake8), pytest execution with coverage reporting and PYTHONPATH configuration. All 3 steps operational with quality gates. |
+| 11.1.3 | Implement Backend Docker Build Step in CI Pipeline | COMPLETE | highest | medium | 11.1.2 | ✅ COMPLETE: Enhanced backend-ci.yml with Docker Buildx setup and build-push-action. Builds Docker image with linux/amd64 platform targeting for Cloud Run compatibility. Tagged with ci-${{ github.sha }} for unique identification. |
+| 11.1.4 | Implement Backend Docker Push to GCP Artifact Registry (conditional on main/develop) | TODO | highest | medium | 11.1.3 | Configure GCP authentication and push to us-central1-docker.pkg.dev/drfirst-business-case-gen/drfirst-backend repository. |
+| 11.2 | **Frontend CI/CD Pipeline** |  |  |  |  |  |
+| 11.2.1 | Define Frontend CI GitHub Actions Workflow File (.github/workflows/frontend-ci.yml) | TODO | highest | low | 11.1.1 | Similar structure to backend workflow with Node.js setup and frontend-specific steps. |
+| 11.2.2 | Implement Frontend CI Steps: Dependencies, Linting, Testing, Build (npm ci, eslint, test, build) | TODO | highest | low | 11.2.1 | Frontend-specific quality gates and build validation. |
+| 11.2.3 | Implement Frontend Firebase Hosting Deployment (conditional on main/develop) | TODO | highest | medium | 11.2.2 | Deploy to Firebase Hosting with proper environment configuration. |
+| 11.3 | **Advanced CI/CD Features** |  |  |  |  |  |
+| 11.3.1 | Implement Staging Deployment Automation for Backend (Cloud Run) | TODO | high | medium | 11.1.4 | Automatic deployment to staging environment on develop branch. |
+| 11.3.2 | Implement Production Deployment Automation (with manual approval gates) | TODO | high | high | 11.3.1 | Production deployment with required manual approval for main branch. |
+| 11.3.3 | Add CI/CD Notifications (Slack/email integration for deployment status) | TODO | medium | low | 11.3.2 | Notification system for deployment success/failure. |
+| 11.3.4 | Implement Rollback Mechanisms and Health Checks | TODO | medium | medium | 11.3.2 | Automated rollback on deployment failure and health monitoring. |
+
+---
+
 **Phase 7: Admin UI Enhancements & Role-Based Access Control (RBAC)**
 
 * **Focus:** Implement CRUD operations for Rate Cards and Pricing Templates in the Admin UI. Implement basic RBAC for accessing Admin features and user management foundation.  

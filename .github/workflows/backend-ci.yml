@@ -56,6 +56,12 @@ jobs:
         run: |
           flake8 --config=backend/.flake8 backend/app backend/tests
 
+      - name: Create fake Google credentials for testing
+        working-directory: ./backend
+        run: |
+          mkdir -p ~/.config/gcloud
+          echo '{"type": "service_account", "project_id": "test-project"}' > fake-credentials.json
+
       - name: Run Tests
         working-directory: ./backend
         env:
@@ -68,6 +74,8 @@ jobs:
           LOG_LEVEL: INFO
           DEBUG: false
           ENVIRONMENT: test
+          GOOGLE_APPLICATION_CREDENTIALS: fake-credentials.json
+          GOOGLE_AUTH_SUPPRESS_CREDENTIALS_WARNINGS: "true"
         run: |
           python -m pytest tests/ --verbose --cov=app --cov-report=term-missing
 

@@ -140,8 +140,8 @@ class EchoTool:
 
     async def run(self, input_string: str) -> str:
         """Takes an input string and returns it."""
-        logger = logging.getLogger(__name__)
-        logger.debug(f"[EchoTool] Received: {input_string}")
+        echo_logger = logging.getLogger(__name__)
+        echo_logger.debug(f"[EchoTool] Received: {input_string}")
         return input_string
 
 
@@ -442,7 +442,7 @@ class OrchestratorAgent:
                 
             except Exception as e:
                 job_logger = log_agent_operation(
-                    logger, "OrchestratorAgent", job_id, "create_job"
+                    self.logger, "OrchestratorAgent", job_id, "create_job"
                 )
                 log_error_with_context(
                     job_logger, 
@@ -589,7 +589,7 @@ class OrchestratorAgent:
                 
         except Exception as e:
             orchestrator_logger = log_agent_operation(
-                logger, "OrchestratorAgent", "unknown", "generate_business_case"
+                self.logger, "OrchestratorAgent", "unknown", "generate_business_case"
             )
             log_error_with_context(
                 orchestrator_logger, 
@@ -753,7 +753,7 @@ class OrchestratorAgent:
             
         except Exception as e:
             orchestrator_logger = log_agent_operation(
-                logger, "OrchestratorAgent", "unknown", "coordinate_agents"
+                self.logger, "OrchestratorAgent", "unknown", "coordinate_agents"
             )
             log_error_with_context(
                 orchestrator_logger, 
@@ -786,7 +786,7 @@ class OrchestratorAgent:
         """
         try:
             orchestrator_logger = log_agent_operation(
-                logger, "OrchestratorAgent", case_id, "handle_prd_approval"
+                self.logger, "OrchestratorAgent", case_id, "handle_prd_approval"
             )
             orchestrator_logger.info(f"Handling PRD approval for case {case_id}")
             
@@ -1016,7 +1016,7 @@ class OrchestratorAgent:
                 
         except Exception as e:
             orchestrator_logger = log_agent_operation(
-                logger, "OrchestratorAgent", case_id, "handle_prd_approval"
+                self.logger, "OrchestratorAgent", case_id, "handle_prd_approval"
             )
             log_error_with_context(
                 orchestrator_logger, 

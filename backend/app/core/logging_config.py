@@ -64,8 +64,8 @@ def setup_logging() -> None:
     
     # Determine if we should use JSON logging
     use_json_logging = (
-        HAS_JSON_LOGGER and 
-        settings.environment.lower() in ['production', 'staging']
+        HAS_JSON_LOGGER
+        and settings.environment.lower() in ['production', 'staging']
     )
     
     # Get log level from settings

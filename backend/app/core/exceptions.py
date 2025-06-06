@@ -327,8 +327,8 @@ def should_log_error(exception: Exception) -> bool:
     if isinstance(exception, BaseAPIException):
         # Log server errors and authentication issues, but not client validation errors
         return (
-            is_server_error(exception.status_code) or
-            isinstance(exception, (AuthenticationError, AuthorizationError))
+            is_server_error(exception.status_code)
+            or isinstance(exception, (AuthenticationError, AuthorizationError))
         )
     
     # Log all other exceptions as they're unexpected

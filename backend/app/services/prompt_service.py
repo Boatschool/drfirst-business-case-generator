@@ -3,6 +3,7 @@ Service for managing configurable agent prompts.
 """
 
 import uuid
+import logging
 from datetime import datetime
 from typing import List, Optional, Dict, Any
 from google.cloud import firestore
@@ -21,6 +22,7 @@ class PromptService:
     def __init__(self, db: firestore.Client):
         self.db = db
         self.collection_name = "agentPrompts"
+        self.logger = logging.getLogger(__name__)
 
     async def get_prompt_by_id(self, prompt_id: str) -> Optional[AgentPrompt]:
         """Get a prompt by its ID."""
@@ -33,7 +35,7 @@ class PromptService:
             data["prompt_id"] = doc.id
             return AgentPrompt(**data)
         except Exception as e:
-            logger.info(f"Error getting prompt by ID {prompt_id}: {e}")
+            self.logger.info(f"Error getting prompt by ID {prompt_id}: {e}")
             return None
 
     async def get_prompt_by_agent_function(
@@ -57,7 +59,7 @@ class PromptService:
 
             return None
         except Exception as e:
-            logger.info(f"Error getting prompt for {agent_name}.{agent_function}: {e}")
+            self.logger.info(f"Error getting prompt for {agent_name}.{agent_function}: {e}")
             return None
 
     async def get_active_prompt_template(
@@ -92,10 +94,10 @@ class PromptService:
 
             return rendered
         except KeyError as e:
-            logger.info(f"Missing variable in prompt template: {e}")
+            self.logger.info(f"Missing variable in prompt template: {e}")
             return None
         except Exception as e:
-            logger.info(f"Error rendering prompt: {e}")
+            self.logger.info(f"Error rendering prompt: {e}")
             return None
 
     async def create_prompt(self, prompt_data: AgentPromptCreate, user_id: str) -> str:
@@ -186,7 +188,7 @@ class PromptService:
 
             return True
         except Exception as e:
-            logger.info(f"Error adding prompt version: {e}")
+            self.logger.info(f"Error adding prompt version: {e}")
             return False
 
     async def list_prompts(self, agent_name: Optional[str] = None) -> List[AgentPrompt]:
@@ -207,7 +209,7 @@ class PromptService:
 
             return prompts
         except Exception as e:
-            logger.info(f"Error listing prompts: {e}")
+            self.logger.info(f"Error listing prompts: {e}")
             return []
 
     async def update_prompt(
@@ -240,7 +242,7 @@ class PromptService:
 
             return True
         except Exception as e:
-            logger.info(f"Error updating prompt: {e}")
+            self.logger.info(f"Error updating prompt: {e}")
             return False
 
     async def _update_usage_tracking(self, agent_name: str, agent_function: str):
@@ -264,7 +266,7 @@ class PromptService:
                 )
                 break
         except Exception as e:
-            logger.info(f"Error updating usage tracking: {e}")
+            self.logger.info(f"Error updating usage tracking: {e}")
 
     def _generate_next_version(self, existing_versions: List[str]) -> str:
         """Generate the next version number."""

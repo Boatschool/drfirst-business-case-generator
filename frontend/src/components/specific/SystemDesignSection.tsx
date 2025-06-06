@@ -223,7 +223,57 @@ export const SystemDesignSection: React.FC<SystemDesignSectionProps> = ({
   };
 
   if (!currentCaseDetails?.system_design_v1_draft) {
-    return null;
+    // Check if PRD is approved but system design hasn't been generated
+    const isPrdApproved = currentCaseDetails?.status === 'PRD_APPROVED';
+    const isSystemDesignInProgress = currentCaseDetails?.status === 'SYSTEM_DESIGN_DRAFTING';
+    
+    return (
+      <Box mb={4}>
+        <Divider sx={{ my: 3 }} />
+        <Paper elevation={PAPER_ELEVATION.MAIN_CONTENT} sx={STANDARD_STYLES.mainContentPaper}>
+          <Typography variant="h5" component="h2" gutterBottom>
+            System Design
+          </Typography>
+          {isPrdApproved ? (
+            <Box>
+              <Alert severity="warning" sx={{ mt: 2 }}>
+                The PRD has been approved, but the system design generation appears to be incomplete. 
+                The system design should have been automatically generated.
+              </Alert>
+              <Stack direction="row" spacing={2} sx={{ mt: 2 }}>
+                <Button
+                  variant="contained"
+                  color="primary"
+                  onClick={() => window.location.reload()}
+                  disabled={isLoading}
+                >
+                  Refresh Page
+                </Button>
+                <Button
+                  variant="outlined"
+                  color="secondary"
+                  onClick={() => {
+                    // For now, suggest refresh - we could add a manual trigger API later
+                    alert('Please try refreshing the page. If the issue persists, the system design generation may have encountered an error during the PRD approval process.');
+                  }}
+                  disabled={isLoading}
+                >
+                  Get Help
+                </Button>
+              </Stack>
+            </Box>
+          ) : isSystemDesignInProgress ? (
+            <Alert severity="info" sx={{ mt: 2 }}>
+              System design generation is in progress. Please wait while the Architect Agent creates the system design based on your approved PRD.
+            </Alert>
+          ) : (
+            <Alert severity="info" sx={{ mt: 2 }}>
+              The system design has not been generated yet. Once the PRD is approved, the system design will be automatically generated.
+            </Alert>
+          )}
+        </Paper>
+      </Box>
+    );
   }
 
   return (

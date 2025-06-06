@@ -256,7 +256,18 @@ export const FinancialEstimatesSection: React.FC<FinancialEstimatesSectionProps>
   const { effort_estimate_v1, cost_estimate_v1, value_projection_v1 } = currentCaseDetails;
 
   if (!effort_estimate_v1 && !cost_estimate_v1 && !value_projection_v1) {
-    return null;
+    return (
+      <Box sx={{ mb: 4 }}>
+        <Paper elevation={2} sx={{ p: 3 }}>
+          <Typography variant="h5" component="h2" gutterBottom>
+            Financial Estimates
+          </Typography>
+          <Alert severity="info" sx={{ mt: 2 }}>
+            Financial estimates have not been generated yet. Once the system design is approved, effort and cost estimates will be automatically generated.
+          </Alert>
+        </Paper>
+      </Box>
+    );
   }
 
   return (

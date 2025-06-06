@@ -6,7 +6,7 @@ Tests the PrdUpdateRequest model and related validation logic.
 import pytest
 from datetime import datetime, timezone
 from pydantic import ValidationError
-from app.api.v1.case_routes import PrdUpdateRequest
+from app.api.v1.cases.models import PrdUpdateRequest
 
 
 class TestPrdUpdateRequest:

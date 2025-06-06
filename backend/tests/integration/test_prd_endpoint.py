@@ -11,7 +11,8 @@ from fastapi.testclient import TestClient
 from fastapi import HTTPException
 
 from app.main import app
-from app.api.v1.case_routes import update_prd_draft, PrdUpdateRequest
+from app.api.v1.cases.prd_routes import update_prd_draft
+from app.api.v1.cases.models import PrdUpdateRequest
 
 
 class TestPrdUpdateEndpoint:
@@ -61,7 +62,7 @@ class TestPrdUpdateEndpoint:
         case_id = "test-case-123"
 
         # Mock Firestore operations
-        with patch("app.api.v1.case_routes.firestore.Client") as mock_firestore:
+        with patch("app.api.v1.cases.prd_routes.firestore.Client") as mock_firestore:
             mock_db = Mock()
             mock_firestore.return_value = mock_db
 
@@ -74,7 +75,7 @@ class TestPrdUpdateEndpoint:
             mock_doc_snapshot.to_dict.return_value = mock_case_data
 
             # Mock asyncio.to_thread for get operation
-            with patch("app.api.v1.case_routes.asyncio.to_thread") as mock_to_thread:
+            with patch("app.api.v1.cases.prd_routes.asyncio.to_thread") as mock_to_thread:
                 mock_to_thread.side_effect = [mock_doc_snapshot, None]  # get, update
 
                 # Call the endpoint function
@@ -107,7 +108,7 @@ class TestPrdUpdateEndpoint:
         """Test that 404 is returned when case doesn't exist."""
         case_id = "nonexistent-case"
 
-        with patch("app.api.v1.case_routes.firestore.Client") as mock_firestore:
+        with patch("app.api.v1.cases.prd_routes.firestore.Client") as mock_firestore:
             mock_db = Mock()
             mock_firestore.return_value = mock_db
 
@@ -118,7 +119,7 @@ class TestPrdUpdateEndpoint:
             mock_doc_snapshot.exists = False
 
             with patch(
-                "app.api.v1.case_routes.asyncio.to_thread",
+                "app.api.v1.cases.prd_routes.asyncio.to_thread",
                 return_value=mock_doc_snapshot,
             ):
                 with pytest.raises(HTTPException) as exc_info:
@@ -133,7 +134,7 @@ class TestPrdUpdateEndpoint:
         case_id = "test-case-123"
         different_user = {"uid": "different-user-456", "email": "different@example.com"}
 
-        with patch("app.api.v1.case_routes.firestore.Client") as mock_firestore:
+        with patch("app.api.v1.cases.prd_routes.firestore.Client") as mock_firestore:
             mock_db = Mock()
             mock_firestore.return_value = mock_db
 
@@ -145,7 +146,7 @@ class TestPrdUpdateEndpoint:
             mock_doc_snapshot.to_dict.return_value = mock_case_data
 
             with patch(
-                "app.api.v1.case_routes.asyncio.to_thread",
+                "app.api.v1.cases.prd_routes.asyncio.to_thread",
                 return_value=mock_doc_snapshot,
             ):
                 with pytest.raises(HTTPException) as exc_info:
@@ -171,7 +172,7 @@ class TestPrdUpdateEndpoint:
         """Test that 404 is returned when case data is empty."""
         case_id = "test-case-123"
 
-        with patch("app.api.v1.case_routes.firestore.Client") as mock_firestore:
+        with patch("app.api.v1.cases.prd_routes.firestore.Client") as mock_firestore:
             mock_db = Mock()
             mock_firestore.return_value = mock_db
 
@@ -183,7 +184,7 @@ class TestPrdUpdateEndpoint:
             mock_doc_snapshot.to_dict.return_value = None
 
             with patch(
-                "app.api.v1.case_routes.asyncio.to_thread",
+                "app.api.v1.cases.prd_routes.asyncio.to_thread",
                 return_value=mock_doc_snapshot,
             ):
                 with pytest.raises(HTTPException) as exc_info:
@@ -199,7 +200,7 @@ class TestPrdUpdateEndpoint:
         """Test that 500 is returned when Firestore operations fail."""
         case_id = "test-case-123"
 
-        with patch("app.api.v1.case_routes.firestore.Client") as mock_firestore:
+        with patch("app.api.v1.cases.prd_routes.firestore.Client") as mock_firestore:
             mock_db = Mock()
             mock_firestore.return_value = mock_db
 
@@ -211,7 +212,7 @@ class TestPrdUpdateEndpoint:
             mock_doc_snapshot.to_dict.return_value = mock_case_data
 
             # Mock firestore error during update
-            with patch("app.api.v1.case_routes.asyncio.to_thread") as mock_to_thread:
+            with patch("app.api.v1.cases.prd_routes.asyncio.to_thread") as mock_to_thread:
                 mock_to_thread.side_effect = [
                     mock_doc_snapshot,
                     Exception("Firestore error"),
@@ -238,7 +239,7 @@ class TestPrdUpdateEndpoint:
             },
         }
 
-        with patch("app.api.v1.case_routes.firestore.Client") as mock_firestore:
+        with patch("app.api.v1.cases.prd_routes.firestore.Client") as mock_firestore:
             mock_db = Mock()
             mock_firestore.return_value = mock_db
 
@@ -249,7 +250,7 @@ class TestPrdUpdateEndpoint:
             mock_doc_snapshot.exists = True
             mock_doc_snapshot.to_dict.return_value = mock_case_data
 
-            with patch("app.api.v1.case_routes.asyncio.to_thread") as mock_to_thread:
+            with patch("app.api.v1.cases.prd_routes.asyncio.to_thread") as mock_to_thread:
                 mock_to_thread.side_effect = [mock_doc_snapshot, None]
 
                 result = await update_prd_draft(case_id, prd_update_request, mock_user)
@@ -264,7 +265,7 @@ class TestPrdUpdateEndpoint:
         """Test that history entry is created correctly."""
         case_id = "test-case-123"
 
-        with patch("app.api.v1.case_routes.firestore.Client") as mock_firestore:
+        with patch("app.api.v1.cases.prd_routes.firestore.Client") as mock_firestore:
             mock_db = Mock()
             mock_firestore.return_value = mock_db
 
@@ -275,11 +276,11 @@ class TestPrdUpdateEndpoint:
             mock_doc_snapshot.exists = True
             mock_doc_snapshot.to_dict.return_value = mock_case_data
 
-            with patch("app.api.v1.case_routes.asyncio.to_thread") as mock_to_thread:
+            with patch("app.api.v1.cases.prd_routes.asyncio.to_thread") as mock_to_thread:
                 mock_to_thread.side_effect = [mock_doc_snapshot, None]
 
                 with patch(
-                    "app.api.v1.case_routes.firestore.ArrayUnion"
+                    "app.api.v1.cases.prd_routes.firestore.ArrayUnion"
                 ) as mock_array_union:
                     await update_prd_draft(case_id, prd_update_request, mock_user)
 
@@ -303,7 +304,7 @@ class TestPrdUpdateEndpoint:
             # No prd_draft field
         }
 
-        with patch("app.api.v1.case_routes.firestore.Client") as mock_firestore:
+        with patch("app.api.v1.cases.prd_routes.firestore.Client") as mock_firestore:
             mock_db = Mock()
             mock_firestore.return_value = mock_db
 
@@ -314,7 +315,7 @@ class TestPrdUpdateEndpoint:
             mock_doc_snapshot.exists = True
             mock_doc_snapshot.to_dict.return_value = mock_case_data
 
-            with patch("app.api.v1.case_routes.asyncio.to_thread") as mock_to_thread:
+            with patch("app.api.v1.cases.prd_routes.asyncio.to_thread") as mock_to_thread:
                 mock_to_thread.side_effect = [mock_doc_snapshot, None]
 
                 result = await update_prd_draft(case_id, prd_update_request, mock_user)

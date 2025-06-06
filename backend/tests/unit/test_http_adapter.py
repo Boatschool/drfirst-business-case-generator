@@ -8,7 +8,7 @@ from unittest.mock import Mock, patch
 import json
 from datetime import datetime, timezone
 
-from app.api.v1.case_routes import BusinessCaseDetailsModel, PrdUpdateRequest
+from app.api.v1.cases.models import BusinessCaseDetailsModel, PrdUpdateRequest
 
 
 class TestHttpAdapterLogic:

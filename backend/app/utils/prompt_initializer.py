@@ -2,9 +2,13 @@
 Utility to initialize default agent prompts in Firestore.
 """
 
+import logging
 from google.cloud import firestore
 from ..models.agent_prompt import AgentPromptCreate
 from ..services.prompt_service import PromptService
+from ..core.constants import Defaults
+
+logger = logging.getLogger(__name__)
 
 
 async def initialize_default_prompts():
@@ -18,7 +22,7 @@ async def initialize_default_prompts():
     )
 
     if not existing_prompt:
-        print("Initializing default ProductManagerAgent PRD generation prompt...")
+        logger.info("Initializing default ProductManagerAgent PRD generation prompt...")
 
         # Default PRD generation prompt with placeholders
         default_prd_prompt = """You are an experienced Product Manager at DrFirst, a healthcare technology company. You are tasked with creating a comprehensive Product Requirements Document (PRD) based on the information provided below.
@@ -78,17 +82,17 @@ Generate the PRD now:"""
             placeholders=["case_title", "problem_statement", "links_context"],
             ai_model_config={
                 "temperature": 0.7,
-                "max_tokens": 4096,
-                "top_p": 0.9,
-                "top_k": 40,
+                "max_tokens": Defaults.VERTEX_AI_MAX_TOKENS,
+                "top_p": Defaults.VERTEX_AI_TOP_P,
+                "top_k": Defaults.VERTEX_AI_TOP_K,
             },
             version_description="Initial default prompt with 8-section structure",
         )
 
         prompt_id = await prompt_service.create_prompt(prompt_data, "system")
-        print(f"✅ Created default ProductManagerAgent prompt with ID: {prompt_id}")
+        logger.info(f"✅ Created default ProductManagerAgent prompt with ID: {prompt_id}")
     else:
-        print("✅ ProductManagerAgent PRD generation prompt already exists")
+        logger.info("✅ ProductManagerAgent PRD generation prompt already exists")
 
 
 # Additional agent prompts can be added here as the system grows

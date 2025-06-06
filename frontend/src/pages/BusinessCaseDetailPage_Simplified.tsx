@@ -21,11 +21,13 @@ import { useAgentContext } from '../hooks/useAgentContext';
 import useDocumentTitle from '../hooks/useDocumentTitle';
 import { STANDARD_STYLES } from '../styles/constants';
 
-import { PRDSection } from '../components/specific/PRDSection';
 import { SystemDesignSection } from '../components/specific/SystemDesignSection';
 import { FinancialEstimatesSection } from '../components/specific/FinancialEstimatesSection';
 import { FinancialSummarySection } from '../components/specific/FinancialSummarySection';
 import { FinalApprovalSection } from '../components/specific/FinalApprovalSection';
+import Logger from '../utils/logger';
+
+const logger = Logger.create('BusinessCaseDetailPage_Simplified');
 
 const BusinessCaseDetailPageSimplified: React.FC = () => {
   const { caseId } = useParams<{ caseId: string }>();
@@ -64,7 +66,7 @@ const BusinessCaseDetailPageSimplified: React.FC = () => {
       // You could add a toast notification here
       alert('Shareable link copied to clipboard!');
     }).catch((err) => {
-      console.error('Failed to copy link:', err);
+      logger.error('Failed to copy link:', err);
       // Fallback: show the link in a prompt
       prompt('Copy this shareable link:', shareableUrl);
     });
@@ -77,7 +79,7 @@ const BusinessCaseDetailPageSimplified: React.FC = () => {
     try {
       await exportCaseToPdf(caseId);
     } catch (error) {
-      console.error('Error exporting PDF:', error);
+      logger.error('Error exporting PDF:', error);
     } finally {
       setIsExportingPdf(false);
     }
@@ -183,11 +185,8 @@ const BusinessCaseDetailPageSimplified: React.FC = () => {
           </Stack>
         </Stack>
 
-        {/* PRD Section */}
-        <PRDSection
-          currentCaseDetails={currentCaseDetails}
-          isLoading={isLoading}
-        />
+        {/* PRD Section - MOVED to /cases/:caseId/prd */}
+        {/* PRD functionality is now available at /cases/:caseId/prd */}
 
         {/* System Design Section */}
         <SystemDesignSection

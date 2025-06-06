@@ -26,22 +26,24 @@ import {
   isRetryableError 
 } from '../utils/errorFormatting';
 import { PAPER_ELEVATION } from '../styles/constants';
-import type { ApiError, FirebaseAuthError } from '../types/api';
+import type { ApiError, FirebaseAuthError, NetworkError, AppError } from '../types/api';
 
 /**
  * Demo page showcasing the enhanced error handling system
  * This page demonstrates various error types and display patterns
  */
 const ErrorDemoPage: React.FC = () => {
-  const [currentError, setCurrentError] = useState<any>(null);
+  const [currentError, setCurrentError] = useState<Error | ApiError | FirebaseAuthError | NetworkError | AppError | null>(null);
   const [retryCount, setRetryCount] = useState(0);
 
   // Helper function to simulate different error types
   const simulateError = (errorType: string) => {
     switch (errorType) {
       case 'network': {
-        const networkError = new Error('Network connection failed');
-        (networkError as any).name = 'NetworkError';
+        const networkError: NetworkError = {
+          name: 'NetworkError',
+          message: 'Network connection failed'
+        };
         setCurrentError(networkError);
         break;
       }
@@ -68,8 +70,11 @@ const ErrorDemoPage: React.FC = () => {
       }
       
       case 'validation': {
-        const validationError = new Error('Invalid input provided');
-        (validationError as any).status = 422;
+        const validationError: ApiError = {
+          name: 'ValidationError',
+          message: 'Invalid input provided',
+          status: 422
+        };
         setCurrentError(validationError);
         break;
       }
@@ -82,8 +87,11 @@ const ErrorDemoPage: React.FC = () => {
       }
       
       case 'case_not_found': {
-        const notFoundError = new Error('Business case not found');
-        (notFoundError as any).status = 404;
+        const notFoundError: ApiError = {
+          name: 'NotFoundError',
+          message: 'Business case not found',
+          status: 404
+        };
         setCurrentError(notFoundError);
         break;
       }
@@ -254,8 +262,8 @@ const ErrorDemoPage: React.FC = () => {
                   {JSON.stringify({
                     name: currentError.name,
                     message: currentError.message,
-                    status: (currentError as any).status,
-                    code: (currentError as any).code,
+                    status: 'status' in currentError ? currentError.status : undefined,
+                    code: 'code' in currentError ? currentError.code : undefined,
                   }, null, 2)}
                 </Typography>
               </Box>
@@ -267,7 +275,7 @@ const ErrorDemoPage: React.FC = () => {
                 </Typography>
               </Box>
 
-              {currentError.code?.startsWith('auth/') && (
+              {'code' in currentError && typeof currentError.code === 'string' && currentError.code.startsWith('auth/') && (
                 <Box>
                   <Typography variant="subtitle2">Firebase Auth Formatted:</Typography>
                   <Typography variant="body2" sx={{ fontFamily: 'monospace', bgcolor: 'grey.100', p: 1, borderRadius: 1 }}>

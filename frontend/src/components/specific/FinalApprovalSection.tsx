@@ -22,9 +22,11 @@ import {
 } from '@mui/icons-material';
 import { useAgentContext } from '../../hooks/useAgentContext';
 import { useAuth } from '../../hooks/useAuth';
+import { BusinessCaseDetails } from '../../services/agent/AgentService';
+import { toAppError } from '../../types/api';
 
 interface FinalApprovalSectionProps {
-  currentCaseDetails: any;
+  currentCaseDetails: BusinessCaseDetails;
   isLoading: boolean;
 }
 
@@ -70,8 +72,8 @@ export const FinalApprovalSection: React.FC<FinalApprovalSectionProps> = ({
         setStatusUpdateSuccess('Business case submitted for final approval successfully.');
         setStatusUpdateError(null);
       }
-    } catch (error: any) {
-      setStatusUpdateError(error.message || 'Failed to submit for final approval.');
+    } catch (error) {
+      setStatusUpdateError(toAppError(error, 'api').message || 'Failed to submit for final approval.');
       setStatusUpdateSuccess(null);
     }
   };
@@ -85,8 +87,8 @@ export const FinalApprovalSection: React.FC<FinalApprovalSectionProps> = ({
         setApprovalSuccess('Business case approved successfully.');
         setApprovalError(null);
       }
-    } catch (error: any) {
-      setApprovalError(error.message || 'Failed to approve business case.');
+    } catch (error) {
+      setApprovalError(toAppError(error, 'api').message || 'Failed to approve business case.');
       setApprovalSuccess(null);
     }
   };
@@ -102,8 +104,8 @@ export const FinalApprovalSection: React.FC<FinalApprovalSectionProps> = ({
         setIsFinalRejectDialogOpen(false);
         setFinalRejectionReason('');
       }
-    } catch (error: any) {
-      setApprovalError(error.message || 'Failed to reject business case.');
+    } catch (error) {
+      setApprovalError(toAppError(error, 'api').message || 'Failed to reject business case.');
       setApprovalSuccess(null);
     }
   };

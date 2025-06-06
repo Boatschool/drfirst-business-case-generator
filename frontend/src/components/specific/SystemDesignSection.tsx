@@ -28,6 +28,7 @@ import { BusinessCaseDetails } from '../../services/agent/AgentService';
 import { useAgentContext } from '../../hooks/useAgentContext';
 import { useAuth } from '../../hooks/useAuth';
 import { PAPER_ELEVATION, STANDARD_STYLES } from '../../styles/constants';
+import { toAppError } from '../../types/api';
 
 interface SystemDesignSectionProps {
   currentCaseDetails: BusinessCaseDetails | null;
@@ -114,9 +115,9 @@ export const SystemDesignSection: React.FC<SystemDesignSectionProps> = ({
         setSystemDesignUpdateError(null);
         setTimeout(() => setSystemDesignUpdateSuccess(null), 5000);
       }
-    } catch (error: any) {
+    } catch (error) {
       setSystemDesignUpdateError(
-        error.message || 'Failed to save System Design.'
+        toAppError(error, 'api').message || 'Failed to save System Design.'
       );
       setSystemDesignUpdateSuccess(null);
     }
@@ -136,9 +137,9 @@ export const SystemDesignSection: React.FC<SystemDesignSectionProps> = ({
         setStatusUpdateError(null);
         setTimeout(() => setStatusUpdateSuccess(null), 5000);
       }
-    } catch (error: any) {
+    } catch (error) {
       setStatusUpdateError(
-        error.message || 'Failed to submit System Design for review.'
+        toAppError(error, 'api').message || 'Failed to submit System Design for review.'
       );
       setStatusUpdateSuccess(null);
     }
@@ -154,8 +155,8 @@ export const SystemDesignSection: React.FC<SystemDesignSectionProps> = ({
         setApprovalError(null);
         setTimeout(() => setApprovalSuccess(null), 5000);
       }
-    } catch (error: any) {
-      setApprovalError(error.message || 'Failed to approve System Design.');
+    } catch (error) {
+      setApprovalError(toAppError(error, 'api').message || 'Failed to approve System Design.');
       setApprovalSuccess(null);
     }
   };
@@ -175,8 +176,8 @@ export const SystemDesignSection: React.FC<SystemDesignSectionProps> = ({
         setApprovalError(null);
         setTimeout(() => setApprovalSuccess(null), 5000);
       }
-    } catch (error: any) {
-      setApprovalError(error.message || 'Failed to reject System Design.');
+    } catch (error) {
+      setApprovalError(toAppError(error, 'api').message || 'Failed to reject System Design.');
       setApprovalSuccess(null);
     }
   };

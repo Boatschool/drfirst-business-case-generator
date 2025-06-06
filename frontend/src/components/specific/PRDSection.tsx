@@ -203,14 +203,14 @@ export const PRDSection: React.FC<PRDSectionProps> = ({
   const canEditPrd = () => {
     if (!currentCaseDetails || !currentUser) return false;
     const isInitiator = currentCaseDetails.user_id === currentUser.uid;
-    const allowedStatuses = ['PRD_DRAFTED', 'PRD_REJECTED'];
+    const allowedStatuses = ['PRD_DRAFTING', 'PRD_REJECTED'];
     return isInitiator && allowedStatuses.includes(currentCaseDetails.status);
   };
 
   const canSubmitPrd = () => {
     if (!currentCaseDetails || !currentUser) return false;
     const isInitiator = currentCaseDetails.user_id === currentUser.uid;
-    const allowedStatuses = ['PRD_DRAFTED', 'PRD_REJECTED'];
+    const allowedStatuses = ['PRD_DRAFTING', 'PRD_REJECTED'];
     return (
       isInitiator &&
       allowedStatuses.includes(currentCaseDetails.status) &&

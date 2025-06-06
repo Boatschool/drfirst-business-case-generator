@@ -28,8 +28,11 @@ import { ALL_BUSINESS_CASE_STATUSES } from '../constants/businessCaseStatuses';
 import useDocumentTitle from '../hooks/useDocumentTitle';
 import { PAPER_ELEVATION, STANDARD_STYLES } from '../styles/constants';
 import { LoadingErrorDisplay } from '../components/common/ErrorDisplay';
+import Logger from '../utils/logger';
 
 type SortOption = 'title-asc' | 'title-desc' | 'date-newest' | 'date-oldest' | 'status-asc' | 'status-desc';
+
+const logger = Logger.create('DashboardPage');
 
 const SORT_OPTIONS: { value: SortOption; label: string }[] = [
   { value: 'date-newest', label: 'Newest First' },
@@ -41,7 +44,7 @@ const SORT_OPTIONS: { value: SortOption; label: string }[] = [
 ];
 
 const DashboardPage: React.FC = () => {
-  console.log('🟢 DashboardPage: Component rendering');
+  logger.debug('🟢 DashboardPage: Component rendering');
 
   // Set document title
   useDocumentTitle('Dashboard');
@@ -57,14 +60,14 @@ const DashboardPage: React.FC = () => {
 
   // Debug: Log component mount/unmount
   useEffect(() => {
-    console.log('🟢 DashboardPage: Mounted');
+    logger.debug('🟢 DashboardPage: Mounted');
     return () => {
-      console.log('🔴 DashboardPage: Unmounted');
+      logger.debug('🔴 DashboardPage: Unmounted');
     };
   }, []);
 
   useEffect(() => {
-    console.log('🔄 DashboardPage: Calling fetchUserCases');
+    logger.debug('DashboardPage: Calling fetchUserCases');
     fetchUserCases();
   }, [fetchUserCases]);
 

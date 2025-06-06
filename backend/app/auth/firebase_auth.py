@@ -1,10 +1,14 @@
 import firebase_admin
+import logging
 from firebase_admin import auth
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from typing import Optional
 from app.services.auth_service import auth_service
 from app.services.user_service import user_service
+from app.models.firestore_models import UserRole
+
+logger = logging.getLogger(__name__)
 
 # HTTP Bearer token security scheme
 security = HTTPBearer(auto_error=False)
@@ -27,7 +31,7 @@ async def get_current_user(
         HTTPException: If the token is invalid, expired, or authentication fails.
     """
     if not credentials:
-        print("❌ [AUTH] No credentials provided")
+        logger.info("❌ [AUTH] No credentials provided")
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Authentication required. Please provide a valid Bearer token.",
@@ -35,39 +39,39 @@ async def get_current_user(
         )
 
     token = credentials.credentials
-    print("🔐 [AUTH] Verifying Firebase ID token...")
-    print(f"🎫 [AUTH] Token preview: {token[:50] if token else 'NULL'}...")
+    logger.info("🔐 [AUTH] Verifying Firebase ID token...")
+    logger.info(f"🎫 [AUTH] Token preview: {token[:50] if token else 'NULL'}...")
 
     if not auth_service.is_initialized:
-        print("❌ [AUTH] Firebase Admin SDK not initialized!")
+        logger.info("❌ [AUTH] Firebase Admin SDK not initialized!")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Authentication service not available. Please try again later.",
         )
 
     try:
-        print("🔍 [AUTH] Calling auth_service.verify_id_token()...")
+        logger.info("🔍 [AUTH] Calling auth_service.verify_id_token()...")
         decoded_token = auth_service.verify_id_token(token)
 
         if not decoded_token:
-            print("❌ [AUTH] Token verification failed")
+            logger.info("❌ [AUTH] Token verification failed")
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail="Invalid or expired token. Please re-authenticate.",
                 headers={"WWW-Authenticate": "Bearer"},
             )
 
-        print(
+        logger.info(
             f"✅ [AUTH] Token verified successfully for user: {decoded_token.get('email', 'unknown')}"
         )
 
         # Check and sync user claims with Firestore
-        print("🔄 [AUTH] Checking and syncing user claims...")
+        logger.info("🔄 [AUTH] Checking and syncing user claims...")
         user_data = await user_service.check_and_sync_user_claims(decoded_token)
         if user_data:
             # Add user data to the token for downstream use
             decoded_token["user_data"] = user_data
-            print(
+            logger.info(
                 f"👤 [AUTH] User data synced for: {user_data.get('email', 'unknown')}"
             )
 
@@ -78,8 +82,8 @@ async def get_current_user(
         raise
     except Exception as e:
         # Log unexpected errors and return a generic auth error
-        print(f"❌ [AUTH] Unexpected error during token verification: {e}")
-        print(f"❌ [AUTH] Exception type: {type(e)}")
+        logger.info(f"❌ [AUTH] Unexpected error during token verification: {e}")
+        logger.info(f"❌ [AUTH] Exception type: {type(e)}")
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Authentication failed. Please re-authenticate.",
@@ -135,9 +139,9 @@ async def require_admin_role(
     # Check for ADMIN role in custom claims
     system_role = decoded_token.get("systemRole")
 
-    if system_role != "ADMIN":
+    if system_role != UserRole.ADMIN.value:
         user_email = decoded_token.get("email", "unknown")
-        print(
+        logger.info(
             f"🚫 [AUTH] Access denied for {user_email} - requires ADMIN role, has: {system_role}"
         )
         raise HTTPException(
@@ -145,7 +149,7 @@ async def require_admin_role(
             detail="Access denied. ADMIN role required.",
         )
 
-    print(
+    logger.info(
         f"👑 [AUTH] ADMIN access granted for: {decoded_token.get('email', 'unknown')}"
     )
     return decoded_token
@@ -192,7 +196,7 @@ def require_role(required_role: str):
         current_user: dict = Depends(get_current_active_user),
     ) -> dict:
         user_role = current_user.get("systemRole", "")
-        if user_role != required_role and user_role != "ADMIN":
+        if user_role != required_role and user_role != UserRole.ADMIN.value:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail=f"Access denied. Required role: {required_role}",

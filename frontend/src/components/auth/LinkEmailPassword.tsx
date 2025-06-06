@@ -11,10 +11,13 @@ import {
 } from '@mui/material';
 import { EmailAuthProvider, linkWithCredential, getAuth } from 'firebase/auth';
 import { useAuth } from '../../hooks/useAuth';
+import Logger from '../../utils/logger';
 
 interface LinkEmailPasswordProps {
   onSuccess?: () => void;
 }
+
+const logger = Logger.create('LinkEmailPassword');
 
 export const LinkEmailPassword: React.FC<LinkEmailPasswordProps> = ({ onSuccess }) => {
   const { currentUser } = useAuth();
@@ -58,22 +61,26 @@ export const LinkEmailPassword: React.FC<LinkEmailPasswordProps> = ({ onSuccess 
       await linkWithCredential(auth.currentUser, credential);
       
       setSuccess(true);
-      console.log('✅ Email/password successfully linked to account');
+      logger.debug('Email/password successfully linked to account');
       
       if (onSuccess) {
         onSuccess();
       }
-    } catch (error: any) {
-      console.error('❌ Error linking email/password:', error);
+    } catch (error) {
+      logger.error('Error linking email/password:', error);
       
-      if (error.code === 'auth/credential-already-in-use') {
+      const errorObj = error && typeof error === 'object' ? error as Record<string, unknown> : {};
+      const code = String(errorObj.code || '');
+      const message = String(errorObj.message || '');
+      
+      if (code === 'auth/credential-already-in-use') {
         setError('This email is already associated with another account.');
-      } else if (error.code === 'auth/email-already-in-use') {
+      } else if (code === 'auth/email-already-in-use') {
         setError('This email is already in use by another account.');
-      } else if (error.code === 'auth/provider-already-linked') {
+      } else if (code === 'auth/provider-already-linked') {
         setError('Email/password is already linked to this account.');
       } else {
-        setError(error.message || 'Failed to link email/password');
+        setError(message || 'Failed to link email/password');
       }
     } finally {
       setLoading(false);

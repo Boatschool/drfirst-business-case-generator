@@ -20,10 +20,14 @@ import {
   ValueProjection,
 } from '../services/agent/AgentService';
 import { HttpAgentAdapter } from '../services/agent/HttpAgentAdapter'; // Concrete implementation
+import { AppError, toAppError } from '../types/api';
+import Logger from '../utils/logger';
 
 // Generate unique provider ID for debugging
+const logger = Logger.create('AgentContext');
+
 const PROVIDER_ID = Math.random().toString(36).substring(2, 15);
-console.log(`🆔 AgentProvider Instance Created: ${PROVIDER_ID}`);
+logger.debug(`🆔 AgentProvider Instance Created: ${PROVIDER_ID}`);
 
 interface AgentContextState {
   currentCaseId: string | null;
@@ -33,9 +37,9 @@ interface AgentContextState {
   isLoading: boolean;
   isLoadingCases: boolean;
   isLoadingCaseDetails: boolean;
-  error: Error | null;
-  casesError: Error | null;
-  caseDetailsError: Error | null;
+  error: AppError | null;
+  casesError: AppError | null;
+  caseDetailsError: AppError | null;
 }
 
 interface AgentContextType extends AgentContextState {
@@ -91,7 +95,7 @@ interface AgentProviderProps {
 }
 
 export const AgentProvider: React.FC<AgentProviderProps> = ({ children }) => {
-  console.log(`🟢 [${PROVIDER_ID}] AgentProvider: Component mounted/rendering`);
+  logger.debug(`🟢 [${PROVIDER_ID}] AgentProvider: Component mounted/rendering`);
 
   const [state, setState] = useState<AgentContextState>({
     currentCaseId: null,
@@ -108,9 +112,9 @@ export const AgentProvider: React.FC<AgentProviderProps> = ({ children }) => {
 
   // Debug: Log component mount/unmount
   React.useEffect(() => {
-    console.log(`🟢 [${PROVIDER_ID}] AgentProvider: Mounted`);
+    logger.debug(`🟢 [${PROVIDER_ID}] AgentProvider: Mounted`);
     return () => {
-      console.log(`🔴 [${PROVIDER_ID}] AgentProvider: Unmounted`);
+      logger.debug(`🔴 [${PROVIDER_ID}] AgentProvider: Unmounted`);
     };
   }, []);
 
@@ -128,7 +132,7 @@ export const AgentProvider: React.FC<AgentProviderProps> = ({ children }) => {
           messages: details.history || [],
         }));
       } catch (err) {
-        console.warn('Failed to refresh case details:', err);
+        logger.warn('Failed to refresh case details:', err);
       }
     }
   };
@@ -147,11 +151,12 @@ export const AgentProvider: React.FC<AgentProviderProps> = ({ children }) => {
         cases: userCases,
         isLoadingCases: false,
       }));
-    } catch (err: any) {
+    } catch (err) {
+      const appError = toAppError(err, 'api');
       setState((prevState) => ({
         ...prevState,
         isLoadingCases: false,
-        casesError: err,
+        casesError: appError,
       }));
     }
   }, []); // STABLE: No dependencies
@@ -172,11 +177,12 @@ export const AgentProvider: React.FC<AgentProviderProps> = ({ children }) => {
         messages: details.history || [],
         isLoadingCaseDetails: false,
       }));
-    } catch (err: any) {
+    } catch (err) {
+      const appError = toAppError(err, 'api');
       setState((prevState) => ({
         ...prevState,
         isLoadingCaseDetails: false,
-        caseDetailsError: err,
+        caseDetailsError: appError,
       }));
     }
   }, []); // STABLE: No dependencies
@@ -210,14 +216,15 @@ export const AgentProvider: React.FC<AgentProviderProps> = ({ children }) => {
           const userCases = await agentService.listCases();
           setState((prevState) => ({ ...prevState, cases: userCases }));
         } catch (fetchErr) {
-          console.warn('Failed to refresh cases list:', fetchErr);
+          logger.warn('Failed to refresh cases list:', fetchErr);
         }
         return response;
-      } catch (err: any) {
+      } catch (err) {
+        const appError = toAppError(err, 'api');
         setState((prevState) => ({
           ...prevState,
           isLoading: false,
-          error: err,
+          error: appError,
         }));
         return undefined;
       }
@@ -235,11 +242,12 @@ export const AgentProvider: React.FC<AgentProviderProps> = ({ children }) => {
         // SIMPLIFIED: Inline refresh
         await inlineRefreshCaseDetails(payload.caseId, state.currentCaseId);
         return true;
-      } catch (err: any) {
+      } catch (err) {
+        const appError = toAppError(err, 'api');
         setState((prevState) => ({
           ...prevState,
           isLoading: false,
-          error: err,
+          error: appError,
         }));
         return false;
       }
@@ -255,11 +263,12 @@ export const AgentProvider: React.FC<AgentProviderProps> = ({ children }) => {
         setState((prevState) => ({ ...prevState, isLoading: false }));
         await inlineRefreshCaseDetails(caseId, state.currentCaseId);
         return true;
-      } catch (err: any) {
+      } catch (err) {
+        const appError = toAppError(err, 'api');
         setState((prevState) => ({
           ...prevState,
           isLoading: false,
-          error: err,
+          error: appError,
         }));
         return false;
       }
@@ -275,11 +284,12 @@ export const AgentProvider: React.FC<AgentProviderProps> = ({ children }) => {
         setState((prevState) => ({ ...prevState, isLoading: false }));
         await inlineRefreshCaseDetails(caseId, state.currentCaseId);
         return true;
-      } catch (err: any) {
+      } catch (err) {
+        const appError = toAppError(err, 'api');
         setState((prevState) => ({
           ...prevState,
           isLoading: false,
-          error: err,
+          error: appError,
         }));
         return false;
       }
@@ -295,11 +305,12 @@ export const AgentProvider: React.FC<AgentProviderProps> = ({ children }) => {
         setState((prevState) => ({ ...prevState, isLoading: false }));
         await inlineRefreshCaseDetails(caseId, state.currentCaseId);
         return true;
-      } catch (err: any) {
+      } catch (err) {
+        const appError = toAppError(err, 'api');
         setState((prevState) => ({
           ...prevState,
           isLoading: false,
-          error: err,
+          error: appError,
         }));
         return false;
       }
@@ -315,11 +326,12 @@ export const AgentProvider: React.FC<AgentProviderProps> = ({ children }) => {
         setState((prevState) => ({ ...prevState, isLoading: false }));
         await inlineRefreshCaseDetails(caseId, state.currentCaseId);
         return true;
-      } catch (err: any) {
+      } catch (err) {
+        const appError = toAppError(err, 'api');
         setState((prevState) => ({
           ...prevState,
           isLoading: false,
-          error: err,
+          error: appError,
         }));
         return false;
       }
@@ -335,11 +347,12 @@ export const AgentProvider: React.FC<AgentProviderProps> = ({ children }) => {
         setState((prevState) => ({ ...prevState, isLoading: false }));
         await inlineRefreshCaseDetails(caseId, state.currentCaseId);
         return true;
-      } catch (err: any) {
+      } catch (err) {
+        const appError = toAppError(err, 'api');
         setState((prevState) => ({
           ...prevState,
           isLoading: false,
-          error: err,
+          error: appError,
         }));
         return false;
       }
@@ -355,11 +368,12 @@ export const AgentProvider: React.FC<AgentProviderProps> = ({ children }) => {
         setState((prevState) => ({ ...prevState, isLoading: false }));
         await inlineRefreshCaseDetails(caseId, state.currentCaseId);
         return true;
-      } catch (err: any) {
+      } catch (err) {
+        const appError = toAppError(err, 'api');
         setState((prevState) => ({
           ...prevState,
           isLoading: false,
-          error: err,
+          error: appError,
         }));
         return false;
       }
@@ -375,11 +389,12 @@ export const AgentProvider: React.FC<AgentProviderProps> = ({ children }) => {
         setState((prevState) => ({ ...prevState, isLoading: false }));
         await inlineRefreshCaseDetails(caseId, state.currentCaseId);
         return true;
-      } catch (err: any) {
+      } catch (err) {
+        const appError = toAppError(err, 'api');
         setState((prevState) => ({
           ...prevState,
           isLoading: false,
-          error: err,
+          error: appError,
         }));
         return false;
       }
@@ -396,11 +411,12 @@ export const AgentProvider: React.FC<AgentProviderProps> = ({ children }) => {
         setState((prevState) => ({ ...prevState, isLoading: false }));
         await inlineRefreshCaseDetails(caseId, state.currentCaseId);
         return true;
-      } catch (err: any) {
+      } catch (err) {
+        const appError = toAppError(err, 'api');
         setState((prevState) => ({
           ...prevState,
           isLoading: false,
-          error: err,
+          error: appError,
         }));
         return false;
       }
@@ -424,9 +440,10 @@ export const AgentProvider: React.FC<AgentProviderProps> = ({ children }) => {
       window.URL.revokeObjectURL(url);
 
       setState((prevState) => ({ ...prevState, isLoading: false }));
-    } catch (err: any) {
-      setState((prevState) => ({ ...prevState, isLoading: false, error: err }));
-      throw err;
+    } catch (err) {
+      const appError = toAppError(err, 'api');
+      setState((prevState) => ({ ...prevState, isLoading: false, error: appError }));
+      throw appError;
     }
   }, []);
 
@@ -473,11 +490,12 @@ export const AgentProvider: React.FC<AgentProviderProps> = ({ children }) => {
         setState((prevState) => ({ ...prevState, isLoading: false }));
         await inlineRefreshCaseDetails(payload.caseId, state.currentCaseId);
         return true;
-      } catch (err: any) {
+      } catch (err) {
+        const appError = toAppError(err, 'api');
         setState((prevState) => ({
           ...prevState,
           isLoading: false,
-          error: err,
+          error: appError,
         }));
         return false;
       }
@@ -688,11 +706,12 @@ export const AgentProvider: React.FC<AgentProviderProps> = ({ children }) => {
         setState((prevState) => ({ ...prevState, isLoading: false }));
 
         await inlineRefreshCaseDetails(payload.caseId, state.currentCaseId);
-      } catch (err: any) {
+      } catch (err) {
+        const appError = toAppError(err, 'api');
         setState((prevState) => ({
           ...prevState,
           isLoading: false,
-          error: err,
+          error: appError,
         }));
       }
     },

@@ -17,6 +17,9 @@ import { Google as GoogleIcon } from '@mui/icons-material';
 import { Link as RouterLink } from 'react-router-dom';
 import { LoadingButton } from '../components/common/LoadingIndicators';
 import { PAPER_ELEVATION, STANDARD_STYLES } from '../styles/constants';
+import Logger from '../utils/logger';
+
+const logger = Logger.create('SignUpPage');
 
 const SignUpPage: React.FC = () => {
   const [email, setEmail] = useState('');
@@ -58,18 +61,22 @@ const SignUpPage: React.FC = () => {
       navigate('/login', {
         state: { message: 'Sign up successful! Please log in.' },
       });
-    } catch (err: any) {
-      console.error('Sign up error:', err);
+    } catch (err) {
+      logger.error('Sign up error:', err);
       let errorMessage = 'Failed to sign up. Please try again.';
 
-      if (err.code === 'auth/email-already-in-use') {
-        errorMessage = 'An account with this email already exists.';
-      } else if (err.code === 'auth/invalid-email') {
-        errorMessage = 'Invalid email address.';
-      } else if (err.code === 'auth/weak-password') {
-        errorMessage =
-          'Password is too weak. Please use at least 6 characters.';
-      } else if (err.message) {
+      if (err && typeof err === 'object' && 'code' in err) {
+        if (err.code === 'auth/email-already-in-use') {
+          errorMessage = 'An account with this email already exists.';
+        } else if (err.code === 'auth/invalid-email') {
+          errorMessage = 'Invalid email address.';
+        } else if (err.code === 'auth/weak-password') {
+          errorMessage =
+            'Password is too weak. Please use at least 6 characters.';
+        }
+      }
+      
+      if (err && typeof err === 'object' && 'message' in err && typeof err.message === 'string') {
         errorMessage = err.message;
       }
 
@@ -85,15 +92,19 @@ const SignUpPage: React.FC = () => {
 
     try {
       await signInWithGoogle();
-    } catch (err: any) {
-      console.error('Google sign up error:', err);
+    } catch (err) {
+      logger.error('Google sign up error:', err);
       let errorMessage = 'Failed to sign up with Google. Please try again.';
 
-      if (err.code === 'auth/popup-closed-by-user') {
-        errorMessage = 'Sign-up was cancelled.';
-      } else if (err.code === 'auth/unauthorized-domain') {
-        errorMessage = 'This domain is not authorized for Google Sign-In.';
-      } else if (err.message) {
+      if (err && typeof err === 'object' && 'code' in err) {
+        if (err.code === 'auth/popup-closed-by-user') {
+          errorMessage = 'Sign-up was cancelled.';
+        } else if (err.code === 'auth/unauthorized-domain') {
+          errorMessage = 'This domain is not authorized for Google Sign-In.';
+        }
+      }
+      
+      if (err && typeof err === 'object' && 'message' in err && typeof err.message === 'string') {
         errorMessage = err.message;
       }
 

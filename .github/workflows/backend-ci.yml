@@ -470,3 +470,76 @@ jobs:
           echo "  - Review logs for any issues"
           echo "  - Verify frontend integration"
           echo "  - Update documentation if needed" 
+
+  # Notification job that runs regardless of other job outcomes
+  notify:
+    name: Workflow Notification
+    runs-on: ubuntu-latest
+    if: always()
+    needs: [build-and-test, verify-image, deploy-staging, deploy-production]
+    
+    steps:
+      - name: Determine workflow status
+        id: status
+        run: |
+          # Check the status of all jobs
+          BUILD_STATUS="${{ needs.build-and-test.result }}"
+          VERIFY_STATUS="${{ needs.verify-image.result }}"
+          STAGING_STATUS="${{ needs.deploy-staging.result }}"
+          PRODUCTION_STATUS="${{ needs.deploy-production.result }}"
+          
+          # Determine overall status
+          if [[ "$BUILD_STATUS" == "success" && ("$VERIFY_STATUS" == "success" || "$VERIFY_STATUS" == "skipped") && ("$STAGING_STATUS" == "success" || "$STAGING_STATUS" == "skipped") && ("$PRODUCTION_STATUS" == "success" || "$PRODUCTION_STATUS" == "skipped") ]]; then
+            echo "status=success" >> $GITHUB_OUTPUT
+            echo "icon=✅" >> $GITHUB_OUTPUT
+            echo "color=good" >> $GITHUB_OUTPUT
+          else
+            echo "status=failure" >> $GITHUB_OUTPUT
+            echo "icon=❌" >> $GITHUB_OUTPUT
+            echo "color=danger" >> $GITHUB_OUTPUT
+          fi
+          
+          # Set deployment info
+          if [[ "${{ github.ref }}" == "refs/heads/develop" ]]; then
+            echo "environment=Staging" >> $GITHUB_OUTPUT
+          elif [[ "${{ github.ref }}" == "refs/heads/main" ]]; then
+            echo "environment=Production" >> $GITHUB_OUTPUT
+          else
+            echo "environment=None" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Send workflow notification
+        run: |
+          echo "🔔 Backend CI/CD Workflow Notification"
+          echo "======================================"
+          echo ""
+          echo "${{ steps.status.outputs.icon }} **Workflow Status**: ${{ steps.status.outputs.status }}"
+          echo "🌿 **Branch**: ${{ github.ref_name }}"
+          echo "📝 **Commit**: ${{ github.sha }}"
+          echo "👤 **Triggered by**: ${{ github.actor }}"
+          echo "🎯 **Event**: ${{ github.event_name }}"
+          echo "🏗️ **Environment**: ${{ steps.status.outputs.environment }}"
+          echo ""
+          echo "📊 **Job Results**:"
+          echo "  - Build & Test: ${{ needs.build-and-test.result }}"
+          echo "  - Image Verification: ${{ needs.verify-image.result }}"
+          echo "  - Staging Deployment: ${{ needs.deploy-staging.result }}"
+          echo "  - Production Deployment: ${{ needs.deploy-production.result }}"
+          echo ""
+          echo "🔗 **Workflow Run**: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+          echo ""
+          if [[ "${{ steps.status.outputs.status }}" == "success" ]]; then
+            echo "🎉 All jobs completed successfully!"
+          else
+            echo "⚠️ One or more jobs failed. Please check the logs for details."
+          fi
+          
+          # This notification step can be easily extended with Slack/email in the future
+          # Example future enhancement:
+          # - name: Send Slack notification
+          #   if: always()
+          #   uses: rtCamp/action-slack-notify@v2
+          #   env:
+          #     SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK_URL }}
+          #     SLACK_MESSAGE: '${{ steps.status.outputs.icon }} Backend CI/CD ${{ steps.status.outputs.status }} on `${{ github.ref_name }}` branch'
+          #     SLACK_COLOR: '${{ steps.status.outputs.color }}' 

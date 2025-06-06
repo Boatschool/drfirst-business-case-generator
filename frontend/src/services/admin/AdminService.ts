@@ -31,7 +31,7 @@ export interface PricingTemplate {
       value: number;
       description: string;
     }>;
-    [key: string]: any; // Allow additional properties
+    [key: string]: unknown; // Allow additional properties
   };
   created_at: string;
   updated_at: string;
@@ -72,7 +72,7 @@ export interface CreatePricingTemplateRequest {
       value: number;
       description: string;
     }>;
-    [key: string]: any; // Allow additional properties
+    [key: string]: unknown; // Allow additional properties
   };
 }
 
@@ -87,7 +87,7 @@ export interface UpdatePricingTemplateRequest {
       value: number;
       description: string;
     }>;
-    [key: string]: any; // Allow additional properties
+    [key: string]: unknown; // Allow additional properties
   };
 }
 

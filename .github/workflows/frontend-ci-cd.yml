@@ -39,13 +39,131 @@ jobs:
       - name: Run Tests
         run: npm test
 
+      - name: Setup Development Environment File
+        if: github.ref == 'refs/heads/develop'
+        run: |
+          echo "Setting up staging environment configuration for develop branch"
+          cp .env.staging .env
+          echo "Using environment variables for staging:"
+          grep -E "^VITE_" .env || echo "No VITE variables found"
+
+      - name: Setup Production Environment File
+        if: github.ref == 'refs/heads/main'
+        run: |
+          echo "Setting up production environment configuration for main branch"
+          cp .env.production .env
+          echo "Using environment variables for production:"
+          grep -E "^VITE_" .env || echo "No VITE variables found"
+
+      - name: Setup Default Environment File (for PRs and other branches)
+        if: github.ref != 'refs/heads/main' && github.ref != 'refs/heads/develop'
+        run: |
+          echo "Setting up development environment configuration for PR/other branches"
+          cp .env.development .env
+          echo "Using environment variables for development:"
+          grep -E "^VITE_" .env || echo "No VITE variables found"
+
       - name: Build Application
         run: |
-          echo "# TODO: Implement build process (Task 11.2.3)"
-          # npm run build
+          echo "Building application with environment: $(grep VITE_ENVIRONMENT .env || echo 'unknown')"
+          npm run build
 
-      - name: Deploy to Firebase Hosting
+      - name: Archive production build
+        uses: actions/upload-artifact@v4
+        with:
+          name: frontend-build-artifacts
+          path: frontend/dist/
+
+      - name: Deploy to Firebase Hosting (Staging/Develop)
+        if: github.event_name == 'push' && github.ref == 'refs/heads/develop'
+        uses: FirebaseExtended/action-hosting-deploy@v0
+        with:
+          repoToken: '${{ secrets.GITHUB_TOKEN }}'
+          firebaseServiceAccount: '${{ secrets.FIREBASE_SERVICE_ACCOUNT_KEY_JSON }}'
+          projectId: ${{ secrets.FIREBASE_PROJECT_ID_CONFIG }}
+          channelId: develop # Deploy to a 'develop' preview channel
+        env:
+          FIREBASE_CLI_PREVIEWS: hostingchannels
+
+      - name: Deploy to Firebase Hosting (Production)
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        uses: FirebaseExtended/action-hosting-deploy@v0
+        with:
+          repoToken: '${{ secrets.GITHUB_TOKEN }}'
+          firebaseServiceAccount: '${{ secrets.FIREBASE_SERVICE_ACCOUNT_KEY_JSON }}'
+          projectId: ${{ secrets.FIREBASE_PROJECT_ID_CONFIG }}
+          channelId: live # Deploy to the live channel 
+
+  # Notification job that runs regardless of other job outcomes
+  notify:
+    name: Workflow Notification
+    runs-on: ubuntu-latest
+    if: always()
+    needs: [build-test-deploy]
+    
+    steps:
+      - name: Determine workflow status
+        id: status
         run: |
-          echo "# TODO: Implement Firebase deployment (Task 11.2.4)"
-          echo "# This step will be conditional on push to main/develop branches"
-          # firebase deploy --only hosting 
+          # Check the status of the main job
+          MAIN_STATUS="${{ needs.build-test-deploy.result }}"
+          
+          # Determine overall status
+          if [[ "$MAIN_STATUS" == "success" ]]; then
+            echo "status=success" >> $GITHUB_OUTPUT
+            echo "icon=✅" >> $GITHUB_OUTPUT
+            echo "color=good" >> $GITHUB_OUTPUT
+          else
+            echo "status=failure" >> $GITHUB_OUTPUT
+            echo "icon=❌" >> $GITHUB_OUTPUT
+            echo "color=danger" >> $GITHUB_OUTPUT
+          fi
+          
+          # Set deployment info
+          if [[ "${{ github.ref }}" == "refs/heads/develop" ]]; then
+            echo "environment=Staging (Firebase)" >> $GITHUB_OUTPUT
+            echo "deployed=true" >> $GITHUB_OUTPUT
+          elif [[ "${{ github.ref }}" == "refs/heads/main" ]]; then
+            echo "environment=Production (Firebase)" >> $GITHUB_OUTPUT
+            echo "deployed=true" >> $GITHUB_OUTPUT
+          else
+            echo "environment=None" >> $GITHUB_OUTPUT
+            echo "deployed=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Send workflow notification
+        run: |
+          echo "🔔 Frontend CI/CD Workflow Notification"
+          echo "======================================="
+          echo ""
+          echo "${{ steps.status.outputs.icon }} **Workflow Status**: ${{ steps.status.outputs.status }}"
+          echo "🌿 **Branch**: ${{ github.ref_name }}"
+          echo "📝 **Commit**: ${{ github.sha }}"
+          echo "👤 **Triggered by**: ${{ github.actor }}"
+          echo "🎯 **Event**: ${{ github.event_name }}"
+          echo "🏗️ **Environment**: ${{ steps.status.outputs.environment }}"
+          echo "🚀 **Deployed**: ${{ steps.status.outputs.deployed }}"
+          echo ""
+          echo "📊 **Job Results**:"
+          echo "  - Build, Test & Deploy: ${{ needs.build-test-deploy.result }}"
+          echo ""
+          echo "🔗 **Workflow Run**: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+          echo ""
+          if [[ "${{ steps.status.outputs.status }}" == "success" ]]; then
+            echo "🎉 Frontend workflow completed successfully!"
+            if [[ "${{ steps.status.outputs.deployed }}" == "true" ]]; then
+              echo "🌐 Application deployed to Firebase Hosting"
+            fi
+          else
+            echo "⚠️ Frontend workflow failed. Please check the logs for details."
+          fi
+          
+          # This notification step can be easily extended with Slack/email in the future
+          # Example future enhancement:
+          # - name: Send Slack notification
+          #   if: always()
+          #   uses: rtCamp/action-slack-notify@v2
+          #   env:
+          #     SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK_URL }}
+          #     SLACK_MESSAGE: '${{ steps.status.outputs.icon }} Frontend CI/CD ${{ steps.status.outputs.status }} on `${{ github.ref_name }}` branch'
+          #     SLACK_COLOR: '${{ steps.status.outputs.color }}' 

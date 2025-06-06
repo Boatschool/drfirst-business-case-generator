@@ -41,12 +41,12 @@ class ArchitectAgent:
         try:
             vertexai.init(project=self.project_id, location=self.location)
             self.model = GenerativeModel(self.model_name)
-            print(
+            logger.info(
                 f"ArchitectAgent: Vertex AI initialized successfully with model {self.model_name}."
             )
             self.status = "available"
         except Exception as e:
-            print(f"ArchitectAgent: Failed to initialize Vertex AI: {e}")
+            logger.info(f"ArchitectAgent: Failed to initialize Vertex AI: {e}")
             self.model = None
             self.status = "error"
 
@@ -176,7 +176,7 @@ Focus on extracting concrete, actionable architectural information that will gui
         Returns:
             Dict[str, Any]: Response containing status and enhanced system design content
         """
-        print(
+        logger.info(
             f"[ArchitectAgent] Received request to generate enhanced system design for: {case_title}"
         )
 
@@ -237,7 +237,7 @@ Focus on extracting concrete, actionable architectural information that will gui
                 logger.info(
                     f"[ArchitectAgent] Successfully generated enhanced system design for {case_title}"
                 )
-                print(
+                logger.info(
                     f"[ArchitectAgent] Generated enhanced system design ({len(system_design_content)} characters)"
                 )
 
@@ -259,7 +259,7 @@ Focus on extracting concrete, actionable architectural information that will gui
         except Exception as e:
             error_msg = f"Error generating enhanced system design: {str(e)}"
             logger.error(f"[ArchitectAgent] {error_msg} for case {case_title}")
-            print(f"[ArchitectAgent] {error_msg}")
+            logger.info(f"[ArchitectAgent] {error_msg}")
             return {
                 "status": "error",
                 "message": error_msg,

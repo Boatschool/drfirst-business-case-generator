@@ -31,6 +31,7 @@ import {
 import { useAgentContext } from '../../hooks/useAgentContext';
 import { useAuth } from '../../hooks/useAuth';
 import { BusinessCaseDetails } from '../../services/agent/AgentService';
+import { toAppError } from '../../types/api';
 
 interface FinancialEstimatesSectionProps {
   currentCaseDetails: BusinessCaseDetails;
@@ -131,8 +132,8 @@ export const FinancialEstimatesSection: React.FC<FinancialEstimatesSectionProps>
         setApprovalSuccess('Effort Estimate submitted for review successfully!');
         setApprovalError(null);
       }
-    } catch (error: any) {
-      setApprovalError(error.message || 'Failed to submit effort estimate for review.');
+    } catch (error) {
+      setApprovalError(toAppError(error, 'api').message || 'Failed to submit effort estimate for review.');
     }
   };
 
@@ -144,8 +145,8 @@ export const FinancialEstimatesSection: React.FC<FinancialEstimatesSectionProps>
         setApprovalSuccess('Effort Estimate approved successfully!');
         setApprovalError(null);
       }
-    } catch (error: any) {
-      setApprovalError(error.message || 'Failed to approve effort estimate.');
+    } catch (error) {
+      setApprovalError(toAppError(error, 'api').message || 'Failed to approve effort estimate.');
     }
   };
 
@@ -161,8 +162,8 @@ export const FinancialEstimatesSection: React.FC<FinancialEstimatesSectionProps>
         setIsEffortRejectDialogOpen(false);
         setEffortRejectionReason('');
       }
-    } catch (error: any) {
-      setApprovalError(error.message || 'Failed to reject effort estimate.');
+    } catch (error) {
+      setApprovalError(toAppError(error, 'api').message || 'Failed to reject effort estimate.');
     }
   };
 
@@ -174,8 +175,8 @@ export const FinancialEstimatesSection: React.FC<FinancialEstimatesSectionProps>
         setApprovalSuccess('Cost Estimate submitted for review successfully!');
         setApprovalError(null);
       }
-    } catch (error: any) {
-      setApprovalError(error.message || 'Failed to submit cost estimate for review.');
+    } catch (error) {
+      setApprovalError(toAppError(error, 'api').message || 'Failed to submit cost estimate for review.');
     }
   };
 
@@ -187,8 +188,8 @@ export const FinancialEstimatesSection: React.FC<FinancialEstimatesSectionProps>
         setApprovalSuccess('Cost Estimate approved successfully!');
         setApprovalError(null);
       }
-    } catch (error: any) {
-      setApprovalError(error.message || 'Failed to approve cost estimate.');
+    } catch (error) {
+      setApprovalError(toAppError(error, 'api').message || 'Failed to approve cost estimate.');
     }
   };
 
@@ -204,8 +205,8 @@ export const FinancialEstimatesSection: React.FC<FinancialEstimatesSectionProps>
         setIsCostRejectDialogOpen(false);
         setCostRejectionReason('');
       }
-    } catch (error: any) {
-      setApprovalError(error.message || 'Failed to reject cost estimate.');
+    } catch (error) {
+      setApprovalError(toAppError(error, 'api').message || 'Failed to reject cost estimate.');
     }
   };
 
@@ -217,8 +218,8 @@ export const FinancialEstimatesSection: React.FC<FinancialEstimatesSectionProps>
         setApprovalSuccess('Value Projection submitted for review successfully!');
         setApprovalError(null);
       }
-    } catch (error: any) {
-      setApprovalError(error.message || 'Failed to submit value projection for review.');
+    } catch (error) {
+      setApprovalError(toAppError(error, 'api').message || 'Failed to submit value projection for review.');
     }
   };
 
@@ -230,8 +231,8 @@ export const FinancialEstimatesSection: React.FC<FinancialEstimatesSectionProps>
         setApprovalSuccess('Value Projection approved successfully!');
         setApprovalError(null);
       }
-    } catch (error: any) {
-      setApprovalError(error.message || 'Failed to approve value projection.');
+    } catch (error) {
+      setApprovalError(toAppError(error, 'api').message || 'Failed to approve value projection.');
     }
   };
 
@@ -247,8 +248,8 @@ export const FinancialEstimatesSection: React.FC<FinancialEstimatesSectionProps>
         setIsValueRejectDialogOpen(false);
         setValueRejectionReason('');
       }
-    } catch (error: any) {
-      setApprovalError(error.message || 'Failed to reject value projection.');
+    } catch (error) {
+      setApprovalError(toAppError(error, 'api').message || 'Failed to reject value projection.');
     }
   };
 

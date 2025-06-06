@@ -2,6 +2,7 @@
 Orchestrator Agent for coordinating business case generation
 """
 
+import logging
 from typing import Dict, Any, List, Optional
 import asyncio
 from enum import Enum
@@ -12,6 +13,12 @@ from pydantic import BaseModel, Field
 from app.core.config import settings
 from app.core.dependencies import get_db, get_array_union
 from app.core.database import DatabaseClient
+from app.core.logging_config import (
+    log_agent_operation, 
+    log_business_case_operation,
+    log_error_with_context,
+    log_performance_metric
+)
 
 # Import ProductManagerAgent
 from .product_manager_agent import ProductManagerAgent
@@ -30,6 +37,12 @@ from .sales_value_analyst_agent import SalesValueAnalystAgent
 
 # Import FinancialModelAgent
 from .financial_model_agent import FinancialModelAgent
+
+# Import Firestore models for job tracking
+from app.models.firestore_models import Job, JobStatus
+
+# Import constants
+from app.core.constants import MessageTypes, MessageSources, Collections
 
 
 class BusinessCaseStatus(Enum):
@@ -127,7 +140,8 @@ class EchoTool:
 
     async def run(self, input_string: str) -> str:
         """Takes an input string and returns it."""
-        print(f"[EchoTool] Received: {input_string}")
+        logger = logging.getLogger(__name__)
+        logger.debug(f"[EchoTool] Received: {input_string}")
         return input_string
 
 
@@ -148,10 +162,11 @@ class OrchestratorAgent:
         self.cost_analyst_agent = CostAnalystAgent()
         self.sales_value_analyst_agent = SalesValueAnalystAgent()
         self.financial_model_agent = FinancialModelAgent()
+        self.logger = logging.getLogger(__name__)
 
         # Use dependency injection for database client
         self.db = db if db is not None else get_db()
-        print("OrchestratorAgent: Database client initialized successfully.")
+        self.logger.info("OrchestratorAgent: Database client initialized successfully.")
 
     async def handle_request(
         self, request_type: str, payload: Dict[str, Any], user_id: str
@@ -231,14 +246,26 @@ class OrchestratorAgent:
                 updated_at=current_time,
             )
 
-            case_doc_ref = self.db.collection("businessCases").document(case_id)
+            case_doc_ref = self.db.collection(Collections.BUSINESS_CASES).document(case_id)
             try:
                 await asyncio.to_thread(case_doc_ref.set, case_data.to_firestore_dict())
-                print(
-                    f"Case {case_id} for user {user_id} stored in Firestore with status INTAKE."
+                case_logger = log_business_case_operation(
+                    self.logger, case_id, user_id, "create_initial_case"
+                )
+                case_logger.info(
+                    "Business case stored in Firestore with INTAKE status",
+                    extra={'status': BusinessCaseStatus.INTAKE.value}
                 )
             except Exception as e:
-                print(f"Error storing initial case {case_id} in Firestore: {e}")
+                case_logger = log_business_case_operation(
+                    self.logger, case_id, user_id, "create_initial_case"
+                )
+                log_error_with_context(
+                    case_logger, 
+                    "Failed to store initial business case in Firestore", 
+                    e,
+                    {'case_id': case_id, 'user_id': user_id}
+                )
                 return {
                     "status": "error",
                     "message": f"Failed to store business case: {str(e)}",
@@ -246,14 +273,25 @@ class OrchestratorAgent:
                 }
 
             # Now, invoke ProductManagerAgent to draft PRD
-            print(
-                f"OrchestratorAgent: Invoking ProductManagerAgent for case {case_id}..."
+            case_logger = log_business_case_operation(
+                self.logger, case_id, user_id, "prd_generation"
             )
-            prd_response = await self.product_manager_agent.draft_prd(
-                problem_statement=case_data.problem_statement,
-                case_title=case_data.title,
-                relevant_links=case_data.relevant_links,
-            )
+            case_logger.info("Invoking ProductManagerAgent to draft PRD")
+            try:
+                prd_response = await self.product_manager_agent.draft_prd(
+                    problem_statement=case_data.problem_statement,
+                    case_title=case_data.title,
+                    relevant_links=case_data.relevant_links,
+                )
+                case_logger.info(f"PRD response status: {prd_response.get('status')}")
+                if prd_response.get("status") == "error":
+                    case_logger.error(f"PRD generation failed: {prd_response.get('message')}")
+            except Exception as prd_exc:
+                case_logger.error(f"Exception during PRD generation: {str(prd_exc)}")
+                prd_response = {
+                    "status": "error",
+                    "message": f"Exception during PRD generation: {str(prd_exc)}"
+                }
 
             updated_at_time = datetime.now(timezone.utc)
             if prd_response.get("status") == "success" and prd_response.get(
@@ -269,16 +307,16 @@ class OrchestratorAgent:
                 case_data.history.append(
                     {
                         "timestamp": updated_at_time.isoformat(),
-                        "source": "AGENT",
-                        "type": "STATUS_UPDATE",
+                        "source": MessageSources.ORCHESTRATOR_AGENT,
+                        "type": MessageTypes.STATUS_UPDATE,
                         "content": f"Status updated to {BusinessCaseStatus.PRD_DRAFTING.value}. {prd_draft_message}",
                     }
                 )
                 case_data.history.append(
                     {
                         "timestamp": updated_at_time.isoformat(),
-                        "source": "PRODUCT_MANAGER_AGENT",
-                        "type": "PRD_DRAFT",
+                        "source": MessageSources.PRD_AGENT,
+                        "type": MessageTypes.PRD_SUBMISSION,
                         "content": prd_response["prd_draft"]["content_markdown"],
                     }
                 )
@@ -293,25 +331,32 @@ class OrchestratorAgent:
                             "updated_at": case_data.updated_at,
                         },
                     )
-                    print(
-                        f"Case {case_id} updated with PRD draft and status {case_data.status.value}."
+                    case_logger.info(
+                        "Case updated with PRD draft and status",
+                        extra={'new_status': case_data.status.value}
                     )
                     initial_user_message = f"Business case '{case_data.title}' initiated (ID: {case_id}). Problem: '{case_data.problem_statement}'. PRD drafting has begun."
                 except Exception as e:
-                    print(f"Error updating case {case_id} with PRD draft: {e}")
+                    log_error_with_context(
+                        case_logger, 
+                        "Failed to update case with PRD draft", 
+                        e,
+                        {'new_status': case_data.status.value}
+                    )
                     initial_user_message = f"Business case '{case_data.title}' initiated (ID: {case_id}). Problem: '{case_data.problem_statement}'. Error occurred during PRD draft storage."
             else:
                 prd_error_message = prd_response.get(
                     "message", "Failed to generate PRD draft."
                 )
-                print(
-                    f"OrchestratorAgent: ProductManagerAgent failed for case {case_id}: {prd_error_message}"
+                case_logger.error(
+                    "ProductManagerAgent failed to generate PRD draft",
+                    extra={'error_message': prd_error_message}
                 )
                 case_data.history.append(
                     {
                         "timestamp": updated_at_time.isoformat(),
-                        "source": "ORCHESTRATOR_AGENT",
-                        "type": "ERROR",
+                        "source": MessageSources.ORCHESTRATOR_AGENT,
+                        "type": MessageTypes.AGENT_ERROR,
                         "content": f"Failed to generate PRD draft: {prd_error_message}",
                     }
                 )
@@ -321,7 +366,11 @@ class OrchestratorAgent:
                         {"history": case_data.history, "updated_at": updated_at_time},
                     )
                 except Exception as e:
-                    print(f"Error updating case {case_id} history with PRD error: {e}")
+                    log_error_with_context(
+                        case_logger, 
+                        "Failed to update case history with PRD error", 
+                        e
+                    )
                 initial_user_message = f"Business case '{case_data.title}' initiated (ID: {case_id}). Problem: '{case_data.problem_statement}'. PRD draft generation encountered an error."
 
             return {
@@ -330,8 +379,164 @@ class OrchestratorAgent:
                 "caseId": case_id,
                 "initialMessage": initial_user_message,
             }
-        # TODO: Add handlers for other request_types as functionality expands
-        # (e.g., "generate_business_case", "get_case_status")
+        elif request_type == "generate_business_case":
+            # Handle business case generation with job tracking
+            requirements = payload.get("requirements", {})
+            title = payload.get("title", "Business Case Generation")
+            
+            # Create a job for tracking
+            job_id = str(uuid.uuid4())
+            current_time = datetime.now(timezone.utc)
+            
+            job = Job(
+                id=job_id,
+                job_type="business_case_generation",
+                status=JobStatus.PENDING,
+                user_uid=user_id,
+                progress=0,
+                created_at=current_time,
+                updated_at=current_time,
+                metadata={
+                    "title": title,
+                    "requirements": requirements,
+                    "request_type": "generate_business_case"
+                }
+            )
+            
+            # Store job in Firestore
+            try:
+                job_ref = self.db.collection(Collections.JOBS).document(job_id)
+                await asyncio.to_thread(job_ref.set, job.model_dump(exclude_none=True, exclude={"id"}))
+                
+                # Update job to IN_PROGRESS and start generation
+                await asyncio.to_thread(job_ref.update, {
+                    "status": JobStatus.IN_PROGRESS.value,
+                    "started_at": current_time,
+                    "progress": 10
+                })
+                
+                # Trigger the business case generation workflow
+                generation_result = await self.generate_business_case(requirements)
+                
+                # Update job with result
+                if generation_result.get("status") == "success":
+                    await asyncio.to_thread(job_ref.update, {
+                        "status": JobStatus.COMPLETED.value,
+                        "completed_at": datetime.now(timezone.utc),
+                        "progress": 100,
+                        "business_case_id": generation_result.get("case_id")
+                    })
+                else:
+                    await asyncio.to_thread(job_ref.update, {
+                        "status": JobStatus.FAILED.value,
+                        "completed_at": datetime.now(timezone.utc),
+                        "error_message": generation_result.get("message", "Unknown error")
+                    })
+                
+                return {
+                    "status": "success",
+                    "message": "Business case generation started",
+                    "job_id": job_id,
+                    "result": generation_result
+                }
+                
+            except Exception as e:
+                job_logger = log_agent_operation(
+                    logger, "OrchestratorAgent", job_id, "create_job"
+                )
+                log_error_with_context(
+                    job_logger, 
+                    "Failed to create business case generation job", 
+                    e,
+                    {'job_id': job_id, 'user_id': user_id}
+                )
+                return {
+                    "status": "error",
+                    "message": f"Failed to create generation job: {str(e)}",
+                    "result": None,
+                }
+        elif request_type == "get_case_status":
+            # Get status of a business case
+            case_id = payload.get("case_id")
+            if not case_id:
+                return {
+                    "status": "error",
+                    "message": "Missing 'case_id' in payload for get_case_status request.",
+                    "result": None,
+                }
+            
+            try:
+                case_ref = self.db.collection(Collections.BUSINESS_CASES).document(case_id)
+                doc = await asyncio.to_thread(case_ref.get)
+                
+                if not doc.exists:
+                    return {
+                        "status": "error",
+                        "message": f"Business case {case_id} not found",
+                        "result": None,
+                    }
+                
+                case_data = doc.to_dict()
+                return {
+                    "status": "success",
+                    "message": "Case status retrieved successfully",
+                    "result": {
+                        "case_id": case_id,
+                        "status": case_data.get("status"),
+                        "title": case_data.get("title"),
+                        "updated_at": case_data.get("updated_at"),
+                        "history": case_data.get("history", [])
+                    }
+                }
+                
+            except Exception as e:
+                return {
+                    "status": "error",
+                    "message": f"Error retrieving case status: {str(e)}",
+                    "result": None,
+                }
+        elif request_type == "get_job_status":
+            # Get status of a job
+            job_id = payload.get("job_id")
+            if not job_id:
+                return {
+                    "status": "error",
+                    "message": "Missing 'job_id' in payload for get_job_status request.",
+                    "result": None,
+                }
+            
+            try:
+                job_ref = self.db.collection("jobs").document(job_id)
+                doc = await asyncio.to_thread(job_ref.get)
+                
+                if not doc.exists:
+                    return {
+                        "status": "error",
+                        "message": f"Job {job_id} not found",
+                        "result": None,
+                    }
+                
+                job_data = doc.to_dict()
+                return {
+                    "status": "success",
+                    "message": "Job status retrieved successfully",
+                    "result": {
+                        "job_id": job_id,
+                        "status": job_data.get("status"),
+                        "progress": job_data.get("progress", 0),
+                        "business_case_id": job_data.get("business_case_id"),
+                        "error_message": job_data.get("error_message"),
+                        "created_at": job_data.get("created_at"),
+                        "updated_at": job_data.get("updated_at")
+                    }
+                }
+                
+            except Exception as e:
+                return {
+                    "status": "error",
+                    "message": f"Error retrieving job status: {str(e)}",
+                    "result": None,
+                }
         else:
             return {
                 "status": "error",
@@ -343,14 +548,59 @@ class OrchestratorAgent:
         self, requirements: Dict[str, Any]
     ) -> Dict[str, Any]:
         """
-        Main method to orchestrate the business case generation process
+        Main method to orchestrate the business case generation process.
+        This method implements the full business case generation workflow.
         """
-        # TODO: Implement orchestration logic with ADK
-        return {
-            "status": "in_progress",
-            "message": "Business case generation started",
-            "job_id": "placeholder_job_id",
-        }
+        try:
+            # Extract requirements
+            problem_statement = requirements.get("problemStatement") or requirements.get("description")
+            title = requirements.get("title", "Generated Business Case")
+            relevant_links = requirements.get("relevantLinks", [])
+            user_id = requirements.get("user_id", "system")
+            
+            if not problem_statement:
+                return {
+                    "status": "error",
+                    "message": "Missing problem statement in requirements",
+                }
+            
+            # Create the business case using existing initiate_case logic
+            initiate_payload = {
+                "problemStatement": problem_statement,
+                "projectTitle": title,
+                "relevantLinks": relevant_links
+            }
+            
+            # Call the existing initiate_case logic
+            result = await self.handle_request("initiate_case", initiate_payload, user_id)
+            
+            if result.get("status") == "success":
+                return {
+                    "status": "success",
+                    "message": "Business case generation completed successfully",
+                    "case_id": result.get("caseId"),
+                    "details": result.get("initialMessage")
+                }
+            else:
+                return {
+                    "status": "error",
+                    "message": result.get("message", "Failed to generate business case"),
+                }
+                
+        except Exception as e:
+            orchestrator_logger = log_agent_operation(
+                logger, "OrchestratorAgent", "unknown", "generate_business_case"
+            )
+            log_error_with_context(
+                orchestrator_logger, 
+                "Business case generation failed", 
+                e,
+                {'requirements': str(requirements)}
+            )
+            return {
+                "status": "error",
+                "message": f"Business case generation failed: {str(e)}",
+            }
 
     async def run_echo_tool(self, input_text: str) -> str:
         """Runs the EchoTool with the provided input text."""
@@ -360,571 +610,161 @@ class OrchestratorAgent:
         self, task_data: Dict[str, Any]
     ) -> List[Dict[str, Any]]:
         """
-        Coordinate multiple agents to work on different aspects of the business case
+        Coordinate multiple agents to work on different aspects of the business case.
+        This method can run agents in parallel or sequence based on the task requirements.
         """
-        # TODO: Implement agent coordination logic
-        return []
-
-    async def handle_prd_approval(self, case_id: str) -> Dict[str, Any]:
-        """
-        Handle the system design generation process after PRD approval.
-        This method is called when a PRD is approved to initiate the next phase.
-
-        Args:
-            case_id (str): The ID of the business case with approved PRD
-
-        Returns:
-            Dict[str, Any]: Response indicating success/failure of system design generation
-        """
-        print(f"[OrchestratorAgent] Handling PRD approval for case {case_id}")
-
-        if not self.db:
-            return {"status": "error", "message": "Firestore client not initialized"}
-
         try:
-            # Retrieve case data from Firestore
-            case_doc_ref = self.db.collection("businessCases").document(case_id)
-            doc_snapshot = await asyncio.to_thread(case_doc_ref.get)
-
-            if not doc_snapshot.exists:
-                return {
-                    "status": "error",
-                    "message": f"Business case {case_id} not found",
-                }
-
-            case_data = doc_snapshot.to_dict()
-            if not case_data:
-                return {
-                    "status": "error",
-                    "message": f"Business case {case_id} data is empty",
-                }
-
-            # Verify PRD is approved
-            current_status = case_data.get("status")
-            if current_status != BusinessCaseStatus.PRD_APPROVED.value:
-                return {
-                    "status": "error",
-                    "message": f"Case status is {current_status}, not PRD_APPROVED",
-                }
-
-            # Extract PRD content and case title
-            prd_draft = case_data.get("prd_draft")
-            if not prd_draft or not prd_draft.get("content_markdown"):
-                return {
-                    "status": "error",
-                    "message": "No PRD content found for system design generation",
-                }
-
-            approved_prd_content = prd_draft["content_markdown"]
-            case_title = case_data.get("title", "Untitled Business Case")
-
-            print(f"[OrchestratorAgent] Invoking ArchitectAgent for case {case_id}...")
-
-            # Update status to SYSTEM_DESIGN_DRAFTING first
-            current_time = datetime.now(timezone.utc)
-            update_data = {
-                "status": BusinessCaseStatus.SYSTEM_DESIGN_DRAFTING.value,
-                "updated_at": current_time,
-                "history": get_array_union(
-                    [
-                        {
-                            "timestamp": current_time.isoformat(),
-                            "source": "ORCHESTRATOR_AGENT",
-                            "type": "STATUS_UPDATE",
-                            "content": f"Status updated to {BusinessCaseStatus.SYSTEM_DESIGN_DRAFTING.value}. Architect Agent initiated for system design generation.",
-                        }
-                    ]
-                ),
-            }
-            await asyncio.to_thread(case_doc_ref.update, update_data)
-
-            # Invoke ArchitectAgent to generate system design
-            design_response = await self.architect_agent.generate_system_design(
-                prd_content=approved_prd_content, case_title=case_title
-            )
-
-            updated_at_time = datetime.now(timezone.utc)
-
-            if design_response.get("status") == "success" and design_response.get(
-                "system_design_draft"
-            ):
-                # System design generated successfully
-                system_design_draft = design_response["system_design_draft"]
-
-                # Update case with system design and change status to SYSTEM_DESIGN_DRAFTED
-                update_data = {
-                    "system_design_v1_draft": system_design_draft,
-                    "status": BusinessCaseStatus.SYSTEM_DESIGN_DRAFTED.value,
-                    "updated_at": updated_at_time,
-                    "history": get_array_union(
-                        [
-                            {
-                                "timestamp": updated_at_time.isoformat(),
-                                "source": "ARCHITECT_AGENT",
-                                "type": "SYSTEM_DESIGN_DRAFT",
-                                "content": f"System design draft generated. Length: {len(system_design_draft.get('content_markdown', ''))} characters",
-                            },
-                            {
-                                "timestamp": updated_at_time.isoformat(),
-                                "source": "ORCHESTRATOR_AGENT",
-                                "type": "STATUS_UPDATE",
-                                "content": f"Status updated to {BusinessCaseStatus.SYSTEM_DESIGN_DRAFTED.value}. System design draft completed.",
-                            },
-                        ]
-                    ),
-                }
-
-                await asyncio.to_thread(case_doc_ref.update, update_data)
-
-                print(
-                    f"[OrchestratorAgent] System design generated successfully for case {case_id}"
-                )
-
-                # Continue to effort estimation phase
-                effort_result = await self._handle_effort_estimation(
-                    case_id,
-                    case_doc_ref,
-                    approved_prd_content,
-                    system_design_draft["content_markdown"],
-                    case_title,
-                )
-                if effort_result["status"] == "success":
-                    # Continue to cost estimation phase
-                    cost_result = await self._handle_cost_estimation(
-                        case_id,
-                        case_doc_ref,
-                        effort_result["effort_breakdown"],
-                        case_title,
-                    )
-                    if cost_result["status"] == "success":
-                        # Continue to value analysis phase
-                        value_result = await self._handle_value_analysis(
-                            case_id, case_doc_ref, approved_prd_content, case_title
+            task_type = task_data.get("task_type", "sequential")
+            agents_to_run = task_data.get("agents", [])
+            case_data = task_data.get("case_data", {})
+            
+            results = []
+            
+            if task_type == "parallel":
+                # Run multiple agents in parallel for independent tasks
+                tasks = []
+                
+                for agent_config in agents_to_run:
+                    agent_name = agent_config.get("agent")
+                    agent_task = agent_config.get("task")
+                    agent_payload = agent_config.get("payload", {})
+                    
+                    if agent_name == "product_manager" and agent_task == "draft_prd":
+                        task = self.product_manager_agent.draft_prd(
+                            problem_statement=agent_payload.get("problem_statement", ""),
+                            case_title=agent_payload.get("case_title", ""),
+                            relevant_links=agent_payload.get("relevant_links", [])
                         )
-                        return value_result
-                    else:
-                        return cost_result
-                else:
-                    return effort_result
-
-            else:
-                # System design generation failed
-                error_message = design_response.get(
-                    "message", "Failed to generate system design"
-                )
-                print(
-                    f"[OrchestratorAgent] ArchitectAgent failed for case {case_id}: {error_message}"
-                )
-
-                # Update with error information and revert status
-                update_data = {
-                    "status": BusinessCaseStatus.PRD_APPROVED.value,  # Revert to PRD_APPROVED
-                    "updated_at": updated_at_time,
-                    "history": get_array_union(
-                        [
-                            {
-                                "timestamp": updated_at_time.isoformat(),
-                                "source": "ORCHESTRATOR_AGENT",
-                                "type": "ERROR",
-                                "content": f"System design generation failed: {error_message}",
+                        tasks.append(task)
+                    elif agent_name == "architect" and agent_task == "generate_system_design":
+                        task = self.architect_agent.generate_system_design(
+                            prd_content=agent_payload.get("prd_content", ""),
+                            case_title=agent_payload.get("case_title", "")
+                        )
+                        tasks.append(task)
+                    elif agent_name == "planner" and agent_task == "estimate_effort":
+                        task = self.planner_agent.estimate_effort(
+                            prd_content=agent_payload.get("prd_content", ""),
+                            system_design_content=agent_payload.get("system_design_content", ""),
+                            case_title=agent_payload.get("case_title", "")
+                        )
+                        tasks.append(task)
+                    elif agent_name == "cost_analyst" and agent_task == "estimate_costs":
+                        task = self.cost_analyst_agent.estimate_costs(
+                            effort_breakdown=agent_payload.get("effort_breakdown", {}),
+                            case_title=agent_payload.get("case_title", "")
+                        )
+                        tasks.append(task)
+                    elif agent_name == "sales_value_analyst" and agent_task == "analyze_value":
+                        task = self.sales_value_analyst_agent.analyze_value(
+                            prd_content=agent_payload.get("prd_content", ""),
+                            case_title=agent_payload.get("case_title", "")
+                        )
+                        tasks.append(task)
+                    elif agent_name == "financial_model" and agent_task == "generate_model":
+                        task = self.financial_model_agent.generate_financial_model(
+                            cost_estimate=agent_payload.get("cost_estimate", {}),
+                            value_projection=agent_payload.get("value_projection", {}),
+                            case_title=agent_payload.get("case_title", "")
+                        )
+                        tasks.append(task)
+                
+                # Run all tasks in parallel
+                if tasks:
+                    parallel_results = await asyncio.gather(*tasks, return_exceptions=True)
+                    
+                    for i, result in enumerate(parallel_results):
+                        if isinstance(result, Exception):
+                            results.append({
+                                "agent": agents_to_run[i].get("agent"),
+                                "status": "error",
+                                "message": str(result)
+                            })
+                        else:
+                            results.append({
+                                "agent": agents_to_run[i].get("agent"),
+                                "status": "success",
+                                "result": result
+                            })
+            
+            elif task_type == "sequential":
+                # Run agents in sequence (default behavior)
+                for agent_config in agents_to_run:
+                    agent_name = agent_config.get("agent")
+                    agent_task = agent_config.get("task")
+                    agent_payload = agent_config.get("payload", {})
+                    
+                    try:
+                        if agent_name == "product_manager" and agent_task == "draft_prd":
+                            result = await self.product_manager_agent.draft_prd(
+                                problem_statement=agent_payload.get("problem_statement", ""),
+                                case_title=agent_payload.get("case_title", ""),
+                                relevant_links=agent_payload.get("relevant_links", [])
+                            )
+                        elif agent_name == "architect" and agent_task == "generate_system_design":
+                            result = await self.architect_agent.generate_system_design(
+                                prd_content=agent_payload.get("prd_content", ""),
+                                case_title=agent_payload.get("case_title", "")
+                            )
+                        elif agent_name == "planner" and agent_task == "estimate_effort":
+                            result = await self.planner_agent.estimate_effort(
+                                prd_content=agent_payload.get("prd_content", ""),
+                                system_design_content=agent_payload.get("system_design_content", ""),
+                                case_title=agent_payload.get("case_title", "")
+                            )
+                        elif agent_name == "cost_analyst" and agent_task == "estimate_costs":
+                            result = await self.cost_analyst_agent.estimate_costs(
+                                effort_breakdown=agent_payload.get("effort_breakdown", {}),
+                                case_title=agent_payload.get("case_title", "")
+                            )
+                        elif agent_name == "sales_value_analyst" and agent_task == "analyze_value":
+                            result = await self.sales_value_analyst_agent.analyze_value(
+                                prd_content=agent_payload.get("prd_content", ""),
+                                case_title=agent_payload.get("case_title", "")
+                            )
+                        elif agent_name == "financial_model" and agent_task == "generate_model":
+                            result = await self.financial_model_agent.generate_financial_model(
+                                cost_estimate=agent_payload.get("cost_estimate", {}),
+                                value_projection=agent_payload.get("value_projection", {}),
+                                case_title=agent_payload.get("case_title", "")
+                            )
+                        else:
+                            result = {
+                                "status": "error",
+                                "message": f"Unknown agent/task combination: {agent_name}/{agent_task}"
                             }
-                        ]
-                    ),
-                }
-
-                await asyncio.to_thread(case_doc_ref.update, update_data)
-
-                return {
-                    "status": "error",
-                    "message": f"System design generation failed: {error_message}",
-                    "case_id": case_id,
-                }
-
+                        
+                        results.append({
+                            "agent": agent_name,
+                            "task": agent_task,
+                            "status": "success" if result.get("status") == "success" else "error",
+                            "result": result
+                        })
+                        
+                    except Exception as e:
+                        results.append({
+                            "agent": agent_name,
+                            "task": agent_task,
+                            "status": "error",
+                            "message": str(e)
+                        })
+            
+            return results
+            
         except Exception as e:
-            error_msg = f"Error in handle_prd_approval for case {case_id}: {str(e)}"
-            print(f"[OrchestratorAgent] {error_msg}")
-            return {"status": "error", "message": error_msg}
-
-    async def _handle_effort_estimation(
-        self,
-        case_id: str,
-        case_doc_ref,
-        prd_content: str,
-        system_design_content: str,
-        case_title: str,
-    ) -> Dict[str, Any]:
-        """
-        Handle effort estimation using PlannerAgent after system design is complete.
-
-        Args:
-            case_id (str): The business case ID
-            case_doc_ref: Firestore document reference
-            prd_content (str): PRD content
-            system_design_content (str): System design content
-            case_title (str): Case title
-
-        Returns:
-            Dict[str, Any]: Result of effort estimation
-        """
-        print(f"[OrchestratorAgent] Starting effort estimation for case {case_id}")
-
-        try:
-            # Update status to PLANNING_IN_PROGRESS
-            current_time = datetime.now(timezone.utc)
-            update_data = {
-                "status": BusinessCaseStatus.PLANNING_IN_PROGRESS.value,
-                "updated_at": current_time,
-                "history": get_array_union(
-                    [
-                        {
-                            "timestamp": current_time.isoformat(),
-                            "source": "ORCHESTRATOR_AGENT",
-                            "type": "STATUS_UPDATE",
-                            "content": f"Status updated to {BusinessCaseStatus.PLANNING_IN_PROGRESS.value}. PlannerAgent initiated for effort estimation.",
-                        }
-                    ]
-                ),
-            }
-            await asyncio.to_thread(case_doc_ref.update, update_data)
-
-            # Invoke PlannerAgent
-            effort_response = await self.planner_agent.estimate_effort(
-                prd_content=prd_content,
-                system_design_content=system_design_content,
-                case_title=case_title,
+            orchestrator_logger = log_agent_operation(
+                logger, "OrchestratorAgent", "unknown", "coordinate_agents"
             )
-
-            updated_at_time = datetime.now(timezone.utc)
-
-            if effort_response.get("status") == "success" and effort_response.get(
-                "effort_breakdown"
-            ):
-                # Effort estimation successful
-                effort_breakdown = effort_response["effort_breakdown"]
-
-                # Update case with effort estimate and change status to PLANNING_COMPLETE
-                update_data = {
-                    "effort_estimate_v1": effort_breakdown,
-                    "status": BusinessCaseStatus.PLANNING_COMPLETE.value,
-                    "updated_at": updated_at_time,
-                    "history": get_array_union(
-                        [
-                            {
-                                "timestamp": updated_at_time.isoformat(),
-                                "source": "PLANNER_AGENT",
-                                "type": "EFFORT_ESTIMATE",
-                                "content": f"Effort estimation completed. Total hours: {effort_breakdown.get('total_hours', 'Unknown')}",
-                            },
-                            {
-                                "timestamp": updated_at_time.isoformat(),
-                                "source": "ORCHESTRATOR_AGENT",
-                                "type": "STATUS_UPDATE",
-                                "content": f"Status updated to {BusinessCaseStatus.PLANNING_COMPLETE.value}. Effort estimation completed.",
-                            },
-                        ]
-                    ),
-                }
-
-                await asyncio.to_thread(case_doc_ref.update, update_data)
-
-                print(
-                    f"[OrchestratorAgent] Effort estimation completed successfully for case {case_id}"
-                )
-                return {
-                    "status": "success",
-                    "message": "Effort estimation completed successfully",
-                    "case_id": case_id,
-                    "effort_breakdown": effort_breakdown,
-                    "new_status": BusinessCaseStatus.PLANNING_COMPLETE.value,
-                }
-
-            else:
-                # Effort estimation failed
-                error_message = effort_response.get(
-                    "message", "Failed to estimate effort"
-                )
-                print(
-                    f"[OrchestratorAgent] PlannerAgent failed for case {case_id}: {error_message}"
-                )
-
-                # Update with error information
-                update_data = {
-                    "status": BusinessCaseStatus.SYSTEM_DESIGN_DRAFTED.value,  # Revert to previous status
-                    "updated_at": updated_at_time,
-                    "history": get_array_union(
-                        [
-                            {
-                                "timestamp": updated_at_time.isoformat(),
-                                "source": "ORCHESTRATOR_AGENT",
-                                "type": "ERROR",
-                                "content": f"Effort estimation failed: {error_message}",
-                            }
-                        ]
-                    ),
-                }
-
-                await asyncio.to_thread(case_doc_ref.update, update_data)
-
-                return {
-                    "status": "error",
-                    "message": f"Effort estimation failed: {error_message}",
-                    "case_id": case_id,
-                }
-
-        except Exception as e:
-            error_msg = f"Error in effort estimation for case {case_id}: {str(e)}"
-            print(f"[OrchestratorAgent] {error_msg}")
-            return {"status": "error", "message": error_msg}
-
-    async def _handle_cost_estimation(
-        self,
-        case_id: str,
-        case_doc_ref,
-        effort_breakdown: Dict[str, Any],
-        case_title: str,
-    ) -> Dict[str, Any]:
-        """
-        Handle cost estimation using CostAnalystAgent after effort estimation is complete.
-
-        Args:
-            case_id (str): The business case ID
-            case_doc_ref: Firestore document reference
-            effort_breakdown (Dict[str, Any]): Effort breakdown from PlannerAgent
-            case_title (str): Case title
-
-        Returns:
-            Dict[str, Any]: Result of cost estimation
-        """
-        print(f"[OrchestratorAgent] Starting cost estimation for case {case_id}")
-
-        try:
-            # Update status to COSTING_IN_PROGRESS
-            current_time = datetime.now(timezone.utc)
-            update_data = {
-                "status": BusinessCaseStatus.COSTING_IN_PROGRESS.value,
-                "updated_at": current_time,
-                "history": get_array_union(
-                    [
-                        {
-                            "timestamp": current_time.isoformat(),
-                            "source": "ORCHESTRATOR_AGENT",
-                            "type": "STATUS_UPDATE",
-                            "content": f"Status updated to {BusinessCaseStatus.COSTING_IN_PROGRESS.value}. CostAnalystAgent initiated for cost estimation.",
-                        }
-                    ]
-                ),
-            }
-            await asyncio.to_thread(case_doc_ref.update, update_data)
-
-            # Invoke CostAnalystAgent
-            cost_response = await self.cost_analyst_agent.calculate_cost(
-                effort_breakdown=effort_breakdown, case_title=case_title
+            log_error_with_context(
+                orchestrator_logger, 
+                "Agent coordination failed", 
+                e,
+                {'task_data': str(task_data)}
             )
-
-            updated_at_time = datetime.now(timezone.utc)
-
-            if cost_response.get("status") == "success" and cost_response.get(
-                "cost_estimate"
-            ):
-                # Cost estimation successful
-                cost_estimate = cost_response["cost_estimate"]
-
-                # Update case with cost estimate and change status to COSTING_COMPLETE
-                update_data = {
-                    "cost_estimate_v1": cost_estimate,
-                    "status": BusinessCaseStatus.COSTING_COMPLETE.value,
-                    "updated_at": updated_at_time,
-                    "history": get_array_union(
-                        [
-                            {
-                                "timestamp": updated_at_time.isoformat(),
-                                "source": "COST_ANALYST_AGENT",
-                                "type": "COST_ESTIMATE",
-                                "content": f"Cost estimation completed. Total cost: ${cost_estimate.get('estimated_cost', 'Unknown'):,.2f} {cost_estimate.get('currency', 'USD')}",
-                            },
-                            {
-                                "timestamp": updated_at_time.isoformat(),
-                                "source": "ORCHESTRATOR_AGENT",
-                                "type": "STATUS_UPDATE",
-                                "content": f"Status updated to {BusinessCaseStatus.COSTING_COMPLETE.value}. Cost estimation completed.",
-                            },
-                        ]
-                    ),
-                }
-
-                await asyncio.to_thread(case_doc_ref.update, update_data)
-
-                print(
-                    f"[OrchestratorAgent] Cost estimation completed successfully for case {case_id}"
-                )
-                return {
-                    "status": "success",
-                    "message": "Complete business case financial analysis generated successfully",
-                    "case_id": case_id,
-                    "cost_estimate": cost_estimate,
-                    "new_status": BusinessCaseStatus.COSTING_COMPLETE.value,
-                }
-
-            else:
-                # Cost estimation failed
-                error_message = cost_response.get("message", "Failed to estimate cost")
-                print(
-                    f"[OrchestratorAgent] CostAnalystAgent failed for case {case_id}: {error_message}"
-                )
-
-                # Update with error information
-                update_data = {
-                    "status": BusinessCaseStatus.PLANNING_COMPLETE.value,  # Revert to previous status
-                    "updated_at": updated_at_time,
-                    "history": get_array_union(
-                        [
-                            {
-                                "timestamp": updated_at_time.isoformat(),
-                                "source": "ORCHESTRATOR_AGENT",
-                                "type": "ERROR",
-                                "content": f"Cost estimation failed: {error_message}",
-                            }
-                        ]
-                    ),
-                }
-
-                await asyncio.to_thread(case_doc_ref.update, update_data)
-
-                return {
-                    "status": "error",
-                    "message": f"Cost estimation failed: {error_message}",
-                    "case_id": case_id,
-                }
-
-        except Exception as e:
-            error_msg = f"Error in cost estimation for case {case_id}: {str(e)}"
-            print(f"[OrchestratorAgent] {error_msg}")
-            return {"status": "error", "message": error_msg}
-
-    async def _handle_value_analysis(
-        self, case_id: str, case_doc_ref, prd_content: str, case_title: str
-    ) -> Dict[str, Any]:
-        """
-        Handle value analysis using SalesValueAnalystAgent after cost estimation is complete.
-
-        Args:
-            case_id (str): The business case ID
-            case_doc_ref: Firestore document reference
-            prd_content (str): PRD content for value analysis
-            case_title (str): Case title
-
-        Returns:
-            Dict[str, Any]: Result of value analysis
-        """
-        print(f"[OrchestratorAgent] Starting value analysis for case {case_id}")
-
-        try:
-            # Update status to VALUE_ANALYSIS_IN_PROGRESS
-            current_time = datetime.now(timezone.utc)
-            update_data = {
-                "status": BusinessCaseStatus.VALUE_ANALYSIS_IN_PROGRESS.value,
-                "updated_at": current_time,
-                "history": get_array_union(
-                    [
-                        {
-                            "timestamp": current_time.isoformat(),
-                            "source": "ORCHESTRATOR_AGENT",
-                            "type": "STATUS_UPDATE",
-                            "content": f"Status updated to {BusinessCaseStatus.VALUE_ANALYSIS_IN_PROGRESS.value}. SalesValueAnalystAgent initiated for value projection.",
-                        }
-                    ]
-                ),
-            }
-            await asyncio.to_thread(case_doc_ref.update, update_data)
-
-            # Invoke SalesValueAnalystAgent
-            value_response = await self.sales_value_analyst_agent.project_value(
-                prd_content=prd_content, case_title=case_title
-            )
-
-            updated_at_time = datetime.now(timezone.utc)
-
-            if value_response.get("status") == "success" and value_response.get(
-                "value_projection"
-            ):
-                # Value analysis successful
-                value_projection = value_response["value_projection"]
-
-                # Update case with value projection and change status to VALUE_ANALYSIS_COMPLETE
-                update_data = {
-                    "value_projection_v1": value_projection,
-                    "status": BusinessCaseStatus.VALUE_ANALYSIS_COMPLETE.value,
-                    "updated_at": updated_at_time,
-                    "history": get_array_union(
-                        [
-                            {
-                                "timestamp": updated_at_time.isoformat(),
-                                "source": "SALES_VALUE_ANALYST_AGENT",
-                                "type": "VALUE_PROJECTION",
-                                "content": (
-                                    f"Value analysis completed. Base scenario: ${value_projection.get('scenarios', [{}])[1].get('value', 'Unknown'):,.0f} {value_projection.get('currency', 'USD')}"
-                                    if len(value_projection.get("scenarios", [])) > 1
-                                    else f"Value projection completed using {value_projection.get('template_used', 'unknown template')}"
-                                ),
-                            },
-                            {
-                                "timestamp": updated_at_time.isoformat(),
-                                "source": "ORCHESTRATOR_AGENT",
-                                "type": "STATUS_UPDATE",
-                                "content": f"Status updated to {BusinessCaseStatus.VALUE_ANALYSIS_COMPLETE.value}. Complete financial analysis generated (effort, cost, and value).",
-                            },
-                        ]
-                    ),
-                }
-
-                await asyncio.to_thread(case_doc_ref.update, update_data)
-
-                print(
-                    f"[OrchestratorAgent] Value analysis completed successfully for case {case_id}"
-                )
-                return {
-                    "status": "success",
-                    "message": "Complete business case financial analysis generated successfully (effort, cost, and value)",
-                    "case_id": case_id,
-                    "value_projection": value_projection,
-                    "new_status": BusinessCaseStatus.VALUE_ANALYSIS_COMPLETE.value,
-                }
-
-            else:
-                # Value analysis failed
-                error_message = value_response.get("message", "Failed to project value")
-                print(
-                    f"[OrchestratorAgent] SalesValueAnalystAgent failed for case {case_id}: {error_message}"
-                )
-
-                # Update with error information
-                update_data = {
-                    "status": BusinessCaseStatus.COSTING_COMPLETE.value,  # Revert to previous status
-                    "updated_at": updated_at_time,
-                    "history": get_array_union(
-                        [
-                            {
-                                "timestamp": updated_at_time.isoformat(),
-                                "source": "ORCHESTRATOR_AGENT",
-                                "type": "ERROR",
-                                "content": f"Value analysis failed: {error_message}",
-                            }
-                        ]
-                    ),
-                }
-
-                await asyncio.to_thread(case_doc_ref.update, update_data)
-
-                return {
-                    "status": "error",
-                    "message": f"Value analysis failed: {error_message}",
-                    "case_id": case_id,
-                }
-
-        except Exception as e:
-            error_msg = f"Error in value analysis for case {case_id}: {str(e)}"
-            print(f"[OrchestratorAgent] {error_msg}")
-            return {"status": "error", "message": error_msg}
+            return [{
+                "status": "error",
+                "message": f"Agent coordination failed: {str(e)}"
+            }]
 
     def get_status(self) -> Dict[str, str]:
         """Get the current status of the orchestrator agent"""
@@ -933,6 +773,261 @@ class OrchestratorAgent:
             "status": self.status,
             "description": self.description,
         }
+
+    async def handle_prd_approval(self, case_id: str) -> Dict[str, Any]:
+        """
+        Handle PRD approval by triggering System Design generation.
+        
+        Args:
+            case_id (str): The business case ID
+            
+        Returns:
+            Dict[str, Any]: Result of the system design generation trigger
+        """
+        try:
+            orchestrator_logger = log_agent_operation(
+                logger, "OrchestratorAgent", case_id, "handle_prd_approval"
+            )
+            orchestrator_logger.info(f"Handling PRD approval for case {case_id}")
+            
+            # Get the business case
+            case_doc_ref = self.db.collection("businessCases").document(case_id)
+            doc_snapshot = await asyncio.to_thread(case_doc_ref.get)
+            
+            if not doc_snapshot.exists:
+                return {
+                    "status": "error",
+                    "message": f"Business case {case_id} not found",
+                }
+            
+            case_data = doc_snapshot.to_dict()
+            
+            # Verify PRD is approved
+            if case_data.get("status") != BusinessCaseStatus.PRD_APPROVED.value:
+                return {
+                    "status": "error",
+                    "message": f"Case status is {case_data.get('status')}, expected PRD_APPROVED",
+                }
+            
+            # Check if PRD draft exists
+            prd_draft = case_data.get("prd_draft")
+            if not prd_draft or not prd_draft.get("content_markdown"):
+                return {
+                    "status": "error",
+                    "message": "PRD draft content not found",
+                }
+            
+            # Trigger System Design generation
+            orchestrator_logger.info(f"Triggering system design generation for case {case_id}")
+            
+            # Update status to SYSTEM_DESIGN_DRAFTING
+            current_time = datetime.now(timezone.utc)
+            update_data = {
+                "status": BusinessCaseStatus.SYSTEM_DESIGN_DRAFTING.value,
+                "updated_at": current_time,
+                "history": get_array_union([
+                    {
+                        "timestamp": current_time.isoformat(),
+                        "source": "ORCHESTRATOR_AGENT", 
+                        "type": "STATUS_UPDATE",
+                        "content": f"Status updated to {BusinessCaseStatus.SYSTEM_DESIGN_DRAFTING.value}. ArchitectAgent initiated for system design generation.",
+                    }
+                ]),
+            }
+            await asyncio.to_thread(case_doc_ref.update, update_data)
+            
+            # Generate system design using ArchitectAgent
+            system_design_response = await self.architect_agent.generate_system_design(
+                prd_content=prd_draft.get("content_markdown"),
+                case_title=case_data.get("title", "Unknown"),
+                problem_statement=case_data.get("problem_statement", ""),
+            )
+            
+            updated_at_time = datetime.now(timezone.utc)
+            
+            if system_design_response.get("status") == "success" and system_design_response.get("system_design"):
+                # System design generation successful
+                system_design = system_design_response["system_design"]
+                
+                # Add metadata to system design
+                system_design["generated_by"] = "ArchitectAgent"
+                system_design["version"] = "v1"
+                system_design["generated_timestamp"] = updated_at_time.isoformat()
+                
+                # Update case with system design and change status to SYSTEM_DESIGN_DRAFTED
+                update_data = {
+                    "system_design_v1_draft": system_design,
+                    "status": BusinessCaseStatus.SYSTEM_DESIGN_DRAFTED.value,
+                    "updated_at": updated_at_time,
+                    "history": get_array_union([
+                        {
+                            "timestamp": updated_at_time.isoformat(),
+                            "source": "ARCHITECT_AGENT",
+                            "type": "SYSTEM_DESIGN",
+                            "content": f"System design generated for {case_data.get('title', 'Unknown')}",
+                        },
+                        {
+                            "timestamp": updated_at_time.isoformat(),
+                            "source": "ORCHESTRATOR_AGENT",
+                            "type": "STATUS_UPDATE", 
+                            "content": f"Status updated to {BusinessCaseStatus.SYSTEM_DESIGN_DRAFTED.value}. System design generation completed.",
+                        }
+                    ]),
+                }
+                
+                await asyncio.to_thread(case_doc_ref.update, update_data)
+                
+                orchestrator_logger.info(f"System design generation completed successfully for case {case_id}")
+                
+                # Now trigger planning (effort estimation) after system design is complete
+                try:
+                    orchestrator_logger.info(f"Triggering planning/effort estimation for case {case_id}")
+                    
+                    # Update status to PLANNING_IN_PROGRESS
+                    planning_time = datetime.now(timezone.utc)
+                    planning_update_data = {
+                        "status": BusinessCaseStatus.PLANNING_IN_PROGRESS.value,
+                        "updated_at": planning_time,
+                        "history": get_array_union([
+                            {
+                                "timestamp": planning_time.isoformat(),
+                                "source": "ORCHESTRATOR_AGENT",
+                                "type": "STATUS_UPDATE",
+                                "content": f"Status updated to {BusinessCaseStatus.PLANNING_IN_PROGRESS.value}. PlannerAgent initiated for effort estimation.",
+                            }
+                        ]),
+                    }
+                    await asyncio.to_thread(case_doc_ref.update, planning_update_data)
+                    
+                    # Trigger effort estimation using PlannerAgent
+                    effort_response = await self.planner_agent.generate_effort_estimate(
+                        system_design_content=system_design,
+                        case_title=case_data.get("title", "Unknown"),
+                        problem_statement=case_data.get("problem_statement", ""),
+                    )
+                    
+                    effort_time = datetime.now(timezone.utc)
+                    
+                    if effort_response.get("status") == "success" and effort_response.get("effort_estimate"):
+                        # Effort estimation successful
+                        effort_estimate = effort_response["effort_estimate"]
+                        effort_estimate["generated_by"] = "PlannerAgent"
+                        effort_estimate["version"] = "v1"
+                        effort_estimate["generated_timestamp"] = effort_time.isoformat()
+                        
+                        # Update case with effort estimate and change status to PLANNING_COMPLETE
+                        effort_update_data = {
+                            "effort_estimate_v1": effort_estimate,
+                            "status": BusinessCaseStatus.PLANNING_COMPLETE.value,
+                            "updated_at": effort_time,
+                            "history": get_array_union([
+                                {
+                                    "timestamp": effort_time.isoformat(),
+                                    "source": "PLANNER_AGENT",
+                                    "type": "EFFORT_ESTIMATE",
+                                    "content": f"Effort estimate generated for {case_data.get('title', 'Unknown')}",
+                                },
+                                {
+                                    "timestamp": effort_time.isoformat(),
+                                    "source": "ORCHESTRATOR_AGENT",
+                                    "type": "STATUS_UPDATE",
+                                    "content": f"Status updated to {BusinessCaseStatus.PLANNING_COMPLETE.value}. Effort estimation completed.",
+                                }
+                            ]),
+                        }
+                        
+                        await asyncio.to_thread(case_doc_ref.update, effort_update_data)
+                        orchestrator_logger.info(f"Effort estimation completed successfully for case {case_id}")
+                        
+                        return {
+                            "status": "success",
+                            "message": "System design and effort estimation generated successfully",
+                            "case_id": case_id,
+                            "new_status": BusinessCaseStatus.PLANNING_COMPLETE.value,
+                        }
+                    else:
+                        # Effort estimation failed - revert to SYSTEM_DESIGN_DRAFTED
+                        error_message = effort_response.get("message", "Failed to generate effort estimate")
+                        orchestrator_logger.warning(f"Effort estimation failed for case {case_id}: {error_message}")
+                        
+                        revert_update_data = {
+                            "status": BusinessCaseStatus.SYSTEM_DESIGN_DRAFTED.value,
+                            "updated_at": effort_time,
+                            "history": get_array_union([
+                                {
+                                    "timestamp": effort_time.isoformat(),
+                                    "source": "ORCHESTRATOR_AGENT",
+                                    "type": "WARNING",
+                                    "content": f"Effort estimation failed: {error_message}. Status reverted to SYSTEM_DESIGN_DRAFTED.",
+                                }
+                            ]),
+                        }
+                        
+                        await asyncio.to_thread(case_doc_ref.update, revert_update_data)
+                        
+                        return {
+                            "status": "success",
+                            "message": "System design generated successfully, but effort estimation failed",
+                            "case_id": case_id,
+                            "new_status": BusinessCaseStatus.SYSTEM_DESIGN_DRAFTED.value,
+                            "effort_estimation_error": error_message,
+                        }
+                        
+                except Exception as planning_error:
+                    orchestrator_logger.warning(f"Error in effort estimation for case {case_id}: {str(planning_error)}")
+                    return {
+                        "status": "success",
+                        "message": "System design generated successfully, but effort estimation could not be initiated",
+                        "case_id": case_id,
+                        "new_status": BusinessCaseStatus.SYSTEM_DESIGN_DRAFTED.value,
+                        "effort_estimation_error": str(planning_error),
+                    }
+            else:
+                # System design generation failed
+                error_message = system_design_response.get("message", "Failed to generate system design")
+                log_error_with_context(
+                    orchestrator_logger, 
+                    f"ArchitectAgent failed for case {case_id}", 
+                    Exception(error_message),
+                    {'case_id': case_id, 'error_message': error_message}
+                )
+                
+                # Update with error information - revert to PRD_APPROVED state
+                update_data = {
+                    "status": BusinessCaseStatus.PRD_APPROVED.value,
+                    "updated_at": updated_at_time,
+                    "history": get_array_union([
+                        {
+                            "timestamp": updated_at_time.isoformat(),
+                            "source": "ORCHESTRATOR_AGENT",
+                            "type": "ERROR",
+                            "content": f"System design generation failed: {error_message}",
+                        }
+                    ]),
+                }
+                
+                await asyncio.to_thread(case_doc_ref.update, update_data)
+                
+                return {
+                    "status": "error",
+                    "message": f"System design generation failed: {error_message}",
+                    "case_id": case_id,
+                }
+                
+        except Exception as e:
+            orchestrator_logger = log_agent_operation(
+                logger, "OrchestratorAgent", case_id, "handle_prd_approval"
+            )
+            log_error_with_context(
+                orchestrator_logger, 
+                f"Error handling PRD approval for case {case_id}", 
+                e,
+                {'case_id': case_id}
+            )
+            return {
+                "status": "error",
+                "message": f"Error handling PRD approval: {str(e)}",
+            }
 
     async def check_and_trigger_financial_model(self, case_id: str) -> Dict[str, Any]:
         """

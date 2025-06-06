@@ -18,6 +18,10 @@ import { LoadingButton } from '../components/common/LoadingIndicators';
 import { PAPER_ELEVATION, STANDARD_STYLES } from '../styles/constants';
 import { formatAuthError } from '../utils/errorFormatting';
 import ErrorDisplay from '../components/common/ErrorDisplay';
+import { toAppError } from '../types/api';
+import Logger from '../utils/logger';
+
+const logger = Logger.create('LoginPage');
 
 const LoginPage: React.FC = () => {
   const location = useLocation();
@@ -27,7 +31,7 @@ const LoginPage: React.FC = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<any>(null);
+  const [error, setError] = useState<Error | string | null>(null);
   const message = location.state?.message;
 
   // Redirect if already logged in
@@ -50,9 +54,9 @@ const LoginPage: React.FC = () => {
     try {
       await signIn(email, password);
       // Navigation will happen automatically via useEffect when currentUser updates
-    } catch (err: any) {
-      console.error('Login error:', err);
-      setError(err);
+    } catch (err) {
+      logger.error('Login error:', err);
+      setError(toAppError(err, 'auth'));
     } finally {
       setIsLoading(false);
     }
@@ -65,9 +69,9 @@ const LoginPage: React.FC = () => {
     try {
       await signInWithGoogle();
       // Navigation will happen automatically via useEffect when currentUser updates
-    } catch (err: any) {
-      console.error('Google login error:', err);
-      setError(err);
+    } catch (err) {
+      logger.error('Google login error:', err);
+      setError(toAppError(err, 'auth'));
     } finally {
       setIsLoading(false);
     }

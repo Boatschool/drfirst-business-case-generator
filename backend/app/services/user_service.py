@@ -3,12 +3,15 @@ User service for managing user documents in Firestore and role synchronization
 """
 
 import asyncio
+import logging
 from typing import Optional, Dict, Any
 from datetime import datetime, timezone
 from google.cloud import firestore
 from firebase_admin import auth
 from app.core.config import settings
 from app.models.firestore_models import User, UserRole
+
+logger = logging.getLogger(__name__)
 
 
 class UserService:
@@ -23,9 +26,9 @@ class UserService:
         try:
             from app.core.dependencies import get_db
             self.db = get_db()
-            print("✅ UserService: Firestore client initialized successfully")
+            logger.info("✅ UserService: Firestore client initialized successfully")
         except Exception as e:
-            print(f"❌ UserService: Failed to initialize Firestore client: {e}")
+            logger.info(f"❌ UserService: Failed to initialize Firestore client: {e}")
 
     async def get_user_by_uid(self, uid: str) -> Optional[Dict[str, Any]]:
         """
@@ -38,7 +41,7 @@ class UserService:
             User document if found, None otherwise
         """
         if not self.db:
-            print("❌ UserService: Firestore not initialized")
+            logger.info("❌ UserService: Firestore not initialized")
             return None
 
         try:
@@ -53,7 +56,7 @@ class UserService:
                 return None
 
         except Exception as e:
-            print(f"❌ UserService: Error getting user {uid}: {e}")
+            logger.info(f"❌ UserService: Error getting user {uid}: {e}")
             return None
 
     async def create_or_update_user(
@@ -76,7 +79,7 @@ class UserService:
             User document if successful, None otherwise
         """
         if not self.db:
-            print("❌ UserService: Firestore not initialized")
+            logger.info("❌ UserService: Firestore not initialized")
             return None
 
         try:
@@ -106,7 +109,7 @@ class UserService:
                 user_data = updated_doc.to_dict()
                 user_data["uid"] = uid
 
-                print(f"✅ UserService: Updated user {email}")
+                logger.info(f"✅ UserService: Updated user {email}")
                 return user_data
             else:
                 # Create new user
@@ -123,13 +126,13 @@ class UserService:
 
                 await asyncio.to_thread(doc_ref.set, user_data)
 
-                print(
+                logger.info(
                     f"✅ UserService: Created new user {email} with role {user_data['systemRole']}"
                 )
                 return user_data
 
         except Exception as e:
-            print(f"❌ UserService: Error creating/updating user {uid}: {e}")
+            logger.info(f"❌ UserService: Error creating/updating user {uid}: {e}")
             return None
 
     async def update_user_role(self, uid: str, new_role: UserRole) -> bool:
@@ -144,7 +147,7 @@ class UserService:
             True if successful, False otherwise
         """
         if not self.db:
-            print("❌ UserService: Firestore not initialized")
+            logger.info("❌ UserService: Firestore not initialized")
             return False
 
         try:
@@ -161,14 +164,14 @@ class UserService:
             success = await self.sync_user_claims(uid)
 
             if success:
-                print(f"✅ UserService: Updated user {uid} role to {new_role.value}")
+                logger.info(f"✅ UserService: Updated user {uid} role to {new_role.value}")
                 return True
             else:
-                print(f"❌ UserService: Failed to sync claims for user {uid}")
+                logger.info(f"❌ UserService: Failed to sync claims for user {uid}")
                 return False
 
         except Exception as e:
-            print(f"❌ UserService: Error updating user role {uid}: {e}")
+            logger.info(f"❌ UserService: Error updating user role {uid}: {e}")
             return False
 
     async def sync_user_claims(self, uid: str) -> bool:
@@ -185,25 +188,25 @@ class UserService:
             # Get user document from Firestore
             user_data = await self.get_user_by_uid(uid)
             if not user_data:
-                print(f"❌ UserService: User {uid} not found in Firestore")
+                logger.info(f"❌ UserService: User {uid} not found in Firestore")
                 return False
 
             system_role = user_data.get("systemRole")
             if not system_role:
-                print(f"❌ UserService: No systemRole found for user {uid}")
+                logger.info(f"❌ UserService: No systemRole found for user {uid}")
                 return False
 
             # Set custom claims in Firebase
             custom_claims = {"systemRole": system_role}
             await asyncio.to_thread(auth.set_custom_user_claims, uid, custom_claims)
 
-            print(
+            logger.info(
                 f"✅ UserService: Synced claims for user {uid} with role {system_role}"
             )
             return True
 
         except Exception as e:
-            print(f"❌ UserService: Error syncing claims for user {uid}: {e}")
+            logger.info(f"❌ UserService: Error syncing claims for user {uid}: {e}")
             return False
 
     async def check_and_sync_user_claims(
@@ -223,7 +226,7 @@ class UserService:
         display_name = decoded_token.get("name")
 
         if not uid or not email:
-            print("❌ UserService: Invalid token - missing uid or email")
+            logger.info("❌ UserService: Invalid token - missing uid or email")
             return None
 
         try:
@@ -237,7 +240,7 @@ class UserService:
             token_role = decoded_token.get("systemRole")
 
             if firestore_role != token_role:
-                print(
+                logger.info(
                     f"🔄 UserService: Role mismatch for {email} - Firestore: {firestore_role}, Token: {token_role}"
                 )
 
@@ -245,14 +248,14 @@ class UserService:
                 await self.sync_user_claims(uid)
 
                 # Note: Custom claims only take effect on next token refresh
-                print(
+                logger.info(
                     f"ℹ️ UserService: Claims updated for {email}. User needs to refresh token for changes to take effect."
                 )
 
             return user_data
 
         except Exception as e:
-            print(f"❌ UserService: Error checking/syncing claims for {uid}: {e}")
+            logger.info(f"❌ UserService: Error checking/syncing claims for {uid}: {e}")
             return None
 
 

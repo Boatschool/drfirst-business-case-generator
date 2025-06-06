@@ -1,0 +1,118 @@
+name: Deploy Firestore Rules & Indexes
+
+on:
+  push:
+    branches:
+      - main
+      - develop
+    paths:
+      - 'firestore.rules'
+      - 'firestore.indexes.json'
+
+jobs:
+  deploy-firestore-config:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20.x'
+
+      - name: Install Firebase CLI
+        run: npm install -g firebase-tools
+
+      - name: Authenticate to Firebase
+        uses: FirebaseExtended/action-hosting-deploy@v0
+        with:
+          repoToken: '${{ secrets.GITHUB_TOKEN }}'
+          firebaseServiceAccount: '${{ secrets.FIREBASE_SERVICE_ACCOUNT_KEY_JSON }}'
+          projectId: ${{ secrets.FIREBASE_PROJECT_ID_CONFIG }}
+          # We don't specify 'channelId' or 'target' as we are not deploying hosting
+
+      - name: Deploy Firestore Rules
+        run: firebase deploy --only firestore:rules --project ${{ secrets.FIREBASE_PROJECT_ID_CONFIG }}
+
+      - name: Deploy Firestore Indexes
+        run: |
+          echo "# TODO: Implement Firestore indexes deployment (Task 11.3.3)"
+          # firebase deploy --only firestore:indexes --project ${{ secrets.FIREBASE_PROJECT_ID_CONFIG }}
+
+      - name: Verify Deployment
+        run: |
+          echo "# TODO: Add verification steps to ensure successful deployment (Task 11.3.4)"
+          # This could include:
+          # - Testing firestore rules with firebase emulators
+          # - Validating index deployment status
+          # - Basic connectivity tests 
+
+  # Notification job that runs regardless of other job outcomes
+  notify:
+    name: Workflow Notification
+    runs-on: ubuntu-latest
+    if: always()
+    needs: [deploy-firestore-config]
+    
+    steps:
+      - name: Determine workflow status
+        id: status
+        run: |
+          # Check the status of the main job
+          MAIN_STATUS="${{ needs.deploy-firestore-config.result }}"
+          
+          # Determine overall status
+          if [[ "$MAIN_STATUS" == "success" ]]; then
+            echo "status=success" >> $GITHUB_OUTPUT
+            echo "icon=✅" >> $GITHUB_OUTPUT
+            echo "color=good" >> $GITHUB_OUTPUT
+          else
+            echo "status=failure" >> $GITHUB_OUTPUT
+            echo "icon=❌" >> $GITHUB_OUTPUT
+            echo "color=danger" >> $GITHUB_OUTPUT
+          fi
+          
+          # Set deployment info
+          if [[ "${{ github.ref }}" == "refs/heads/develop" ]]; then
+            echo "environment=Staging (Firestore)" >> $GITHUB_OUTPUT
+          elif [[ "${{ github.ref }}" == "refs/heads/main" ]]; then
+            echo "environment=Production (Firestore)" >> $GITHUB_OUTPUT
+          else
+            echo "environment=Unknown" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Send workflow notification
+        run: |
+          echo "🔔 Firestore Deployment Workflow Notification"
+          echo "============================================="
+          echo ""
+          echo "${{ steps.status.outputs.icon }} **Workflow Status**: ${{ steps.status.outputs.status }}"
+          echo "🌿 **Branch**: ${{ github.ref_name }}"
+          echo "📝 **Commit**: ${{ github.sha }}"
+          echo "👤 **Triggered by**: ${{ github.actor }}"
+          echo "🎯 **Event**: ${{ github.event_name }}"
+          echo "🏗️ **Environment**: ${{ steps.status.outputs.environment }}"
+          echo ""
+          echo "📊 **Job Results**:"
+          echo "  - Firestore Config Deployment: ${{ needs.deploy-firestore-config.result }}"
+          echo ""
+          echo "🔗 **Workflow Run**: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+          echo ""
+          if [[ "${{ steps.status.outputs.status }}" == "success" ]]; then
+            echo "🎉 Firestore deployment completed successfully!"
+            echo "🗄️ Firestore rules and indexes have been updated"
+          else
+            echo "⚠️ Firestore deployment failed. Please check the logs for details."
+          fi
+          
+          # This notification step can be easily extended with Slack/email in the future
+          # Example future enhancement:
+          # - name: Send Slack notification
+          #   if: always()
+          #   uses: rtCamp/action-slack-notify@v2
+          #   env:
+          #     SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK_URL }}
+          #     SLACK_MESSAGE: '${{ steps.status.outputs.icon }} Firestore Deployment ${{ steps.status.outputs.status }} on `${{ github.ref_name }}` branch'
+          #     SLACK_COLOR: '${{ steps.status.outputs.color }}' 

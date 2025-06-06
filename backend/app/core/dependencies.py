@@ -74,4 +74,16 @@ def reset_db():
     Reset the database client singleton. Useful for testing.
     """
     global _db_client
-    _db_client = None 
+    _db_client = None
+
+
+# FirestoreService dependency injection
+def get_firestore_service():
+    """
+    Get FirestoreService instance with database dependency injection.
+    
+    Returns:
+        FirestoreService: Service instance with injected database client
+    """
+    from app.services.firestore_service import FirestoreService
+    return FirestoreService(db=get_db()) 

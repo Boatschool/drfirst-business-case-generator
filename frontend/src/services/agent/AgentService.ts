@@ -41,7 +41,7 @@ export interface AgentUpdate {
     | 'SYSTEM_DESIGN_DRAFT'
     | 'STATUS_UPDATE'
     | 'ERROR'; // Type of update
-  content: any; // Flexible content based on messageType (e.g., string for TEXT, object for DRAFT)
+  content: string | object; // Flexible content based on messageType (string for TEXT, object for DRAFT)
   requiresResponse?: boolean; // Does this update require user input?
 }
 
@@ -297,7 +297,7 @@ export interface AgentService {
   updateSystemDesign(
     caseId: string,
     content: string
-  ): Promise<{ message: string; updated_system_design: any }>;
+  ): Promise<{ message: string; updated_system_design: unknown }>;
 
   /**
    * Submits the System Design for review, updating the case status to SYSTEM_DESIGN_PENDING_REVIEW.

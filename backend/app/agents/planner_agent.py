@@ -34,14 +34,14 @@ class PlannerAgent:
         try:
             vertexai.init(project=self.project_id, location=self.location)
             self.model = GenerativeModel(self.model_name)
-            print(
+            logger.info(
                 f"PlannerAgent: Vertex AI initialized successfully with model {self.model_name}."
             )
         except Exception as e:
-            print(f"PlannerAgent: Failed to initialize Vertex AI: {e}")
+            logger.info(f"PlannerAgent: Failed to initialize Vertex AI: {e}")
             self.model = None
 
-        print("PlannerAgent: Initialized successfully.")
+        logger.info("PlannerAgent: Initialized successfully.")
         self.status = "available"
 
     async def estimate_effort(
@@ -58,7 +58,7 @@ class PlannerAgent:
         Returns:
             Dict[str, Any]: Response containing status and effort breakdown
         """
-        print(f"[PlannerAgent] Received request to estimate effort for: {case_title}")
+        logger.info(f"[PlannerAgent] Received request to estimate effort for: {case_title}")
 
         try:
             # First try AI-powered estimation
@@ -70,7 +70,7 @@ class PlannerAgent:
                     logger.info(
                         f"[PlannerAgent] AI-powered effort estimation completed for {case_title}: {effort_data['total_hours']} total hours"
                     )
-                    print(
+                    logger.info(
                         f"[PlannerAgent] Generated AI-powered effort estimate: {effort_data['total_hours']} total hours across {len(effort_data['roles'])} roles"
                     )
 
@@ -81,7 +81,7 @@ class PlannerAgent:
                     }
 
             # Fallback to keyword-based estimation if AI fails
-            print(
+            logger.info(
                 f"[PlannerAgent] Falling back to keyword-based estimation for {case_title}"
             )
             effort_data = await self._keyword_effort_estimation(
@@ -91,7 +91,7 @@ class PlannerAgent:
             logger.info(
                 f"[PlannerAgent] Keyword-based effort estimation completed for {case_title}: {effort_data['total_hours']} total hours"
             )
-            print(
+            logger.info(
                 f"[PlannerAgent] Generated keyword-based effort estimate: {effort_data['total_hours']} total hours across {len(effort_data['roles'])} roles"
             )
 
@@ -104,7 +104,7 @@ class PlannerAgent:
         except Exception as e:
             error_msg = f"Error estimating effort: {str(e)}"
             logger.error(f"[PlannerAgent] {error_msg} for case {case_title}")
-            print(f"[PlannerAgent] {error_msg}")
+            logger.info(f"[PlannerAgent] {error_msg}")
             return {"status": "error", "message": error_msg, "effort_breakdown": None}
 
     async def _ai_effort_estimation(
@@ -180,7 +180,7 @@ Make sure your response is valid JSON without any additional text or markdown fo
                 generative_models.HarmCategory.HARM_CATEGORY_HARASSMENT: generative_models.HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE,
             }
 
-            print("[PlannerAgent] Calling AI model for effort estimation...")
+            logger.info("[PlannerAgent] Calling AI model for effort estimation...")
             response = await self.model.generate_content_async(
                 [prompt],
                 generation_config=generation_config,
@@ -190,7 +190,7 @@ Make sure your response is valid JSON without any additional text or markdown fo
 
             if response.candidates and response.candidates[0].content.parts:
                 response_text = response.candidates[0].content.parts[0].text.strip()
-                print(f"[PlannerAgent] AI response received: {response_text[:200]}...")
+                logger.info(f"[PlannerAgent] AI response received: {response_text[:200]}...")
 
                 # Parse JSON response
                 try:
@@ -202,26 +202,26 @@ Make sure your response is valid JSON without any additional text or markdown fo
 
                         # Validate the structure
                         if self._validate_effort_data(effort_data):
-                            print(
+                            logger.info(
                                 "[PlannerAgent] Successfully parsed AI effort estimation"
                             )
                             return effort_data
                         else:
-                            print("[PlannerAgent] AI response validation failed")
+                            logger.info("[PlannerAgent] AI response validation failed")
                             return None
                     else:
-                        print("[PlannerAgent] No valid JSON found in AI response")
+                        logger.info("[PlannerAgent] No valid JSON found in AI response")
                         return None
 
                 except json.JSONDecodeError as e:
-                    print(f"[PlannerAgent] Failed to parse AI response as JSON: {e}")
+                    logger.info(f"[PlannerAgent] Failed to parse AI response as JSON: {e}")
                     return None
             else:
-                print("[PlannerAgent] No valid response from AI model")
+                logger.info("[PlannerAgent] No valid response from AI model")
                 return None
 
         except Exception as e:
-            print(f"[PlannerAgent] Error in AI effort estimation: {str(e)}")
+            logger.info(f"[PlannerAgent] Error in AI effort estimation: {str(e)}")
             return None
 
     async def _keyword_effort_estimation(
@@ -365,12 +365,12 @@ Make sure your response is valid JSON without any additional text or markdown fo
         # Check required fields exist
         for field in required_fields:
             if field not in data:
-                print(f"[PlannerAgent] Missing required field: {field}")
+                logger.info(f"[PlannerAgent] Missing required field: {field}")
                 return False
 
         # Check roles structure
         if not isinstance(data["roles"], list) or len(data["roles"]) == 0:
-            print("[PlannerAgent] Invalid roles structure")
+            logger.info("[PlannerAgent] Invalid roles structure")
             return False
 
         for role_data in data["roles"]:
@@ -379,30 +379,30 @@ Make sure your response is valid JSON without any additional text or markdown fo
                 or "role" not in role_data
                 or "hours" not in role_data
             ):
-                print("[PlannerAgent] Invalid role data structure")
+                logger.info("[PlannerAgent] Invalid role data structure")
                 return False
             if (
                 not isinstance(role_data["hours"], (int, float))
                 or role_data["hours"] < 0
             ):
-                print("[PlannerAgent] Invalid hours value")
+                logger.info("[PlannerAgent] Invalid hours value")
                 return False
 
         # Check other fields
         if not isinstance(data["total_hours"], (int, float)) or data["total_hours"] < 0:
-            print("[PlannerAgent] Invalid total_hours")
+            logger.info("[PlannerAgent] Invalid total_hours")
             return False
 
         if (
             not isinstance(data["estimated_duration_weeks"], (int, float))
             or data["estimated_duration_weeks"] < 0
         ):
-            print("[PlannerAgent] Invalid estimated_duration_weeks")
+            logger.info("[PlannerAgent] Invalid estimated_duration_weeks")
             return False
 
         valid_complexity = ["Low", "Medium", "High", "Very High"]
         if data["complexity_assessment"] not in valid_complexity:
-            print("[PlannerAgent] Invalid complexity_assessment")
+            logger.info("[PlannerAgent] Invalid complexity_assessment")
             return False
 
         return True

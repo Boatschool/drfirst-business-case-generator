@@ -8,10 +8,13 @@ import React, {
 // FirebaseUser is used by Firebase SDK, AuthUser is our simplified version from authService
 
 import { authService, AuthUser } from '../services/auth/authService'; // Corrected import
+import Logger from '../utils/logger';
 
 // Generate unique provider ID for debugging
+const logger = Logger.create('AuthContext');
+
 const AUTH_PROVIDER_ID = Math.random().toString(36).substring(2, 15);
-console.log(`🆔 AuthProvider Instance Created: ${AUTH_PROVIDER_ID}`);
+logger.debug(`🆔 AuthProvider Instance Created: ${AUTH_PROVIDER_ID}`);
 
 interface AuthContextType {
   currentUser: AuthUser | null;
@@ -43,7 +46,7 @@ interface AuthProviderProps {
 }
 
 export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
-  console.log(
+  logger.debug(
     `🟢 [${AUTH_PROVIDER_ID}] AuthProvider: Component mounted/rendering`
   );
 
@@ -53,19 +56,19 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
   // Debug: Log component mount/unmount
   useEffect(() => {
-    console.log(`🟢 [${AUTH_PROVIDER_ID}] AuthProvider: Mounted`);
+    logger.debug(`🟢 [${AUTH_PROVIDER_ID}] AuthProvider: Mounted`);
     return () => {
-      console.log(`🔴 [${AUTH_PROVIDER_ID}] AuthProvider: Unmounted`);
+      logger.debug(`🔴 [${AUTH_PROVIDER_ID}] AuthProvider: Unmounted`);
     };
   }, []);
 
   useEffect(() => {
-    console.log(`🔄 [${AUTH_PROVIDER_ID}] Setting up auth state listener...`);
+    logger.debug(`🔄 [${AUTH_PROVIDER_ID}] Setting up auth state listener...`);
     setLoading(true);
 
     const unsubscribe = authService.onAuthStateChanged(
       (user: AuthUser | null) => {
-        console.log(
+        logger.debug(
           '📱 Auth state changed in context:',
           user ? user.email : 'null'
         );
@@ -76,7 +79,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     );
 
     return () => {
-      console.log(`🧹 [${AUTH_PROVIDER_ID}] Cleaning up auth state listener`);
+      logger.debug(`🧹 [${AUTH_PROVIDER_ID}] Cleaning up auth state listener`);
       unsubscribe();
     };
   }, []);

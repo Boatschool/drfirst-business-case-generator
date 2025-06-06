@@ -15,27 +15,36 @@ import {
   CostEstimate,
   ValueProjection,
 } from './AgentService';
+import { AppError, NetworkError, UnknownObject } from '../../types/api';
+import Logger from '../../utils/logger';
 
 // Use environment variable for API base URL
 const API_BASE_URL = `${import.meta.env.VITE_API_BASE_URL}/api/${
   import.meta.env.VITE_API_VERSION
 }`;
 
-console.log('🔗 HttpAgentAdapter using API_BASE_URL:', API_BASE_URL);
+// Create logger instance for this service
+const logger = Logger.create('HttpAgentAdapter');
+
+logger.debug('Using API_BASE_URL:', API_BASE_URL);
 
 export class HttpAgentAdapter implements AgentService {
   private async getAuthHeaders(): Promise<HeadersInit> {
-    console.log('🔑 Getting auth headers...');
+    logger.debug('Getting auth headers...');
     try {
       const token = await authService.getIdToken();
-      console.log(
-        '🎫 Token received:',
+      logger.debug(
+        'Token received:',
         token ? `${token.substring(0, 20)}...` : 'NULL'
       );
 
       if (!token) {
-        const authError = new Error('Authentication required');
-        (authError as any).code = 'auth/no-token';
+        const authError: AppError = {
+          name: 'AuthError',
+          message: 'Authentication required',
+          type: 'auth',
+          code: 'auth/no-token'
+        };
         throw authError;
       }
       
@@ -46,8 +55,12 @@ export class HttpAgentAdapter implements AgentService {
     } catch (error) {
       // Enhance auth errors with better context
       if (error instanceof Error) {
-        const authError = new Error(error.message || 'Authentication failed');
-        (authError as any).code = error.message?.includes('expired') ? 'auth/token-expired' : 'auth/failed';
+        const authError: AppError = {
+          name: 'AuthError',
+          message: error.message || 'Authentication failed',
+          type: 'auth',
+          code: error.message?.includes('expired') ? 'auth/token-expired' : 'auth/failed'
+        };
         throw authError;
       }
       throw error;
@@ -77,11 +90,34 @@ export class HttpAgentAdapter implements AgentService {
           errorData = { detail: response.statusText };
         }
         
+        // Extract error message from new standardized backend format
+        let errorMessage = 'Unknown error';
+        let errorCode: string | undefined;
+        let errorDetails: any = undefined;
+        
+        if (errorData?.error) {
+          // New standardized format: { error: { message, error_code, details } }
+          errorMessage = errorData.error.message || errorMessage;
+          errorCode = errorData.error.error_code;
+          errorDetails = errorData.error.details;
+        } else if (errorData?.detail) {
+          // Legacy format: { detail: "message" }
+          errorMessage = errorData.detail;
+        }
+        
         // Create enhanced error object with status and context
-        const error = new Error(errorData?.detail || 'Unknown error');
-        (error as any).status = response.status;
-        (error as any).endpoint = endpoint;
-        (error as any).method = options.method || 'GET';
+        const error: AppError = {
+          name: 'ApiError',
+          message: errorMessage,
+          type: 'api',
+          status: response.status,
+          details: {
+            endpoint,
+            method: options.method || 'GET',
+            errorCode,
+            serverDetails: errorDetails
+          }
+        };
         
         throw error;
       }
@@ -89,9 +125,11 @@ export class HttpAgentAdapter implements AgentService {
     } catch (error) {
       // Handle network errors and other exceptions
       if (error instanceof TypeError && error.message.includes('fetch')) {
-        const networkError = new Error('Network connection failed');
-        (networkError as any).name = 'NetworkError';
-        (networkError as any).endpoint = endpoint;
+        const networkError: NetworkError = {
+          name: 'NetworkError',
+          message: 'Network connection failed',
+          url: endpoint
+        };
         throw networkError;
       }
       
@@ -122,7 +160,7 @@ export class HttpAgentAdapter implements AgentService {
       payload: payload,
     };
     // The /invoke endpoint might return a more detailed response. Here we expect it to conform to void or a simple success message.
-    await this.fetchWithAuth<any>('/agents/invoke', {
+    await this.fetchWithAuth<UnknownObject>('/agents/invoke', {
       method: 'POST',
       body: JSON.stringify(requestPayload),
     });
@@ -134,8 +172,8 @@ export class HttpAgentAdapter implements AgentService {
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     _onUpdateCallback: (update: AgentUpdate) => void
   ): () => void {
-    console.warn(
-      `HttpAgentAdapter.onAgentUpdate for case ${caseId} is not implemented for real-time updates. Polling or WebSocket would be needed.`
+    logger.warn(
+      `onAgentUpdate for case ${caseId} is not implemented for real-time updates. Polling or WebSocket would be needed.`
     );
     // Placeholder: No-op for real-time updates in this basic HTTP adapter
     // In a real scenario, this would set up polling or a WebSocket connection.
@@ -147,7 +185,7 @@ export class HttpAgentAdapter implements AgentService {
         const updates = await this.fetchWithAuth<AgentUpdate[]>(`/agents/case/${caseId}/updates`); 
         updates.forEach(onUpdateCallback);
       } catch (error) {
-        console.error("Polling for agent updates failed:", error);
+        logger.error("Polling for agent updates failed:", error);
         // Potentially call onUpdateCallback with an error update
       }
     }, 5000); // Poll every 5 seconds
@@ -230,9 +268,9 @@ export class HttpAgentAdapter implements AgentService {
   async updateSystemDesign(
     caseId: string,
     content: string
-  ): Promise<{ message: string; updated_system_design: any }> {
+  ): Promise<{ message: string; updated_system_design: UnknownObject }> {
     const requestBody = { content_markdown: content };
-    return this.fetchWithAuth<{ message: string; updated_system_design: any }>(
+    return this.fetchWithAuth<{ message: string; updated_system_design: UnknownObject }>(
       `/cases/${caseId}/system-design`,
       {
         method: 'PUT',
@@ -480,13 +518,15 @@ export class HttpAgentAdapter implements AgentService {
   }
 
   async exportCaseToPdf(caseId: string): Promise<Blob> {
-    console.log('🔄 Requesting PDF export for case:', caseId);
+    logger.debug('Requesting PDF export for case:', caseId);
 
     const authHeaders = await this.getAuthHeaders();
     const response = await fetch(`${API_BASE_URL}/cases/${caseId}/export-pdf`, {
       method: 'GET',
       headers: {
-        Authorization: (authHeaders as any)['Authorization'],
+        Authorization: typeof authHeaders === 'object' && authHeaders && 'Authorization' in authHeaders 
+          ? String(authHeaders.Authorization) 
+          : '',
       },
     });
 
@@ -505,7 +545,7 @@ export class HttpAgentAdapter implements AgentService {
       );
     }
 
-    console.log('✅ PDF export successful, returning blob');
+    logger.debug('PDF export successful, returning blob');
     return response.blob();
   }
 }

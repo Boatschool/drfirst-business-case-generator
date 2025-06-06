@@ -34,6 +34,9 @@ class ProductManagerAgent:
         self.location = settings.vertex_ai_location
         self.model_name = settings.vertex_ai_model_name or "gemini-1.0-pro-001"
 
+        # Log configuration details for debugging
+        logger.info(f"ProductManagerAgent: Initializing with project_id={self.project_id}, location={self.location}, model_name={self.model_name}")
+
         # Initialize prompt service
         if prompt_service:
             self.prompt_service = prompt_service
@@ -43,13 +46,16 @@ class ProductManagerAgent:
             self.prompt_service = PromptService(db)
 
         try:
+            logger.info(f"ProductManagerAgent: Attempting to initialize VertexAI with project={self.project_id}, location={self.location}")
             vertexai.init(project=self.project_id, location=self.location)
+            logger.info(f"ProductManagerAgent: VertexAI init successful, creating model {self.model_name}")
             self.model = GenerativeModel(self.model_name)
-            print(
+            logger.info(
                 f"ProductManagerAgent: Vertex AI initialized successfully with model {self.model_name}."
             )
         except Exception as e:
-            print(f"ProductManagerAgent: Failed to initialize Vertex AI: {e}")
+            logger.error(f"ProductManagerAgent: Failed to initialize Vertex AI: {e}")
+            logger.error(f"ProductManagerAgent: Project ID: {self.project_id}, Location: {self.location}, Model: {self.model_name}")
             self.model = None
 
     async def summarize_content(
@@ -143,8 +149,8 @@ Summary:"""
         Generates a comprehensive, structured PRD based on the provided problem statement and title using Vertex AI.
         Returns a Markdown-formatted PRD with clear sections.
         """
-        print(f"[ProductManagerAgent] Received request to draft PRD for: {case_title}")
-        print(f"[ProductManagerAgent] Problem Statement: {problem_statement}")
+        logger.info(f"[ProductManagerAgent] Received request to draft PRD for: {case_title}")
+        logger.info(f"[ProductManagerAgent] Problem Statement: {problem_statement}")
 
         if not self.model:
             return {
@@ -156,7 +162,7 @@ Summary:"""
         # Process relevant links: fetch content and generate summaries
         links_context = ""
         if relevant_links:
-            print(
+            logger.info(
                 f"[ProductManagerAgent] Processing {len(relevant_links)} relevant links for context..."
             )
             links_context += "\n\nAdditional Context from Relevant Links:\n"
@@ -169,7 +175,7 @@ Summary:"""
                     links_context += f"- **{link_name}**: No URL provided\n"
                     continue
 
-                print(
+                logger.info(
                     f"[ProductManagerAgent] Fetching content from: {link_name} ({link_url})"
                 )
 
@@ -186,25 +192,25 @@ Summary:"""
                         if summary and summary.strip():
                             links_context += f"- **{link_name}** ({link_url}):\n"
                             links_context += f"  Content Summary: {summary}\n\n"
-                            print(
+                            logger.info(
                                 f"[ProductManagerAgent] Successfully processed content from {link_name}"
                             )
                         else:
                             links_context += f"- **{link_name}** ({link_url}): Content retrieved but no relevant summary generated\n\n"
-                            print(
+                            logger.info(
                                 f"[ProductManagerAgent] Content retrieved from {link_name} but summarization failed or not relevant"
                             )
                     else:
                         error_msg = web_result.get("error", "Unknown error")
                         links_context += f"- **{link_name}** ({link_url}): Unable to fetch content - {error_msg}\n\n"
-                        print(
+                        logger.info(
                             f"[ProductManagerAgent] Failed to fetch content from {link_name}: {error_msg}"
                         )
 
                 except Exception as e:
                     error_msg = f"Unexpected error: {str(e)}"
                     links_context += f"- **{link_name}** ({link_url}): {error_msg}\n\n"
-                    print(
+                    logger.info(
                         f"[ProductManagerAgent] Unexpected error processing {link_name}: {str(e)}"
                     )
 
@@ -229,13 +235,13 @@ Summary:"""
 
         if configurable_prompt:
             prompt = configurable_prompt
-            print("[ProductManagerAgent] Using configurable prompt from Firestore")
+            logger.info("[ProductManagerAgent] Using configurable prompt from Firestore")
         else:
-            print(
+            logger.info(
                 "[ProductManagerAgent] No configurable prompt found, using fallback default prompt"
             )
             # Fallback to hardcoded prompt
-            prompt = """You are an experienced Product Manager at DrFirst, a healthcare technology company. You are tasked with creating a comprehensive Product Requirements Document (PRD) based on the information provided below.
+            prompt_template = """You are an experienced Product Manager at DrFirst, a healthcare technology company. You are tasked with creating a comprehensive Product Requirements Document (PRD) based on the information provided below.
 
 **Business Case Information:**
 - **Title**: {case_title}
@@ -282,6 +288,14 @@ List 3-5 open questions that need to be resolved and potential risks that should
 
 Generate the PRD now:"""
 
+            # Format the prompt template with actual values
+            prompt = prompt_template.format(
+                case_title=case_title,
+                problem_statement=problem_statement,
+                links_context=links_context
+            )
+            logger.info(f"[ProductManagerAgent] Formatted prompt with case_title='{case_title}', problem_statement length={len(problem_statement)}")
+
         generation_config = {
             "max_output_tokens": settings.vertex_ai_max_tokens,
             "temperature": settings.vertex_ai_temperature,
@@ -297,7 +311,7 @@ Generate the PRD now:"""
         }
 
         try:
-            print(
+            logger.info(
                 f"[ProductManagerAgent] Sending enhanced prompt to Vertex AI model: {self.model_name}"
             )
             response = await self.model.generate_content_async(
@@ -309,10 +323,10 @@ Generate the PRD now:"""
 
             if response.candidates and response.candidates[0].content.parts:
                 prd_draft_content = response.candidates[0].content.parts[0].text
-                print(
+                logger.info(
                     "[ProductManagerAgent] Successfully received structured PRD draft from Vertex AI."
                 )
-                print(
+                logger.info(
                     f"[ProductManagerAgent] PRD draft length: {len(prd_draft_content)} characters"
                 )
 
@@ -354,11 +368,11 @@ Generate the PRD now:"""
                     )
                     if response.prompt_feedback.block_reason_message:
                         message += f" ({response.prompt_feedback.block_reason_message})"
-                print(f"[ProductManagerAgent] Error: {message}")
+                logger.info(f"[ProductManagerAgent] Error: {message}")
                 return {"status": "error", "message": message, "prd_draft": None}
 
         except Exception as e:
-            print(f"[ProductManagerAgent] Error generating PRD with Vertex AI: {e}")
+            logger.info(f"[ProductManagerAgent] Error generating PRD with Vertex AI: {e}")
             return {
                 "status": "error",
                 "message": f"An error occurred while generating the PRD with Vertex AI: {str(e)}",

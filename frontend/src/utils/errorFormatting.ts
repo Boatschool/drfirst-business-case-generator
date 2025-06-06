@@ -85,16 +85,17 @@ const ERROR_MESSAGES = {
 /**
  * Determines error type based on error object or HTTP status code
  */
-function getErrorType(error: any): keyof typeof ERROR_MESSAGES {
+function getErrorType(error: unknown): keyof typeof ERROR_MESSAGES {
   // Handle different error object structures
-  const status = error?.status || error?.response?.status || error?.code;
-  const message = error?.message || error?.detail || '';
+  const errorObj = error && typeof error === 'object' ? error as Record<string, unknown> : {};
+  const status = errorObj.status || (errorObj.response as Record<string, unknown>)?.status || errorObj.code;
+  const message = String(errorObj.message || errorObj.detail || '');
   
   // Network errors
-  if (error?.name === 'TypeError' && message.includes('fetch')) {
+  if (errorObj.name === 'TypeError' && message.includes('fetch')) {
     return 'NETWORK_ERROR';
   }
-  if (error?.name === 'AbortError' || message.includes('timeout')) {
+  if (errorObj.name === 'AbortError' || message.includes('timeout')) {
     return 'TIMEOUT_ERROR';
   }
   
@@ -119,8 +120,8 @@ function getErrorType(error: any): keyof typeof ERROR_MESSAGES {
   }
   
   // Firebase Auth errors
-  if (error?.code?.startsWith('auth/')) {
-    switch (error.code) {
+  if (typeof errorObj.code === 'string' && errorObj.code.startsWith('auth/')) {
+    switch (errorObj.code) {
       case 'auth/user-not-found':
       case 'auth/wrong-password':
       case 'auth/invalid-email':
@@ -156,7 +157,7 @@ function getErrorType(error: any): keyof typeof ERROR_MESSAGES {
  * @returns Formatted error object with user-friendly message
  */
 export function formatErrorMessage(
-  error: any,
+  error: unknown,
   context?: string
 ): FormattedError {
   const errorType = getErrorType(error);
@@ -201,8 +202,9 @@ export function formatErrorMessage(
 /**
  * Formats Firebase Auth errors with specific user-friendly messages
  */
-export function formatAuthError(error: any): FormattedError {
-  const code = error?.code || '';
+export function formatAuthError(error: unknown): FormattedError {
+  const errorObj = error && typeof error === 'object' ? error as Record<string, unknown> : {};
+  const code = String(errorObj.code || '');
   
   switch (code) {
     case 'auth/user-not-found':
@@ -257,9 +259,10 @@ export function formatAuthError(error: any): FormattedError {
  */
 export function formatValidationError(
   fieldName: string,
-  error: any
+  error: unknown
 ): FormattedError {
-  const message = error?.message || error || 'Invalid input';
+  const errorObj = error && typeof error === 'object' ? error as Record<string, unknown> : {};
+  const message = String(errorObj.message || error || 'Invalid input');
   
   return {
     message: `${fieldName}: ${message}`,
@@ -279,7 +282,7 @@ export function createGenericError(context?: string): FormattedError {
 /**
  * Checks if an error indicates a temporary issue that the user should retry
  */
-export function isRetryableError(error: any): boolean {
+export function isRetryableError(error: unknown): boolean {
   const errorType = getErrorType(error);
   return ERROR_MESSAGES[errorType].retry;
 }
@@ -288,7 +291,7 @@ export function isRetryableError(error: any): boolean {
  * Extracts a user-friendly message from various error object structures
  * Legacy function for backward compatibility - prefer formatErrorMessage
  */
-export function getUserFriendlyMessage(error: any): string {
+export function getUserFriendlyMessage(error: unknown): string {
   const formatted = formatErrorMessage(error);
   return formatted.actionable 
     ? `${formatted.message}. ${formatted.actionable}`

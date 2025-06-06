@@ -10,6 +10,9 @@ import { AuthContext } from '../contexts/AuthContext';
 import { useAgentContext } from '../hooks/useAgentContext';
 import FloatingChat from '../components/common/FloatingChat';
 import Breadcrumbs from '../components/common/Breadcrumbs';
+import Logger from '../utils/logger';
+
+const logger = Logger.create('AppLayout');
 
 const AppLayout: React.FC = () => {
   const authContext = useContext(AuthContext);
@@ -32,7 +35,7 @@ const AppLayout: React.FC = () => {
         await authContext.signOut();
         navigate('/login');
       } catch (error) {
-        console.error('Sign out failed:', error);
+        logger.error('Sign out failed:', error);
         // Optionally show an error message to the user
       }
     }
@@ -55,9 +58,11 @@ const AppLayout: React.FC = () => {
           caseId: currentCaseDetails.case_id,
           message: message,
         });
-      } catch (err: any) {
+      } catch (err) {
+        const errorObj = err && typeof err === 'object' ? err as Record<string, unknown> : {};
+        const message = String(errorObj.message || '');
         setFeedbackError(
-          err.message || 'Failed to send message. Please try again.'
+          message || 'Failed to send message. Please try again.'
         );
       } finally {
         setIsSendingFeedback(false);

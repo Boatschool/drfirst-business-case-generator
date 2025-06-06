@@ -2,11 +2,12 @@
 Authentication API routes for the DrFirst Business Case Generator
 """
 
-from fastapi import APIRouter, HTTPException, Depends, status
+from fastapi import APIRouter, HTTPException, Depends, status, Request
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from pydantic import BaseModel
 from typing import Optional
 from app.services.auth_service import auth_service
+from app.middleware.rate_limiter import limiter
 
 router = APIRouter()
 security = HTTPBearer()
@@ -27,7 +28,8 @@ class UserResponse(BaseModel):
 @router.post(
     "/verify-token", summary="Verify Firebase ID token", response_model=UserResponse
 )
-async def verify_token(token_request: TokenRequest):
+@limiter.limit("10/minute")  # Strict limit for token verification
+async def verify_token(request: Request, token_request: TokenRequest):
     """Verify Firebase ID token and return user information"""
     try:
         user_info = await auth_service.verify_token(token_request.id_token)
@@ -61,7 +63,9 @@ async def verify_token(token_request: TokenRequest):
 
 
 @router.get("/me", summary="Get current user profile")
+@limiter.limit("30/minute")
 async def get_current_user(
+    request: Request,
     credentials: HTTPAuthorizationCredentials = Depends(security),
 ):
     """Get current user profile information using Bearer token"""
@@ -93,7 +97,9 @@ async def get_current_user(
 
 
 @router.post("/revoke", summary="Revoke user sessions")
+@limiter.limit("5/minute")  # Very strict limit for session revocation
 async def revoke_user_sessions(
+    request: Request,
     credentials: HTTPAuthorizationCredentials = Depends(security),
 ):
     """Revoke all refresh tokens for current user (signs them out of all sessions)"""

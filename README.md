@@ -1,5 +1,11 @@
 # DrFirst Agentic Business Case Generator
 
+## Build Status
+
+[![Backend CI & Staging CD](https://github.com/drfirst/drfirst-business-case-generator/actions/workflows/backend-ci.yml/badge.svg?branch=develop)](https://github.com/drfirst/drfirst-business-case-generator/actions/workflows/backend-ci.yml)
+[![Frontend CI & Firebase CD](https://github.com/drfirst/drfirst-business-case-generator/actions/workflows/frontend-ci-cd.yml/badge.svg?branch=develop)](https://github.com/drfirst/drfirst-business-case-generator/actions/workflows/frontend-ci-cd.yml)
+[![Deploy Firestore Rules & Indexes](https://github.com/drfirst/drfirst-business-case-generator/actions/workflows/firestore-deploy.yml/badge.svg?branch=develop)](https://github.com/drfirst/drfirst-business-case-generator/actions/workflows/firestore-deploy.yml)
+
 A comprehensive web application for DrFirst that leverages AI agents to automatically generate comprehensive business cases with full workflow management.
 
 ## Project Structure

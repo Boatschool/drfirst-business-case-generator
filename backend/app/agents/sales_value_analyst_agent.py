@@ -41,24 +41,24 @@ class SalesValueAnalystAgent:
         try:
             vertexai.init(project=self.project_id, location=self.location)
             self.model = GenerativeModel(self.model_name)
-            print(
+            logger.info(
                 f"SalesValueAnalystAgent: Vertex AI initialized successfully with model {self.model_name}."
             )
             self.vertex_ai_available = True
         except Exception as e:
-            print(f"SalesValueAnalystAgent: Failed to initialize Vertex AI: {e}")
+            logger.info(f"SalesValueAnalystAgent: Failed to initialize Vertex AI: {e}")
             self.model = None
             self.vertex_ai_available = False
 
         # Initialize Firestore client for pricing template access
         try:
             self.db = firestore.Client(project=settings.firebase_project_id)
-            print("SalesValueAnalystAgent: Firestore client initialized successfully.")
+            logger.info("SalesValueAnalystAgent: Firestore client initialized successfully.")
         except Exception as e:
-            print(f"SalesValueAnalystAgent: Failed to initialize Firestore client: {e}")
+            logger.info(f"SalesValueAnalystAgent: Failed to initialize Firestore client: {e}")
             self.db = None
 
-        print("SalesValueAnalystAgent: Initialized successfully.")
+        logger.info("SalesValueAnalystAgent: Initialized successfully.")
         self.status = "available"
 
     async def project_value(self, prd_content: str, case_title: str) -> Dict[str, Any]:
@@ -73,7 +73,7 @@ class SalesValueAnalystAgent:
         Returns:
             Dict[str, Any]: Response containing status and value projection
         """
-        print(
+        logger.info(
             f"[SalesValueAnalystAgent] Received request to project value for: {case_title}"
         )
 
@@ -102,7 +102,7 @@ class SalesValueAnalystAgent:
         except Exception as e:
             error_msg = f"Error projecting value: {str(e)}"
             logger.error(f"[SalesValueAnalystAgent] {error_msg} for case {case_title}")
-            print(f"[SalesValueAnalystAgent] {error_msg}")
+            logger.info(f"[SalesValueAnalystAgent] {error_msg}")
             return {"status": "error", "message": error_msg, "value_projection": None}
 
     async def _fetch_pricing_template(self) -> Optional[Dict[str, Any]]:
@@ -637,7 +637,7 @@ Generate the value projection now:"""
         logger.info(
             f"[SalesValueAnalystAgent] Successfully projected value for {case_title} using template fallback"
         )
-        print(
+        logger.info(
             f"[SalesValueAnalystAgent] Generated value projection using template: {template.get('name', 'Unknown')}"
         )
 
@@ -685,7 +685,7 @@ Generate the value projection now:"""
         logger.info(
             f"[SalesValueAnalystAgent] Successfully projected value for {case_title} using defaults"
         )
-        print(
+        logger.info(
             f"[SalesValueAnalystAgent] Generated default value projection for case: {case_title}"
         )
 

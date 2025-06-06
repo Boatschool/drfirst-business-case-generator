@@ -57,7 +57,12 @@ class Settings(BaseSettings):
     vertex_ai_top_k: int = 40
 
     # CORS settings - comma-separated string that gets parsed into a list
-    backend_cors_origins: str = "http://localhost:4000,http://127.0.0.1:4000"
+    backend_cors_origins: str = "http://localhost:4000,http://127.0.0.1:4000,https://drfirst-business-case-gen.web.app,https://drfirst-business-case-gen.firebaseapp.com"
+
+    # Rate limiting settings
+    default_rate_limit: str = "100/minute"
+    burst_rate_limit: str = "20/second"
+    redis_url: Optional[str] = None  # For distributed rate limiting with Redis
 
     @property
     def cors_origins_list(self) -> List[str]:

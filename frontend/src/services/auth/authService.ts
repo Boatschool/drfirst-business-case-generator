@@ -9,8 +9,10 @@ import {
   signOut,
   getIdToken,
   getIdTokenResult,
+  IdTokenResult,
 } from 'firebase/auth';
 import { auth } from '../../config/firebase';
+import Logger from '../../utils/logger';
 
 // User type for our application
 export interface AuthUser {
@@ -31,6 +33,7 @@ export interface AuthState {
 
 class AuthService {
   private googleProvider: GoogleAuthProvider;
+  private logger = Logger.create('AuthService');
 
   constructor() {
     // Initialize Google provider
@@ -38,7 +41,7 @@ class AuthService {
     this.googleProvider.addScope('email');
     this.googleProvider.addScope('profile');
 
-    console.log('🔐 AuthService initialized');
+    this.logger.debug('AuthService initialized');
   }
 
   /**
@@ -46,16 +49,16 @@ class AuthService {
    */
   signUp = async (email: string, password: string): Promise<UserCredential> => {
     try {
-      console.log('📝 Attempting email sign-up for:', email);
+      this.logger.debug('Attempting email sign-up for:', email);
       const userCredential = await createUserWithEmailAndPassword(
         auth,
         email,
         password
       );
-      console.log('✅ Email sign-up successful:', userCredential.user.email);
+      this.logger.debug('Email sign-up successful:', userCredential.user.email);
       return userCredential;
     } catch (error) {
-      console.error('❌ Email sign-up error:', error);
+      this.logger.error('Email sign-up error:', error);
       throw error;
     }
   };
@@ -65,16 +68,16 @@ class AuthService {
    */
   signIn = async (email: string, password: string): Promise<UserCredential> => {
     try {
-      console.log('🔓 Attempting email sign-in for:', email);
+      this.logger.debug('Attempting email sign-in for:', email);
       const userCredential = await signInWithEmailAndPassword(
         auth,
         email,
         password
       );
-      console.log('✅ Email sign-in successful:', userCredential.user.email);
+      this.logger.debug('Email sign-in successful:', userCredential.user.email);
       return userCredential;
     } catch (error) {
-      console.error('❌ Email sign-in error:', error);
+      this.logger.error('Email sign-in error:', error);
       throw error;
     }
   };
@@ -84,12 +87,12 @@ class AuthService {
    */
   signInWithGoogle = async (): Promise<UserCredential> => {
     try {
-      console.log('🌐 Attempting Google sign-in...');
+      this.logger.debug('Attempting Google sign-in...');
       const result = await signInWithPopup(auth, this.googleProvider);
-      console.log('✅ Google sign-in successful:', result.user.email);
+      this.logger.debug('Google sign-in successful:', result.user.email);
       return result;
     } catch (error) {
-      console.error('❌ Google sign-in error:', error);
+      this.logger.error('Google sign-in error:', error);
       throw error;
     }
   };
@@ -99,11 +102,11 @@ class AuthService {
    */
   signOut = async (): Promise<void> => {
     try {
-      console.log('👋 Signing out...');
+      this.logger.debug('Signing out...');
       await signOut(auth);
-      console.log('✅ Sign-out successful');
+      this.logger.debug('Sign-out successful');
     } catch (error) {
-      console.error('❌ Sign-out error:', error);
+      this.logger.error('Sign-out error:', error);
       throw error;
     }
   };
@@ -123,16 +126,16 @@ class AuthService {
     try {
       const user = auth.currentUser;
       if (!user) {
-        console.log('No authenticated user for token');
+        this.logger.debug('No authenticated user for token');
         return null;
       }
 
-      console.log('🎫 Getting ID token for user:', user.email);
+      this.logger.debug('Getting ID token for user:', user.email);
       const token = await getIdToken(user);
-      console.log('✅ ID token retrieved successfully');
+      this.logger.debug('ID token retrieved successfully');
       return token;
     } catch (error) {
-      console.error('❌ Error getting ID token:', error);
+      this.logger.error('Error getting ID token:', error);
       throw error;
     }
   };
@@ -140,23 +143,23 @@ class AuthService {
   /**
    * Get ID token result with custom claims for authenticated requests
    */
-  getIdTokenResult = async (): Promise<any | null> => {
+  getIdTokenResult = async (): Promise<IdTokenResult | null> => {
     try {
       const user = auth.currentUser;
       if (!user) {
-        console.log('No authenticated user for token result');
+        this.logger.debug('No authenticated user for token result');
         return null;
       }
 
-      console.log(
-        '🎫 Getting ID token result with custom claims for user:',
+      this.logger.debug(
+        'Getting ID token result with custom claims for user:',
         user.email
       );
       const tokenResult = await getIdTokenResult(user);
-      console.log('✅ ID token result retrieved successfully');
+      this.logger.debug('ID token result retrieved successfully');
       return tokenResult;
     } catch (error) {
-      console.error('❌ Error getting ID token result:', error);
+      this.logger.error('Error getting ID token result:', error);
       throw error;
     }
   };
@@ -168,16 +171,16 @@ class AuthService {
     try {
       const user = auth.currentUser;
       if (!user) {
-        console.log('No authenticated user for token refresh');
+        this.logger.debug('No authenticated user for token refresh');
         return null;
       }
 
-      console.log('🔄 Force refreshing ID token for user:', user.email);
+      this.logger.debug('Force refreshing ID token for user:', user.email);
       const token = await getIdToken(user, true); // Force refresh
-      console.log('✅ ID token refreshed successfully');
+      this.logger.debug('ID token refreshed successfully');
       return token;
     } catch (error) {
-      console.error('❌ Error refreshing ID token:', error);
+      this.logger.error('Error refreshing ID token:', error);
       throw error;
     }
   };
@@ -188,10 +191,10 @@ class AuthService {
   onAuthStateChanged = (
     callback: (user: AuthUser | null) => void
   ): (() => void) => {
-    console.log('👂 Setting up auth state listener');
+    this.logger.debug('Setting up auth state listener');
     return onAuthStateChanged(auth, async (user: User | null) => {
-      console.log(
-        '🔄 Auth state changed:',
+      this.logger.debug(
+        'Auth state changed:',
         user ? `${user.email} (${user.uid})` : 'null'
       );
 
@@ -213,7 +216,7 @@ class AuthService {
       const tokenResult = await getIdTokenResult(user);
       const systemRole = tokenResult.claims.systemRole || null;
 
-      console.log('👤 User claims:', {
+      this.logger.debug('User claims:', {
         email: user.email,
         systemRole,
         hasCustomClaims: Object.keys(tokenResult.claims).length > 0,
@@ -228,7 +231,7 @@ class AuthService {
         systemRole: systemRole,
       };
     } catch (error) {
-      console.error('❌ Error getting custom claims:', error);
+      this.logger.error('Error getting custom claims:', error);
       // Fallback to user without custom claims
       return this.convertFirebaseUser(user);
     }

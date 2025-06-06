@@ -7,7 +7,7 @@ const APP_NAME = 'DrFirst Case Gen';
  * @param title - The page title (will be appended with app name)
  * @param dependency - Optional dependency to trigger title update
  */
-const useDocumentTitle = (title: string, dependency?: any) => {
+const useDocumentTitle = (title: string, dependency?: unknown) => {
   useEffect(() => {
     if (title) {
       document.title = `${title} - ${APP_NAME}`;

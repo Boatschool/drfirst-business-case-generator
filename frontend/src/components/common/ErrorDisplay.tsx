@@ -13,10 +13,11 @@ import {
   Close as CloseIcon,
 } from '@mui/icons-material';
 import { formatErrorMessage, FormattedError } from '../../utils/errorFormatting';
+import { AppError } from '../../types/api';
 
 interface ErrorDisplayProps {
-  /** The error to display (can be Error object, string, or any object) */
-  error?: any;
+  /** The error to display (can be Error object, string, or AppError) */
+  error?: Error | AppError | string | unknown;
   /** Context for more specific error messaging */
   context?: string;
   /** Whether to show a retry button */
@@ -138,7 +139,7 @@ export default ErrorDisplay;
  * Specialized error display for form validation errors
  */
 export const FormErrorDisplay: React.FC<{
-  error?: any;
+  error?: Error | AppError | string | unknown;
   onClose?: () => void;
 }> = ({ error, onClose }) => (
   <ErrorDisplay
@@ -155,7 +156,7 @@ export const FormErrorDisplay: React.FC<{
  * Specialized error display for data loading errors with retry
  */
 export const LoadingErrorDisplay: React.FC<{
-  error?: any;
+  error?: Error | AppError | string | unknown;
   onRetry?: () => void;
   context?: string;
 }> = ({ error, onRetry, context = "load_data" }) => (
@@ -172,7 +173,7 @@ export const LoadingErrorDisplay: React.FC<{
  * Specialized error display for page-level errors
  */
 export const PageErrorDisplay: React.FC<{
-  error?: any;
+  error?: Error | AppError | string | unknown;
   context?: string;
   onRetry?: () => void;
 }> = ({ error, context, onRetry }) => (

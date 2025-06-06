@@ -55,6 +55,7 @@ import {
 import { useAuth } from '../hooks/useAuth';
 import { PageLoading, LoadingButton } from '../components/common/LoadingIndicators';
 import { PAPER_ELEVATION, STANDARD_STYLES } from '../styles/constants';
+import { toAppError } from '../types/api';
 
 // Helper function to improve text formatting for better readability
 const formatPrdContent = (content: string): string => {
@@ -436,9 +437,9 @@ const BusinessCaseDetailPage: React.FC = () => {
         setSystemDesignUpdateSuccess('System Design saved successfully.');
         setSystemDesignUpdateError(null);
       }
-    } catch (error: any) {
+    } catch (error) {
       setSystemDesignUpdateError(
-        error.message || 'Failed to save System Design.'
+        toAppError(error, 'api').message || 'Failed to save System Design.'
       );
       setSystemDesignUpdateSuccess(null);
     }
@@ -455,9 +456,9 @@ const BusinessCaseDetailPage: React.FC = () => {
         );
         setStatusUpdateError(null);
       }
-    } catch (error: any) {
+    } catch (error) {
       setStatusUpdateError(
-        error.message || 'Failed to submit System Design for review.'
+        toAppError(error, 'api').message || 'Failed to submit System Design for review.'
       );
       setStatusUpdateSuccess(null);
     }
@@ -472,8 +473,8 @@ const BusinessCaseDetailPage: React.FC = () => {
         setApprovalSuccess('System Design approved successfully.');
         setApprovalError(null);
       }
-    } catch (error: any) {
-      setApprovalError(error.message || 'Failed to approve System Design.');
+    } catch (error) {
+      setApprovalError(toAppError(error, 'api').message || 'Failed to approve System Design.');
       setApprovalSuccess(null);
     }
   };
@@ -492,8 +493,8 @@ const BusinessCaseDetailPage: React.FC = () => {
         setIsSystemDesignRejectDialogOpen(false);
         setSystemDesignRejectionReason('');
       }
-    } catch (error: any) {
-      setApprovalError(error.message || 'Failed to reject System Design.');
+    } catch (error) {
+      setApprovalError(toAppError(error, 'api').message || 'Failed to reject System Design.');
       setApprovalSuccess(null);
     }
   };
@@ -545,9 +546,9 @@ const BusinessCaseDetailPage: React.FC = () => {
           'Failed to update effort estimate. Please try again.'
         );
       }
-    } catch (error: any) {
+    } catch (error) {
       setEffortEstimateUpdateError(
-        error.message || 'Failed to update effort estimate.'
+        toAppError(error, 'api').message || 'Failed to update effort estimate.'
       );
     }
   };
@@ -566,9 +567,9 @@ const BusinessCaseDetailPage: React.FC = () => {
           'Failed to submit effort estimate for review. Please try again.'
         );
       }
-    } catch (error: any) {
+    } catch (error) {
       setEffortEstimateUpdateError(
-        error.message || 'Failed to submit effort estimate for review.'
+        toAppError(error, 'api').message || 'Failed to submit effort estimate for review.'
       );
     }
   };
@@ -607,9 +608,9 @@ const BusinessCaseDetailPage: React.FC = () => {
           'Failed to update cost estimate. Please try again.'
         );
       }
-    } catch (error: any) {
+    } catch (error) {
       setCostEstimateUpdateError(
-        error.message || 'Failed to update cost estimate.'
+        toAppError(error, 'api').message || 'Failed to update cost estimate.'
       );
     }
   };
@@ -628,9 +629,9 @@ const BusinessCaseDetailPage: React.FC = () => {
           'Failed to submit cost estimate for review. Please try again.'
         );
       }
-    } catch (error: any) {
+    } catch (error) {
       setCostEstimateUpdateError(
-        error.message || 'Failed to submit cost estimate for review.'
+        toAppError(error, 'api').message || 'Failed to submit cost estimate for review.'
       );
     }
   };
@@ -674,9 +675,9 @@ const BusinessCaseDetailPage: React.FC = () => {
           'Failed to update value projection. Please try again.'
         );
       }
-    } catch (error: any) {
+    } catch (error) {
       setValueProjectionUpdateError(
-        error.message || 'Failed to update value projection.'
+        toAppError(error, 'api').message || 'Failed to update value projection.'
       );
     }
   };
@@ -695,9 +696,9 @@ const BusinessCaseDetailPage: React.FC = () => {
           'Failed to submit value projection for review. Please try again.'
         );
       }
-    } catch (error: any) {
+    } catch (error) {
       setValueProjectionUpdateError(
-        error.message || 'Failed to submit value projection for review.'
+        toAppError(error, 'api').message || 'Failed to submit value projection for review.'
       );
     }
   };
@@ -714,8 +715,8 @@ const BusinessCaseDetailPage: React.FC = () => {
           'Failed to approve effort estimate. Please try again.'
         );
       }
-    } catch (error: any) {
-      setApprovalError(error.message || 'Failed to approve effort estimate.');
+    } catch (error) {
+      setApprovalError(toAppError(error, 'api').message || 'Failed to approve effort estimate.');
     }
   };
 
@@ -733,8 +734,8 @@ const BusinessCaseDetailPage: React.FC = () => {
       } else {
         setApprovalError('Failed to reject effort estimate. Please try again.');
       }
-    } catch (error: any) {
-      setApprovalError(error.message || 'Failed to reject effort estimate.');
+    } catch (error) {
+      setApprovalError(toAppError(error, 'api').message || 'Failed to reject effort estimate.');
     }
   };
 
@@ -747,8 +748,8 @@ const BusinessCaseDetailPage: React.FC = () => {
       } else {
         setApprovalError('Failed to approve cost estimate. Please try again.');
       }
-    } catch (error: any) {
-      setApprovalError(error.message || 'Failed to approve cost estimate.');
+    } catch (error) {
+      setApprovalError(toAppError(error, 'api').message || 'Failed to approve cost estimate.');
     }
   };
 
@@ -766,8 +767,8 @@ const BusinessCaseDetailPage: React.FC = () => {
       } else {
         setApprovalError('Failed to reject cost estimate. Please try again.');
       }
-    } catch (error: any) {
-      setApprovalError(error.message || 'Failed to reject cost estimate.');
+    } catch (error) {
+      setApprovalError(toAppError(error, 'api').message || 'Failed to reject cost estimate.');
     }
   };
 
@@ -782,8 +783,8 @@ const BusinessCaseDetailPage: React.FC = () => {
           'Failed to approve value projection. Please try again.'
         );
       }
-    } catch (error: any) {
-      setApprovalError(error.message || 'Failed to approve value projection.');
+    } catch (error) {
+      setApprovalError(toAppError(error, 'api').message || 'Failed to approve value projection.');
     }
   };
 
@@ -803,8 +804,8 @@ const BusinessCaseDetailPage: React.FC = () => {
           'Failed to reject value projection. Please try again.'
         );
       }
-    } catch (error: any) {
-      setApprovalError(error.message || 'Failed to reject value projection.');
+    } catch (error) {
+      setApprovalError(toAppError(error, 'api').message || 'Failed to reject value projection.');
     }
   };
 
@@ -851,9 +852,9 @@ const BusinessCaseDetailPage: React.FC = () => {
         );
         setStatusUpdateError(null);
       }
-    } catch (error: any) {
+    } catch (error) {
       setStatusUpdateError(
-        error.message || 'Failed to submit for final approval.'
+        toAppError(error, 'api').message || 'Failed to submit for final approval.'
       );
       setStatusUpdateSuccess(null);
     }
@@ -868,8 +869,8 @@ const BusinessCaseDetailPage: React.FC = () => {
         setApprovalSuccess('Business case approved successfully.');
         setApprovalError(null);
       }
-    } catch (error: any) {
-      setApprovalError(error.message || 'Failed to approve business case.');
+    } catch (error) {
+      setApprovalError(toAppError(error, 'api').message || 'Failed to approve business case.');
       setApprovalSuccess(null);
     }
   };
@@ -885,8 +886,8 @@ const BusinessCaseDetailPage: React.FC = () => {
         setIsFinalRejectDialogOpen(false);
         setFinalRejectionReason('');
       }
-    } catch (error: any) {
-      setApprovalError(error.message || 'Failed to reject business case.');
+    } catch (error) {
+      setApprovalError(toAppError(error, 'api').message || 'Failed to reject business case.');
       setApprovalSuccess(null);
     }
   };
@@ -914,9 +915,9 @@ const BusinessCaseDetailPage: React.FC = () => {
       setExportSuccess('PDF exported successfully!');
       // Clear success message after 5 seconds
       setTimeout(() => setExportSuccess(null), 5000);
-    } catch (error: any) {
+    } catch (error) {
       setExportError(
-        error.message || 'Failed to export PDF. Please try again.'
+        toAppError(error, 'api').message || 'Failed to export PDF. Please try again.'
       );
     } finally {
       setIsExportingPdf(false);

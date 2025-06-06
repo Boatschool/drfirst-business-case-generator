@@ -14,6 +14,7 @@ import {
   BugReport as BugReportIcon,
 } from '@mui/icons-material';
 import { formatErrorMessage } from '../../utils/errorFormatting';
+import Logger from '../../utils/logger';
 
 interface Props {
   children: ReactNode;
@@ -36,6 +37,8 @@ interface State {
  * and displays a fallback UI instead of crashing the entire application
  */
 class ErrorBoundary extends Component<Props, State> {
+  private logger = Logger.create('ErrorBoundary');
+
   constructor(props: Props) {
     super(props);
     this.state = { hasError: false, error: null, errorInfo: null };
@@ -48,7 +51,7 @@ class ErrorBoundary extends Component<Props, State> {
 
   componentDidCatch(error: Error, errorInfo: ErrorInfo) {
     // Log the error details
-    console.error('ErrorBoundary caught an error:', error, errorInfo);
+    this.logger.error('ErrorBoundary caught an error:', error, errorInfo);
     
     // Update state with error info
     this.setState({

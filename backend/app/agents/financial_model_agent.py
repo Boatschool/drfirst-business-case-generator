@@ -22,7 +22,7 @@ class FinancialModelAgent:
         )
         self.status = "initialized"
 
-        print("FinancialModelAgent: Initialized successfully.")
+        logger.info("FinancialModelAgent: Initialized successfully.")
         self.status = "available"
 
     async def generate_financial_summary(
@@ -42,7 +42,7 @@ class FinancialModelAgent:
         Returns:
             Dict[str, Any]: Response containing status and financial summary
         """
-        print(f"[FinancialModelAgent] Generating financial summary for: {case_title}")
+        logger.info(f"[FinancialModelAgent] Generating financial summary for: {case_title}")
 
         try:
             # Extract key figures from cost estimate
@@ -91,7 +91,7 @@ class FinancialModelAgent:
         except Exception as e:
             error_msg = f"Error generating financial summary: {str(e)}"
             logger.error(f"[FinancialModelAgent] {error_msg} for case {case_title}")
-            print(f"[FinancialModelAgent] {error_msg}")
+            logger.info(f"[FinancialModelAgent] {error_msg}")
             return {"status": "error", "message": error_msg, "financial_summary": None}
 
     def _extract_total_cost(self, cost_estimate: Dict[str, Any]) -> float:

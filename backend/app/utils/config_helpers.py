@@ -3,11 +3,15 @@ Configuration helper functions for the DrFirst Business Case Generator
 """
 
 import asyncio
+import logging
 from typing import Optional
 from google.cloud import firestore
 from app.core.config import settings
 from app.auth.firebase_auth import get_current_active_user
+from app.models.firestore_models import UserRole
 from fastapi import Depends, HTTPException, status
+
+logger = logging.getLogger(__name__)
 
 # Cache for final approver role to avoid repeated Firestore reads
 _final_approver_role_cache = {
@@ -50,16 +54,16 @@ async def get_final_approver_role_name() -> str:
 
         if not doc.exists:
             # Return default if configuration doesn't exist yet
-            print(
+            logger.info(
                 "[CONFIG] No final approver configuration found, using default 'FINAL_APPROVER'"
             )
-            final_approver_role = "FINAL_APPROVER"
+            final_approver_role = UserRole.FINAL_APPROVER.value
         else:
             config_data = doc.to_dict()
             final_approver_role = config_data.get(
-                "finalApproverRoleName", "FINAL_APPROVER"
+                "finalApproverRoleName", UserRole.FINAL_APPROVER.value
             )
-            print(
+            logger.info(
                 f"[CONFIG] Retrieved final approver role from Firestore: {final_approver_role}"
             )
 
@@ -70,10 +74,10 @@ async def get_final_approver_role_name() -> str:
         return final_approver_role
 
     except Exception as e:
-        print(f"[CONFIG] Error fetching final approver role configuration: {e}")
+        logger.info(f"[CONFIG] Error fetching final approver role configuration: {e}")
         # Fallback to default role if there's an error
-        print("[CONFIG] Falling back to default 'FINAL_APPROVER' role")
-        return "FINAL_APPROVER"
+        logger.info("[CONFIG] Falling back to default 'FINAL_APPROVER' role")
+        return UserRole.FINAL_APPROVER.value
 
 
 def clear_final_approver_role_cache():
@@ -83,7 +87,7 @@ def clear_final_approver_role_cache():
     """
     _final_approver_role_cache["role"] = None
     _final_approver_role_cache["last_updated"] = None
-    print("[CONFIG] Final approver role cache cleared")
+    logger.info("[CONFIG] Final approver role cache cleared")
 
 
 def require_dynamic_final_approver_role():
@@ -106,8 +110,8 @@ def require_dynamic_final_approver_role():
             user_email = current_user.get("email", "unknown")
 
             # Allow ADMIN role as a fallback (admins can always approve)
-            if user_role != required_role and user_role != "ADMIN":
-                print(
+            if user_role != required_role and user_role != UserRole.ADMIN.value:
+                logger.info(
                     f"[CONFIG] Access denied for {user_email} - requires '{required_role}' role, has: '{user_role}'"
                 )
                 raise HTTPException(
@@ -115,7 +119,7 @@ def require_dynamic_final_approver_role():
                     detail=f"Access denied. Required role: {required_role} (or ADMIN)",
                 )
 
-            print(
+            logger.info(
                 f"[CONFIG] Dynamic final approval access granted for {user_email} with role '{user_role}' (required: '{required_role}')"
             )
             return current_user
@@ -124,7 +128,7 @@ def require_dynamic_final_approver_role():
             # Re-raise HTTP exceptions as-is
             raise
         except Exception as e:
-            print(f"[CONFIG] Error in dynamic role checking: {e}")
+            logger.info(f"[CONFIG] Error in dynamic role checking: {e}")
             # Fallback to default behavior
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,

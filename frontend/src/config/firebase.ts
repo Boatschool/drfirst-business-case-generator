@@ -1,6 +1,7 @@
 // Firebase configuration for DrFirst Business Case Generator
 import { initializeApp, FirebaseApp, getApps } from 'firebase/app';
 import { getAuth } from 'firebase/auth';
+import Logger from '../utils/logger';
 
 // Firebase configuration object
 const firebaseConfig = {
@@ -9,9 +10,12 @@ const firebaseConfig = {
   projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
 };
 
+// Create logger for Firebase configuration
+const logger = Logger.create('Firebase');
+
 // Debug Firebase configuration (only in development)
 if (import.meta.env.VITE_ENVIRONMENT === 'development') {
-  console.log('🔧 Firebase Config Debug:', {
+  logger.debug('Firebase Config Debug:', {
     apiKey: firebaseConfig.apiKey
       ? `${firebaseConfig.apiKey.substring(0, 10)}...`
       : 'MISSING',
@@ -40,7 +44,7 @@ if (missingEnvVars.length > 0) {
   const errorMsg = `Missing required Firebase environment variables: ${missingEnvVars.join(
     ', '
   )}`;
-  console.error('❌ Firebase Configuration Error:', errorMsg);
+  logger.error('Firebase Configuration Error:', errorMsg);
   throw new Error(errorMsg);
 }
 
@@ -50,10 +54,10 @@ const existingApps = getApps();
 
 if (existingApps.length > 0) {
   app = existingApps[0];
-  console.log('📱 Using existing Firebase app:', app.name);
+  logger.debug('Using existing Firebase app:', app.name);
 } else {
   app = initializeApp(firebaseConfig);
-  console.log('✅ Firebase app initialized:', app.name);
+  logger.debug('Firebase app initialized:', app.name);
 }
 
 // Initialize Firebase Auth
@@ -65,7 +69,7 @@ if (typeof window !== 'undefined') {
   import('firebase/auth').then(
     ({ browserLocalPersistence, setPersistence }) => {
       setPersistence(auth, browserLocalPersistence).catch((error) => {
-        console.warn('Failed to set auth persistence:', error);
+        logger.warn('Failed to set auth persistence:', error);
       });
     }
   );

@@ -20,12 +20,8 @@ import {
   SmartToy as BotIcon,
   Person as PersonIcon,
 } from '@mui/icons-material';
-
-interface AgentUpdate {
-  timestamp: string;
-  source: string;
-  content: string;
-}
+import Logger from '../../utils/logger';
+import { AgentUpdate } from '../../services/agent/AgentService';
 
 interface FloatingChatProps {
   messages: AgentUpdate[];
@@ -36,6 +32,8 @@ interface FloatingChatProps {
   disabled?: boolean;
   currentCaseTitle?: string;
 }
+
+const logger = Logger.create('FloatingChat');
 
 const FloatingChat: React.FC<FloatingChatProps> = ({
   messages,
@@ -93,7 +91,7 @@ const FloatingChat: React.FC<FloatingChatProps> = ({
       await onSendMessage(message);
       setMessage('');
     } catch (error) {
-      console.error('Error sending message:', error);
+      logger.error('Error sending message:', error);
     }
   };
 
@@ -263,7 +261,10 @@ const FloatingChat: React.FC<FloatingChatProps> = ({
                             variant="body2"
                             sx={{ whiteSpace: 'pre-wrap', mt: 0.5 }}
                           >
-                            {msg.content}
+                            {typeof msg.content === 'string' 
+                              ? msg.content 
+                              : JSON.stringify(msg.content, null, 2)
+                            }
                           </Typography>
                         </Box>
                       </Stack>

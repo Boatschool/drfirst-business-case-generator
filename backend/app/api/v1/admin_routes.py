@@ -2,7 +2,8 @@
 Admin API routes for the DrFirst Business Case Generator
 """
 
-from fastapi import APIRouter, HTTPException, Depends
+import logging
+from fastapi import APIRouter, HTTPException, Depends, Query, Path
 from fastapi.security import HTTPBearer
 from typing import List, Dict, Any, Optional
 import asyncio
@@ -12,6 +13,8 @@ from google.cloud import firestore
 from app.auth.firebase_auth import require_admin_role
 from app.core.config import settings
 from pydantic import BaseModel, Field
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter()
 security = HTTPBearer()
@@ -168,9 +171,9 @@ class UpdateFinalApproverRoleRequest(BaseModel):
 db = None
 try:
     db = firestore.Client(project=settings.firebase_project_id)
-    print("Admin routes: Firestore client initialized successfully.")
+    logger.info("Admin routes: Firestore client initialized successfully.")
 except Exception as e:
-    print(f"Admin routes: Failed to initialize Firestore client: {e}")
+    logger.info(f"Admin routes: Failed to initialize Firestore client: {e}")
 
 # Rate Cards CRUD Operations
 
@@ -178,7 +181,24 @@ except Exception as e:
 @router.get(
     "/rate-cards", response_model=List[Dict[str, Any]], summary="List all rate cards"
 )
-async def list_rate_cards(current_user: dict = Depends(require_admin_role)):
+async def list_rate_cards(
+    current_user: dict = Depends(require_admin_role),
+    limit: int = Query(
+        50,
+        ge=1,
+        le=200,
+        description="Maximum number of rate cards to return (1-200)"
+    ),
+    offset: int = Query(
+        0,
+        ge=0,
+        description="Number of rate cards to skip for pagination"
+    ),
+    active_only: bool = Query(
+        False,
+        description="Filter to show only active rate cards"
+    )
+):
     """Get a list of all rate cards (admin only)"""
     if not db:
         raise HTTPException(status_code=500, detail="Database connection not available")
@@ -194,13 +214,13 @@ async def list_rate_cards(current_user: dict = Depends(require_admin_role)):
             rate_card_data["id"] = doc.id  # Add document ID
             rate_cards.append(rate_card_data)
 
-        print(
+        logger.info(
             f"[AdminAPI] Retrieved {len(rate_cards)} rate cards for user: {current_user.get('email', 'unknown')}"
         )
         return rate_cards
 
     except Exception as e:
-        print(f"[AdminAPI] Error fetching rate cards: {e}")
+        logger.info(f"[AdminAPI] Error fetching rate cards: {e}")
         raise HTTPException(
             status_code=500, detail=f"Failed to fetch rate cards: {str(e)}"
         )
@@ -245,13 +265,13 @@ async def create_rate_card(
         # Return the created rate card with ID
         rate_card_doc["id"] = card_id
 
-        print(
+        logger.info(
             f"[AdminAPI] Created new rate card '{rate_card_data.name}' with ID {card_id} by user: {current_user.get('email', 'unknown')}"
         )
         return rate_card_doc
 
     except Exception as e:
-        print(f"[AdminAPI] Error creating rate card: {e}")
+        logger.info(f"[AdminAPI] Error creating rate card: {e}")
         raise HTTPException(
             status_code=500, detail=f"Failed to create rate card: {str(e)}"
         )
@@ -263,8 +283,13 @@ async def create_rate_card(
     summary="Update an existing rate card",
 )
 async def update_rate_card(
-    card_id: str,
-    rate_card_data: UpdateRateCardRequest,
+    card_id: str = Path(
+        ...,
+        min_length=1,
+        max_length=128,
+        description="Rate card ID"
+    ),
+    rate_card_data: UpdateRateCardRequest = ...,
     current_user: dict = Depends(require_admin_role),
 ):
     """Update an existing rate card (admin only)"""
@@ -307,7 +332,7 @@ async def update_rate_card(
         updated_data = updated_doc.to_dict()
         updated_data["id"] = card_id
 
-        print(
+        logger.info(
             f"[AdminAPI] Updated rate card {card_id} by user: {current_user.get('email', 'unknown')}"
         )
         return updated_data
@@ -315,7 +340,7 @@ async def update_rate_card(
     except HTTPException:
         raise
     except Exception as e:
-        print(f"[AdminAPI] Error updating rate card: {e}")
+        logger.info(f"[AdminAPI] Error updating rate card: {e}")
         raise HTTPException(
             status_code=500, detail=f"Failed to update rate card: {str(e)}"
         )
@@ -325,7 +350,13 @@ async def update_rate_card(
     "/rate-cards/{card_id}", response_model=Dict[str, str], summary="Delete a rate card"
 )
 async def delete_rate_card(
-    card_id: str, current_user: dict = Depends(require_admin_role)
+    card_id: str = Path(
+        ...,
+        min_length=1,
+        max_length=128,
+        description="Rate card ID"
+    ), 
+    current_user: dict = Depends(require_admin_role)
 ):
     """Delete a rate card (admin only)"""
     if not db:
@@ -349,7 +380,7 @@ async def delete_rate_card(
         # Delete the document
         await asyncio.to_thread(doc_ref.delete)
 
-        print(
+        logger.info(
             f"[AdminAPI] Deleted rate card '{rate_card_name}' (ID: {card_id}) by user: {current_user.get('email', 'unknown')}"
         )
         return {
@@ -360,7 +391,7 @@ async def delete_rate_card(
     except HTTPException:
         raise
     except Exception as e:
-        print(f"[AdminAPI] Error deleting rate card: {e}")
+        logger.info(f"[AdminAPI] Error deleting rate card: {e}")
         raise HTTPException(
             status_code=500, detail=f"Failed to delete rate card: {str(e)}"
         )
@@ -387,13 +418,13 @@ async def list_pricing_templates(current_user: dict = Depends(require_admin_role
             template_data["id"] = doc.id  # Add document ID
             pricing_templates.append(template_data)
 
-        print(
+        logger.info(
             f"[AdminAPI] Retrieved {len(pricing_templates)} pricing templates for user: {current_user.get('email', 'unknown')}"
         )
         return pricing_templates
 
     except Exception as e:
-        print(f"[AdminAPI] Error fetching pricing templates: {e}")
+        logger.info(f"[AdminAPI] Error fetching pricing templates: {e}")
         raise HTTPException(
             status_code=500, detail=f"Failed to fetch pricing templates: {str(e)}"
         )
@@ -436,13 +467,13 @@ async def create_pricing_template(
         # Return the created template with ID
         template_doc["id"] = template_id
 
-        print(
+        logger.info(
             f"[AdminAPI] Created new pricing template '{template_data.name}' with ID {template_id} by user: {current_user.get('email', 'unknown')}"
         )
         return template_doc
 
     except Exception as e:
-        print(f"[AdminAPI] Error creating pricing template: {e}")
+        logger.info(f"[AdminAPI] Error creating pricing template: {e}")
         raise HTTPException(
             status_code=500, detail=f"Failed to create pricing template: {str(e)}"
         )
@@ -497,7 +528,7 @@ async def update_pricing_template(
         updated_data = updated_doc.to_dict()
         updated_data["id"] = template_id
 
-        print(
+        logger.info(
             f"[AdminAPI] Updated pricing template {template_id} by user: {current_user.get('email', 'unknown')}"
         )
         return updated_data
@@ -505,7 +536,7 @@ async def update_pricing_template(
     except HTTPException:
         raise
     except Exception as e:
-        print(f"[AdminAPI] Error updating pricing template: {e}")
+        logger.info(f"[AdminAPI] Error updating pricing template: {e}")
         raise HTTPException(
             status_code=500, detail=f"Failed to update pricing template: {str(e)}"
         )
@@ -542,7 +573,7 @@ async def delete_pricing_template(
         # Delete the document
         await asyncio.to_thread(doc_ref.delete)
 
-        print(
+        logger.info(
             f"[AdminAPI] Deleted pricing template '{template_name}' (ID: {template_id}) by user: {current_user.get('email', 'unknown')}"
         )
         return {
@@ -553,7 +584,7 @@ async def delete_pricing_template(
     except HTTPException:
         raise
     except Exception as e:
-        print(f"[AdminAPI] Error deleting pricing template: {e}")
+        logger.info(f"[AdminAPI] Error deleting pricing template: {e}")
         raise HTTPException(
             status_code=500, detail=f"Failed to delete pricing template: {str(e)}"
         )
@@ -591,13 +622,13 @@ async def list_users(current_user: dict = Depends(require_admin_role)):
             )
             users.append(user)
 
-        print(
+        logger.info(
             f"[AdminAPI] Retrieved {len(users)} users for admin: {current_user.get('email', 'unknown')}"
         )
         return users
 
     except Exception as e:
-        print(f"[AdminAPI] Error fetching users: {e}")
+        logger.info(f"[AdminAPI] Error fetching users: {e}")
         raise HTTPException(status_code=500, detail=f"Failed to fetch users: {str(e)}")
 
 
@@ -635,7 +666,7 @@ async def get_final_approver_role(current_user: dict = Depends(require_admin_rol
 
         if not doc.exists:
             # Return default configuration if not found
-            print(
+            logger.info(
                 "[AdminAPI] No final approver configuration found, returning default"
             )
             return FinalApproverRoleConfig(
@@ -653,7 +684,7 @@ async def get_final_approver_role(current_user: dict = Depends(require_admin_rol
         elif updated_at and not isinstance(updated_at, str):
             updated_at = str(updated_at)
 
-        print(
+        logger.info(
             f"[AdminAPI] Retrieved final approver role configuration: {final_approver_role} for admin: {current_user.get('email', 'unknown')}"
         )
 
@@ -664,7 +695,7 @@ async def get_final_approver_role(current_user: dict = Depends(require_admin_rol
         )
 
     except Exception as e:
-        print(f"[AdminAPI] Error fetching final approver role configuration: {e}")
+        logger.info(f"[AdminAPI] Error fetching final approver role configuration: {e}")
         raise HTTPException(
             status_code=500,
             detail=f"Failed to fetch final approver role configuration: {str(e)}",
@@ -696,7 +727,7 @@ async def update_final_approver_role(
             "CASE_INITIATOR",
         ]
         if new_role not in valid_roles:
-            print(f"[AdminAPI] Invalid role name provided: {new_role}")
+            logger.info(f"[AdminAPI] Invalid role name provided: {new_role}")
             raise HTTPException(
                 status_code=400,
                 detail=f"Invalid role name. Must be one of: {', '.join(valid_roles)}",
@@ -720,7 +751,7 @@ async def update_final_approver_role(
 
         clear_final_approver_role_cache()
 
-        print(
+        logger.info(
             f"[AdminAPI] Updated final approver role to '{new_role}' by admin: {current_user.get('email', 'unknown')}"
         )
 
@@ -733,7 +764,7 @@ async def update_final_approver_role(
     except HTTPException:
         raise
     except Exception as e:
-        print(f"[AdminAPI] Error updating final approver role configuration: {e}")
+        logger.info(f"[AdminAPI] Error updating final approver role configuration: {e}")
         raise HTTPException(
             status_code=500,
             detail=f"Failed to update final approver role configuration: {str(e)}",

@@ -8,6 +8,8 @@ import logging
 from app.core.config import settings
 from app.core.dependencies import get_db
 from app.core.database import DatabaseClient
+from app.core.constants import BusinessRules, Collections
+from app.core.logging_config import log_agent_operation, log_error_with_context, log_performance_metric
 
 # Set up logging
 logger = logging.getLogger(__name__)
@@ -26,8 +28,8 @@ class CostAnalystAgent:
 
         # Use dependency injection for database client
         self.db = db if db is not None else get_db()
-        print("CostAnalystAgent: Database client initialized successfully.")
-        print("CostAnalystAgent: Initialized successfully.")
+        logger.info("CostAnalystAgent: Database client initialized successfully.")
+        logger.info("CostAnalystAgent: Initialized successfully.")
         self.status = "available"
 
     async def calculate_cost(
@@ -43,14 +45,19 @@ class CostAnalystAgent:
         Returns:
             Dict[str, Any]: Response containing status and cost estimate
         """
-        print(
-            f"[CostAnalystAgent] Received request to calculate cost for: {case_title}"
+        agent_logger = log_agent_operation(
+            logger, "CostAnalystAgent", case_title, "calculate_cost"
+        )
+        agent_logger.info(
+            "Received cost calculation request",
+            extra={
+                'roles_count': len(effort_breakdown.get('roles', [])),
+                'total_hours': sum(role.get('hours', 0) for role in effort_breakdown.get('roles', []))
+            }
         )
 
         if not self.db:
-            logger.warning(
-                "[CostAnalystAgent] Firestore client not available, using default rates"
-            )
+            agent_logger.warning("Firestore client not available, using default rates")
             return await self._calculate_with_default_rates(
                 effort_breakdown, case_title
             )
@@ -72,10 +79,20 @@ class CostAnalystAgent:
                 )
 
         except Exception as e:
-            error_msg = f"Error calculating cost: {str(e)}"
-            logger.error(f"[CostAnalystAgent] {error_msg} for case {case_title}")
-            print(f"[CostAnalystAgent] {error_msg}")
-            return {"status": "error", "message": error_msg, "cost_estimate": None}
+            log_error_with_context(
+                agent_logger,
+                "Cost calculation failed",
+                e,
+                {
+                    'effort_breakdown': str(effort_breakdown),
+                    'case_title': case_title
+                }
+            )
+            return {
+                "status": "error", 
+                "message": f"Error calculating cost: {str(e)}", 
+                "cost_estimate": None
+            }
 
     async def _fetch_rate_card(self) -> Dict[str, Any]:
         """
@@ -91,7 +108,7 @@ class CostAnalystAgent:
         """
         try:
             # Query for active rate cards
-            rate_cards_ref = self.db.collection("rateCards")
+            rate_cards_ref = self.db.collection(Collections.RATE_CARDS)
             active_cards_query = rate_cards_ref.where("isActive", "==", True)
 
             # Execute query
@@ -161,7 +178,7 @@ class CostAnalystAgent:
         warnings = []
 
         # Extract rate card information
-        default_rate = rate_card.get("defaultOverallRate", 100)
+        default_rate = rate_card.get("defaultOverallRate", BusinessRules.DEFAULT_HOURLY_RATE)
         currency = rate_card.get("currency", "USD")
         rate_card_name = rate_card.get("name", "Unknown Rate Card")
         rate_card_id = rate_card.get("id", "unknown")
@@ -243,7 +260,7 @@ class CostAnalystAgent:
                 f"[CostAnalystAgent] Generated {len(warnings)} warning(s) during calculation"
             )
 
-        print(
+        logger.info(
             f"[CostAnalystAgent] Generated cost estimate: ${total_cost:,.2f} using rate card '{rate_card_name}'"
         )
 
@@ -380,7 +397,7 @@ class CostAnalystAgent:
         """
         # Default rates per role (hardcoded fallback)
         default_rates = {
-            "Developer": 100,
+            "Developer": BusinessRules.DEFAULT_HOURLY_RATE,
             "Product Manager": 120,
             "QA Engineer": 85,
             "DevOps Engineer": 110,
@@ -398,7 +415,7 @@ class CostAnalystAgent:
             hours = role_data.get("hours", 0)
 
             # Get rate for this role or use default
-            role_rate = default_rates.get(role_name, 100)
+            role_rate = default_rates.get(role_name, BusinessRules.DEFAULT_HOURLY_RATE)
             role_cost = hours * role_rate
             total_cost += role_cost
 
@@ -425,7 +442,7 @@ class CostAnalystAgent:
         logger.info(
             f"[CostAnalystAgent] Successfully calculated cost for {case_title}: ${total_cost:,.2f}"
         )
-        print(
+        logger.info(
             f"[CostAnalystAgent] Generated cost estimate: ${total_cost:,.2f} using default rates"
         )
 

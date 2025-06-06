@@ -67,6 +67,7 @@ import { HttpAdminAdapter } from '../services/admin/HttpAdminAdapter';
 import { TableSkeleton, LoadingButton, InlineLoading } from '../components/common/LoadingIndicators';
 import useDocumentTitle from '../hooks/useDocumentTitle';
 import { PAPER_ELEVATION, STANDARD_STYLES } from '../styles/constants';
+import Logger from '../utils/logger';
 
 interface RoleFormData {
   roleName: string;
@@ -101,6 +102,8 @@ interface PricingTemplateFormErrors {
   version?: string;
   structureDefinition?: string;
 }
+
+const logger = Logger.create('AdminPage');
 
 const AdminPage: React.FC = () => {
   // Set document title
@@ -211,7 +214,7 @@ const AdminPage: React.FC = () => {
       const errorMessage =
         error instanceof Error ? error.message : 'Failed to fetch rate cards';
       setRateCardsError(errorMessage);
-      console.error('Error fetching rate cards:', error);
+      logger.error('Error fetching rate cards:', error);
     } finally {
       setIsLoadingRateCards(false);
     }
@@ -231,7 +234,7 @@ const AdminPage: React.FC = () => {
           ? error.message
           : 'Failed to fetch pricing templates';
       setPricingTemplatesError(errorMessage);
-      console.error('Error fetching pricing templates:', error);
+      logger.error('Error fetching pricing templates:', error);
     } finally {
       setIsLoadingPricingTemplates(false);
     }
@@ -249,7 +252,7 @@ const AdminPage: React.FC = () => {
       const errorMessage =
         error instanceof Error ? error.message : 'Failed to fetch users';
       setUsersError(errorMessage);
-      console.error('Error fetching users:', error);
+      logger.error('Error fetching users:', error);
     } finally {
       setIsLoadingUsers(false);
     }
@@ -268,7 +271,7 @@ const AdminPage: React.FC = () => {
       const errorMessage =
         error instanceof Error ? error.message : 'Failed to fetch approver configuration';
       setApproverConfigError(errorMessage);
-      console.error('Error fetching approver configuration:', error);
+      logger.error('Error fetching approver configuration:', error);
     } finally {
       setIsLoadingApproverConfig(false);
     }
@@ -293,7 +296,7 @@ const AdminPage: React.FC = () => {
   const userRole = authContext.systemRole || 'USER';
   const isAdminUser = authContext.isAdmin;
 
-  console.log('AdminPage - User role info:', {
+  logger.debug('AdminPage - User role info:', {
     email: authContext.currentUser?.email,
     systemRole: authContext.systemRole,
     isAdmin: authContext.isAdmin,
@@ -812,15 +815,17 @@ const AdminPage: React.FC = () => {
 
               {!isLoadingApproverConfig && (
                 <Box>
-                  <Typography variant="body2" sx={{ mb: 2 }}>
-                    <strong>Current Final Approver Role:</strong>{' '}
+                  <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
+                    <Typography variant="body2">
+                      <strong>Current Final Approver Role:</strong>
+                    </Typography>
                     <Chip
                       label={finalApproverRoleName}
                       color="primary"
                       size="small"
                       sx={{ ml: 1 }}
                     />
-                  </Typography>
+                  </Box>
 
                   <Stack direction="row" spacing={2} alignItems="center" sx={{ mt: 2 }}>
                     <FormControl sx={{ minWidth: 200 }}>

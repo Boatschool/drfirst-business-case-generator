@@ -16,11 +16,15 @@ import DashboardPage from './pages/DashboardPage';
 import NewCasePage from './pages/NewCasePage';
 import { ProfilePage } from './pages/ProfilePage';
 
-import BusinessCaseDetailPageSimplified from './pages/BusinessCaseDetailPage_Simplified';
 import ReadOnlyCaseViewPage from './pages/ReadOnlyCaseViewPage';
 import AdminPage from './pages/AdminPage';
 import ErrorDemoPage from './pages/ErrorDemoPage';
 import AppLayout from './layouts/AppLayout';
+import CaseLayout from './layouts/CaseLayout';
+import SummaryPage from './pages/case/SummaryPage';
+import PRDPage from './pages/case/PRDPage';
+import SystemDesignPage from './pages/case/SystemDesignPage';
+import FinancialPage from './pages/case/FinancialPage';
 import ErrorBoundary from './components/common/ErrorBoundary';
 import {
   Container,
@@ -219,7 +223,7 @@ function App() {
     <ErrorBoundary title="Application Error">
       <AuthProvider>
         <AgentProvider>
-          <Router>
+          <Router future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
             <Routes>
               <Route element={<AppLayout />}>
                 {' '}
@@ -234,10 +238,17 @@ function App() {
                 <Route path="/new-case" element={<NewCasePage />} />
                 <Route path="/profile" element={<ProfilePage />} />
                 <Route path="/error-demo" element={<ErrorDemoPage />} />
-                  <Route
-                    path="/cases/:caseId"
-                    element={<BusinessCaseDetailPageSimplified />}
-                  />
+                  
+                  {/* Nested case routes */}
+                  <Route path="/cases/:caseId" element={<CaseLayout />}>
+                    <Route index element={<SummaryPage />} />
+                    <Route path="summary" element={<SummaryPage />} />
+                    <Route path="prd" element={<PRDPage />} />
+                    <Route path="design" element={<SystemDesignPage />} />
+                    <Route path="financials" element={<FinancialPage />} />
+                  </Route>
+                  
+                  {/* Keep the read-only view separate */}
                   <Route
                     path="/cases/:caseId/view"
                     element={<ReadOnlyCaseViewPage />}

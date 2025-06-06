@@ -14,9 +14,12 @@ import {
   User,
 } from './AdminService';
 import { authService } from '../auth/authService';
+import { AppError, NetworkError } from '../../types/api';
+import Logger from '../../utils/logger';
 
 export class HttpAdminAdapter implements AdminService {
   private readonly apiBaseUrl: string;
+  private logger = Logger.create('HttpAdminAdapter');
 
   constructor() {
     // Use environment variable with fallback for development
@@ -30,8 +33,12 @@ export class HttpAdminAdapter implements AdminService {
     try {
       const idToken = await authService.getIdToken();
       if (!idToken) {
-        const authError = new Error('Authentication required');
-        (authError as any).code = 'auth/no-token';
+        const authError: AppError = {
+          name: 'AuthError',
+          message: 'Authentication required',
+          type: 'auth',
+          code: 'auth/no-token'
+        };
         throw authError;
       }
       return {
@@ -39,10 +46,14 @@ export class HttpAdminAdapter implements AdminService {
         'Content-Type': 'application/json',
       };
     } catch (error) {
-      console.error('[HttpAdminAdapter] Error getting auth headers:', error);
-      const authError = new Error('Authentication failed');
-      (authError as any).code = 'auth/failed';
-      (authError as any).originalError = error;
+      this.logger.error('[HttpAdminAdapter] Error getting auth headers:', error);
+      const authError: AppError = {
+        name: 'AuthError',
+        message: 'Authentication failed',
+        type: 'auth',
+        code: 'auth/failed',
+        details: error
+      };
       throw authError;
     }
   }
@@ -67,24 +78,42 @@ export class HttpAdminAdapter implements AdminService {
 
       if (!response.ok) {
         let errorMessage = response.statusText || 'Unknown error';
+        let errorCode: string | undefined;
+        let errorDetails: any = undefined;
+        
         try {
           const errorData = await response.json();
-          if (errorData.detail) {
+          
+          if (errorData?.error) {
+            // New standardized format: { error: { message, error_code, details } }
+            errorMessage = errorData.error.message || errorMessage;
+            errorCode = errorData.error.error_code;
+            errorDetails = errorData.error.details;
+          } else if (errorData?.detail) {
+            // Legacy format: { detail: "message" }
             errorMessage = errorData.detail;
           }
         } catch (parseError) {
           // If we can't parse the error response, use the status text
-          console.warn(
+         this.logger.warn(
             '[HttpAdminAdapter] Could not parse error response:',
             parseError
           );
         }
         
         // Create enhanced error object with status and context
-        const error = new Error(errorMessage);
-        (error as any).status = response.status;
-        (error as any).url = url;
-        (error as any).method = options.method || 'GET';
+        const error: AppError = {
+          name: 'ApiError',
+          message: errorMessage,
+          type: 'api',
+          status: response.status,
+          details: {
+            url,
+            method: options.method || 'GET',
+            errorCode,
+            serverDetails: errorDetails
+          }
+        };
         
         throw error;
       }
@@ -93,9 +122,11 @@ export class HttpAdminAdapter implements AdminService {
     } catch (error) {
       // Handle network errors and other exceptions
       if (error instanceof TypeError && error.message.includes('fetch')) {
-        const networkError = new Error('Network connection failed');
-        (networkError as any).name = 'NetworkError';
-        (networkError as any).url = url;
+        const networkError: NetworkError = {
+          name: 'NetworkError',
+          message: 'Network connection failed',
+          url
+        };
         throw networkError;
       }
       
@@ -109,16 +140,16 @@ export class HttpAdminAdapter implements AdminService {
    */
   async listRateCards(): Promise<RateCard[]> {
     try {
-      console.log('[HttpAdminAdapter] Fetching rate cards...');
+     this.logger.debug('[HttpAdminAdapter] Fetching rate cards...');
       const rateCards = await this.fetchWithAuth<RateCard[]>(
         `${this.apiBaseUrl}/admin/rate-cards`
       );
-      console.log(
+     this.logger.debug(
         `[HttpAdminAdapter] Successfully fetched ${rateCards.length} rate cards`
       );
       return rateCards;
     } catch (error) {
-      console.error('[HttpAdminAdapter] Error fetching rate cards:', error);
+     this.logger.error('[HttpAdminAdapter] Error fetching rate cards:', error);
       throw error;
     }
   }
@@ -128,7 +159,7 @@ export class HttpAdminAdapter implements AdminService {
    */
   async createRateCard(data: CreateRateCardRequest): Promise<RateCard> {
     try {
-      console.log('[HttpAdminAdapter] Creating rate card:', data.name);
+     this.logger.debug('[HttpAdminAdapter] Creating rate card:', data.name);
       const createdRateCard = await this.fetchWithAuth<RateCard>(
         `${this.apiBaseUrl}/admin/rate-cards`,
         {
@@ -136,12 +167,12 @@ export class HttpAdminAdapter implements AdminService {
           body: JSON.stringify(data),
         }
       );
-      console.log(
+     this.logger.debug(
         `[HttpAdminAdapter] Successfully created rate card: ${createdRateCard.id}`
       );
       return createdRateCard;
     } catch (error) {
-      console.error('[HttpAdminAdapter] Error creating rate card:', error);
+     this.logger.error('[HttpAdminAdapter] Error creating rate card:', error);
       throw error;
     }
   }
@@ -154,7 +185,7 @@ export class HttpAdminAdapter implements AdminService {
     data: UpdateRateCardRequest
   ): Promise<RateCard> {
     try {
-      console.log('[HttpAdminAdapter] Updating rate card:', cardId);
+     this.logger.debug('[HttpAdminAdapter] Updating rate card:', cardId);
       const updatedRateCard = await this.fetchWithAuth<RateCard>(
         `${this.apiBaseUrl}/admin/rate-cards/${cardId}`,
         {
@@ -162,12 +193,12 @@ export class HttpAdminAdapter implements AdminService {
           body: JSON.stringify(data),
         }
       );
-      console.log(
+     this.logger.debug(
         `[HttpAdminAdapter] Successfully updated rate card: ${cardId}`
       );
       return updatedRateCard;
     } catch (error) {
-      console.error('[HttpAdminAdapter] Error updating rate card:', error);
+     this.logger.error('[HttpAdminAdapter] Error updating rate card:', error);
       throw error;
     }
   }
@@ -177,18 +208,18 @@ export class HttpAdminAdapter implements AdminService {
    */
   async deleteRateCard(cardId: string): Promise<void> {
     try {
-      console.log('[HttpAdminAdapter] Deleting rate card:', cardId);
+     this.logger.debug('[HttpAdminAdapter] Deleting rate card:', cardId);
       await this.fetchWithAuth<{ message: string; deleted_id: string }>(
         `${this.apiBaseUrl}/admin/rate-cards/${cardId}`,
         {
           method: 'DELETE',
         }
       );
-      console.log(
+     this.logger.debug(
         `[HttpAdminAdapter] Successfully deleted rate card: ${cardId}`
       );
     } catch (error) {
-      console.error('[HttpAdminAdapter] Error deleting rate card:', error);
+     this.logger.error('[HttpAdminAdapter] Error deleting rate card:', error);
       throw error;
     }
   }
@@ -198,16 +229,16 @@ export class HttpAdminAdapter implements AdminService {
    */
   async listPricingTemplates(): Promise<PricingTemplate[]> {
     try {
-      console.log('[HttpAdminAdapter] Fetching pricing templates...');
+     this.logger.debug('[HttpAdminAdapter] Fetching pricing templates...');
       const pricingTemplates = await this.fetchWithAuth<PricingTemplate[]>(
         `${this.apiBaseUrl}/admin/pricing-templates`
       );
-      console.log(
+     this.logger.debug(
         `[HttpAdminAdapter] Successfully fetched ${pricingTemplates.length} pricing templates`
       );
       return pricingTemplates;
     } catch (error) {
-      console.error(
+     this.logger.error(
         '[HttpAdminAdapter] Error fetching pricing templates:',
         error
       );
@@ -222,7 +253,7 @@ export class HttpAdminAdapter implements AdminService {
     data: CreatePricingTemplateRequest
   ): Promise<PricingTemplate> {
     try {
-      console.log('[HttpAdminAdapter] Creating pricing template:', data.name);
+     this.logger.debug('[HttpAdminAdapter] Creating pricing template:', data.name);
       const createdTemplate = await this.fetchWithAuth<PricingTemplate>(
         `${this.apiBaseUrl}/admin/pricing-templates`,
         {
@@ -230,12 +261,12 @@ export class HttpAdminAdapter implements AdminService {
           body: JSON.stringify(data),
         }
       );
-      console.log(
+     this.logger.debug(
         `[HttpAdminAdapter] Successfully created pricing template: ${createdTemplate.id}`
       );
       return createdTemplate;
     } catch (error) {
-      console.error(
+     this.logger.error(
         '[HttpAdminAdapter] Error creating pricing template:',
         error
       );
@@ -251,7 +282,7 @@ export class HttpAdminAdapter implements AdminService {
     data: UpdatePricingTemplateRequest
   ): Promise<PricingTemplate> {
     try {
-      console.log('[HttpAdminAdapter] Updating pricing template:', templateId);
+     this.logger.debug('[HttpAdminAdapter] Updating pricing template:', templateId);
       const updatedTemplate = await this.fetchWithAuth<PricingTemplate>(
         `${this.apiBaseUrl}/admin/pricing-templates/${templateId}`,
         {
@@ -259,12 +290,12 @@ export class HttpAdminAdapter implements AdminService {
           body: JSON.stringify(data),
         }
       );
-      console.log(
+     this.logger.debug(
         `[HttpAdminAdapter] Successfully updated pricing template: ${templateId}`
       );
       return updatedTemplate;
     } catch (error) {
-      console.error(
+     this.logger.error(
         '[HttpAdminAdapter] Error updating pricing template:',
         error
       );
@@ -277,18 +308,18 @@ export class HttpAdminAdapter implements AdminService {
    */
   async deletePricingTemplate(templateId: string): Promise<void> {
     try {
-      console.log('[HttpAdminAdapter] Deleting pricing template:', templateId);
+     this.logger.debug('[HttpAdminAdapter] Deleting pricing template:', templateId);
       await this.fetchWithAuth<{ message: string; deleted_id: string }>(
         `${this.apiBaseUrl}/admin/pricing-templates/${templateId}`,
         {
           method: 'DELETE',
         }
       );
-      console.log(
+     this.logger.debug(
         `[HttpAdminAdapter] Successfully deleted pricing template: ${templateId}`
       );
     } catch (error) {
-      console.error(
+     this.logger.error(
         '[HttpAdminAdapter] Error deleting pricing template:',
         error
       );
@@ -301,16 +332,16 @@ export class HttpAdminAdapter implements AdminService {
    */
   async listUsers(): Promise<User[]> {
     try {
-      console.log('[HttpAdminAdapter] Fetching users...');
+     this.logger.debug('[HttpAdminAdapter] Fetching users...');
       const users = await this.fetchWithAuth<User[]>(
         `${this.apiBaseUrl}/admin/users`
       );
-      console.log(
+     this.logger.debug(
         `[HttpAdminAdapter] Successfully fetched ${users.length} users`
       );
       return users;
     } catch (error) {
-      console.error('[HttpAdminAdapter] Error fetching users:', error);
+     this.logger.error('[HttpAdminAdapter] Error fetching users:', error);
       throw error;
     }
   }
@@ -320,16 +351,16 @@ export class HttpAdminAdapter implements AdminService {
    */
   async getFinalApproverRoleSetting(): Promise<{ finalApproverRoleName: string; updatedAt?: string; description?: string }> {
     try {
-      console.log('[HttpAdminAdapter] Fetching final approver role setting...');
+     this.logger.debug('[HttpAdminAdapter] Fetching final approver role setting...');
       const config = await this.fetchWithAuth<{ finalApproverRoleName: string; updatedAt?: string; description?: string }>(
         `${this.apiBaseUrl}/admin/config/final-approver-role`
       );
-      console.log(
+     this.logger.debug(
         `[HttpAdminAdapter] Successfully fetched final approver role: ${config.finalApproverRoleName}`
       );
       return config;
     } catch (error) {
-      console.error('[HttpAdminAdapter] Error fetching final approver role setting:', error);
+     this.logger.error('[HttpAdminAdapter] Error fetching final approver role setting:', error);
       throw error;
     }
   }
@@ -339,7 +370,7 @@ export class HttpAdminAdapter implements AdminService {
    */
   async setFinalApproverRoleSetting(roleName: string): Promise<{ finalApproverRoleName: string; updatedAt?: string; description?: string }> {
     try {
-      console.log('[HttpAdminAdapter] Setting final approver role to:', roleName);
+     this.logger.debug('[HttpAdminAdapter] Setting final approver role to:', roleName);
       const config = await this.fetchWithAuth<{ finalApproverRoleName: string; updatedAt?: string; description?: string }>(
         `${this.apiBaseUrl}/admin/config/final-approver-role`,
         {
@@ -347,12 +378,12 @@ export class HttpAdminAdapter implements AdminService {
           body: JSON.stringify({ finalApproverRoleName: roleName }),
         }
       );
-      console.log(
+     this.logger.debug(
         `[HttpAdminAdapter] Successfully set final approver role to: ${config.finalApproverRoleName}`
       );
       return config;
     } catch (error) {
-      console.error('[HttpAdminAdapter] Error setting final approver role:', error);
+     this.logger.error('[HttpAdminAdapter] Error setting final approver role:', error);
       throw error;
     }
   }

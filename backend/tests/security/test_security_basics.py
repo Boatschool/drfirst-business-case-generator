@@ -6,6 +6,7 @@ Critical for ensuring system security
 
 import pytest
 from unittest.mock import patch, MagicMock
+from pydantic import ValidationError
 
 from app.models.firestore_models import UserRole, JobStatus, User
 
@@ -27,7 +28,7 @@ class TestBasicSecurityPatterns:
         for role in valid_roles:
             user_data = {
                 "uid": "test-uid",
-                "email": "test@example.com",
+                "email": "test@drfirst.com",
                 "systemRole": role,
             }
             user = User(**user_data)
@@ -73,7 +74,7 @@ class TestBasicSecurityPatterns:
         # Test that User model doesn't expose sensitive fields
         user_data = {
             "uid": "test-uid",
-            "email": "test@example.com",
+            "email": "test@drfirst.com",
             "systemRole": UserRole.USER,
         }
 
@@ -89,17 +90,29 @@ class TestBasicSecurityPatterns:
 
     def test_email_validation_security(self):
         """Test email validation for security"""
-        # Test valid emails
+        # Test valid emails (must be @drfirst.com)
         valid_emails = [
-            "user@example.com",
-            "test.user@company.org",
-            "admin+tag@domain.co.uk",
+            "user@drfirst.com",
+            "test.user@drfirst.com",
+            "admin+tag@drfirst.com",
         ]
 
         for email in valid_emails:
             user_data = {"uid": "test-uid", "email": email, "systemRole": UserRole.USER}
             user = User(**user_data)
             assert user.email == email
+            
+        # Test invalid emails (not @drfirst.com domain)
+        invalid_emails = [
+            "user@example.com",
+            "test@company.org",
+            "admin@domain.co.uk",
+        ]
+        
+        for email in invalid_emails:
+            user_data = {"uid": "test-uid", "email": email, "systemRole": UserRole.USER}
+            with pytest.raises(ValidationError):
+                User(**user_data)
 
     def test_injection_prevention_patterns(self):
         """Test basic injection prevention patterns"""
@@ -115,7 +128,7 @@ class TestBasicSecurityPatterns:
         for dangerous_input in dangerous_inputs:
             user_data = {
                 "uid": dangerous_input,
-                "email": "test@example.com",
+                "email": "test@drfirst.com",
                 "systemRole": UserRole.USER,
                 "display_name": dangerous_input,
             }
@@ -143,7 +156,7 @@ class TestBasicSecurityPatterns:
         """Test user model field type security"""
         user_data = {
             "uid": "test-uid",
-            "email": "test@example.com",
+            "email": "test@drfirst.com",
             "systemRole": UserRole.USER,
         }
 
@@ -167,14 +180,14 @@ class TestInputValidationSecurity:
 
         test_cases = [
             {"field": "uid", "value": long_string},
-            {"field": "email", "value": f"{long_string}@example.com"},
+            {"field": "email", "value": f"{long_string}@drfirst.com"},
             {"field": "display_name", "value": very_long_string},
         ]
 
         for test_case in test_cases:
             user_data = {
                 "uid": "test-uid",
-                "email": "test@example.com",
+                "email": "test@drfirst.com",
                 "systemRole": UserRole.USER,
             }
             user_data[test_case["field"]] = test_case["value"]
@@ -202,7 +215,7 @@ class TestInputValidationSecurity:
         for unicode_input in unicode_test_cases:
             user_data = {
                 "uid": "test-uid",
-                "email": "test@example.com",
+                "email": "test@drfirst.com",
                 "systemRole": UserRole.USER,
                 "display_name": unicode_input,
             }
@@ -226,7 +239,7 @@ class TestInputValidationSecurity:
         for test_case in test_cases:
             user_data = {
                 "uid": "test-uid",
-                "email": "test@example.com",
+                "email": "test@drfirst.com",
                 "systemRole": UserRole.USER,
             }
             user_data[test_case["field"]] = test_case["value"]
@@ -251,7 +264,7 @@ class TestInputValidationSecurity:
         for test_case in type_test_cases:
             user_data = {
                 "uid": "test-uid",
-                "email": "test@example.com",
+                "email": "test@drfirst.com",
                 "systemRole": UserRole.USER,
                 "is_active": True,
             }
@@ -274,7 +287,7 @@ class TestDataExposurePrevention:
         """Test that model serialization doesn't expose sensitive data"""
         user_data = {
             "uid": "sensitive-uid-12345",
-            "email": "user@example.com",
+            "email": "user@drfirst.com",
             "systemRole": UserRole.USER,
             "display_name": "Test User",
         }
@@ -324,7 +337,7 @@ class TestDataExposurePrevention:
 
     def test_default_values_security(self):
         """Test that default values are secure"""
-        minimal_user_data = {"uid": "test-uid", "email": "test@example.com"}
+        minimal_user_data = {"uid": "test-uid", "email": "test@drfirst.com"}
 
         user = User(**minimal_user_data)
 

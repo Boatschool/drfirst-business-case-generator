@@ -21,9 +21,13 @@ class TestPrdUpdateRequest:
         assert isinstance(request.content_markdown, str)
 
     def test_prd_update_request_with_empty_content(self):
-        """Test that empty content is allowed (user might want to clear PRD)."""
-        request = PrdUpdateRequest(content_markdown="")
-        assert request.content_markdown == ""
+        """Test that minimum content length is enforced."""
+        # Test that content below minimum length raises validation error
+        with pytest.raises(ValidationError) as exc_info:
+            PrdUpdateRequest(content_markdown="")
+        
+        error = exc_info.value
+        assert "String should have at least 10 characters" in str(error)
 
     def test_prd_update_request_with_long_content(self):
         """Test that long content is handled properly."""
@@ -131,10 +135,13 @@ console.log(message);
 
     def test_prd_update_request_field_validation(self):
         """Test field validation edge cases."""
-        # Test with whitespace-only content
-        request = PrdUpdateRequest(content_markdown="   \n\t   ")
-        assert request.content_markdown == "   \n\t   "
+        # Test with whitespace-only content that meets minimum length
+        with pytest.raises(ValidationError) as exc_info:
+            PrdUpdateRequest(content_markdown="   \n\t   ")
+        
+        error = exc_info.value
+        assert "String should have at least 10 characters" in str(error)
 
-        # Test with newlines
-        request = PrdUpdateRequest(content_markdown="\n\n\n")
-        assert request.content_markdown == "\n\n\n"
+        # Test with valid minimum content
+        request = PrdUpdateRequest(content_markdown="Valid PRD content here")
+        assert len(request.content_markdown) >= 10

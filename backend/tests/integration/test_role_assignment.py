@@ -218,7 +218,7 @@ class TestRoleAssignmentScripts:
             assert isinstance(description, str)
             assert len(description) > 0
             assert description.startswith(
-                ("🔑", "👤", "👁️", "👨‍💻", "💼", "📊", "💰", "⚖️", "🏗️", "📦", "📈")
+                ("🔑", "👤", "👁️", "👨‍💻", "💼", "📊", "💰", "⚖️", "🏗️", "📦", "📈", "👑")
             )
 
     @pytest.mark.asyncio

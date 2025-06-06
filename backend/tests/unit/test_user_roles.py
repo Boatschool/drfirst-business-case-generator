@@ -24,6 +24,7 @@ class TestUserRoleEnum:
             "TECHNICAL_ARCHITECT",
             "PRODUCT_OWNER",
             "BUSINESS_ANALYST",
+            "FINAL_APPROVER",
         }
 
         actual_roles = {role.value for role in UserRole}
@@ -33,7 +34,7 @@ class TestUserRoleEnum:
 
     def test_role_count(self):
         """Test that we have the expected number of roles"""
-        assert len(UserRole) == 11, f"Expected 11 roles, got {len(UserRole)}"
+        assert len(UserRole) == 12, f"Expected 12 roles, got {len(UserRole)}"
 
     def test_role_string_values(self):
         """Test that each role has the correct string value"""
@@ -49,6 +50,7 @@ class TestUserRoleEnum:
             UserRole.TECHNICAL_ARCHITECT: "TECHNICAL_ARCHITECT",
             UserRole.PRODUCT_OWNER: "PRODUCT_OWNER",
             UserRole.BUSINESS_ANALYST: "BUSINESS_ANALYST",
+            UserRole.FINAL_APPROVER: "FINAL_APPROVER",
         }
 
         for role_enum, expected_string in role_mapping.items():
@@ -68,6 +70,7 @@ class TestUserRoleEnum:
             "TECHNICAL_ARCHITECT",
             "PRODUCT_OWNER",
             "BUSINESS_ANALYST",
+            "FINAL_APPROVER",
         ]
 
         for role_string in valid_strings:
@@ -158,6 +161,7 @@ class TestRolePermissions:
             UserRole.FINANCE_APPROVER: 5,
             UserRole.LEGAL_APPROVER: 5,
             UserRole.TECHNICAL_ARCHITECT: 6,
+            UserRole.FINAL_APPROVER: 9,
             UserRole.ADMIN: 10,
         }
 
@@ -202,6 +206,7 @@ class TestRoleValidation:
             "TECHNICAL_ARCHITECT",
             "PRODUCT_OWNER",
             "BUSINESS_ANALYST",
+            "FINAL_APPROVER",
         ]
 
         for role_string in valid_role_strings:

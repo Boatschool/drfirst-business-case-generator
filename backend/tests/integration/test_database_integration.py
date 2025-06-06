@@ -18,7 +18,7 @@ def test_user_data():
     """Generate test user data"""
     return {
         "uid": f"test-{uuid4()}",
-        "email": f"test-{uuid4()}@example.com",
+        "email": f"test-{uuid4()}@drfirst.com",
         "systemRole": UserRole.BUSINESS_ANALYST,
         "created_at": datetime.utcnow(),
         "is_active": True,
@@ -33,7 +33,7 @@ def test_case_data():
         "title": "Test Business Case",
         "description": "This is a test business case for integration testing",
         "status": JobStatus.PENDING,
-        "created_by": "test@example.com",
+        "created_by": "test@drfirst.com",
         "created_at": datetime.utcnow(),
         "updated_at": datetime.utcnow(),
     }
@@ -62,7 +62,7 @@ class TestBasicModels:
         for role in valid_roles:
             user_data = {
                 "uid": f"test-{uuid4()}",
-                "email": "test@example.com",
+                "email": "test@drfirst.com",
                 "systemRole": role,
             }
             user = User(**user_data)
@@ -89,7 +89,7 @@ class TestBasicModels:
 
         request_data = BusinessCaseRequest(
             title="Test Case",
-            description="Test Description",
+            description="This is a comprehensive test description with enough words",
             requester_uid="test-uid-123",
         )
 
@@ -115,7 +115,7 @@ class TestBasicModels:
         """Test datetime field handling"""
         user_data = {
             "uid": "test-uid",
-            "email": "test@example.com",
+            "email": "test@drfirst.com",
             "systemRole": UserRole.USER,
         }
 
@@ -128,7 +128,7 @@ class TestBasicModels:
 
     def test_optional_fields(self):
         """Test handling of optional fields"""
-        minimal_user_data = {"uid": "test-uid", "email": "test@example.com"}
+        minimal_user_data = {"uid": "test-uid", "email": "test@drfirst.com"}
 
         user = User(**minimal_user_data)
 
@@ -175,7 +175,7 @@ class TestDataIntegrity:
         """Test that models handle updates properly"""
         user_data = {
             "uid": "test-uid",
-            "email": "test@example.com",
+            "email": "test@drfirst.com",
             "systemRole": UserRole.USER,
         }
 

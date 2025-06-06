@@ -26,7 +26,7 @@ class TestPrdUpdateEndpoint:
     @pytest.fixture
     def mock_user(self):
         """Mock authenticated user."""
-        return {"uid": "test-user-123", "email": "test@example.com"}
+        return {"uid": "test-user-123", "email": "test@drfirst.com"}
 
     @pytest.fixture
     def mock_case_data(self):
@@ -61,47 +61,47 @@ class TestPrdUpdateEndpoint:
         """Test successful PRD update with proper authentication and authorization."""
         case_id = "test-case-123"
 
-        # Mock Firestore operations
-        with patch("app.api.v1.cases.prd_routes.firestore.Client") as mock_firestore:
-            mock_db = Mock()
-            mock_firestore.return_value = mock_db
+        # Mock FirestoreService
+        from app.models.firestore_models import BusinessCase, JobStatus, BusinessCaseRequest
+        mock_service = Mock()
+        
+        # Create a mock business case
+        mock_business_case = BusinessCase(
+            id=case_id,
+            user_id=mock_user["uid"],
+            title="Test Business Case",
+            request_data=BusinessCaseRequest(
+                title="Test Business Case",
+                description="This is a comprehensive test description with adequate length",
+                requester_uid=mock_user["uid"]
+            ),
+            status=JobStatus.PENDING,
+            prd_draft=None,
+            history=[]
+        )
+        
+        mock_service.get_business_case.return_value = mock_business_case
+        mock_service.update_business_case.return_value = True
 
-            # Mock document reference and snapshot
-            mock_doc_ref = Mock()
-            mock_db.collection.return_value.document.return_value = mock_doc_ref
+        # Mock the dependency
+        with patch("app.core.dependencies.get_firestore_service", return_value=mock_service):
+            # Call the endpoint function
+            result = await update_prd_draft(case_id, prd_update_request, mock_user, mock_service)
 
-            mock_doc_snapshot = Mock()
-            mock_doc_snapshot.exists = True
-            mock_doc_snapshot.to_dict.return_value = mock_case_data
+            # Verify the result
+            assert result["message"] == "PRD draft updated successfully"
+            assert (
+                result["updated_prd_draft"]["content_markdown"]
+                == prd_update_request.content_markdown
+            )
+            assert (
+                result["updated_prd_draft"]["title"] == "Test Business Case - Draft"
+            )
+            assert result["updated_prd_draft"]["version"] == "1.0.0"
 
-            # Mock asyncio.to_thread for get operation
-            with patch("app.api.v1.cases.prd_routes.asyncio.to_thread") as mock_to_thread:
-                mock_to_thread.side_effect = [mock_doc_snapshot, None]  # get, update
-
-                # Call the endpoint function
-                result = await update_prd_draft(case_id, prd_update_request, mock_user)
-
-                # Verify the result
-                assert result["message"] == "PRD draft updated successfully"
-                assert (
-                    result["updated_prd_draft"]["content_markdown"]
-                    == prd_update_request.content_markdown
-                )
-                assert (
-                    result["updated_prd_draft"]["title"] == "Test Business Case - Draft"
-                )
-                assert result["updated_prd_draft"]["version"] == "1.0.0"
-
-                # Verify Firestore operations were called correctly
-                mock_db.collection.assert_called_with("businessCases")
-                mock_db.collection().document.assert_called_with(case_id)
-
-                # Verify update was called with correct data
-                assert mock_to_thread.call_count == 2  # get and update calls
-                update_call_args = mock_to_thread.call_args_list[1]
-                assert "prd_draft" in str(update_call_args)
-                assert "updated_at" in str(update_call_args)
-                assert "history" in str(update_call_args)
+            # Verify service methods were called
+            mock_service.get_business_case.assert_called_once_with(case_id)
+            mock_service.update_business_case.assert_called_once()
 
     @pytest.mark.asyncio
     async def test_case_not_found(self, mock_user, prd_update_request):
@@ -132,7 +132,7 @@ class TestPrdUpdateEndpoint:
     async def test_unauthorized_user(self, mock_case_data, prd_update_request):
         """Test that 403 is returned when user doesn't own the case."""
         case_id = "test-case-123"
-        different_user = {"uid": "different-user-456", "email": "different@example.com"}
+        different_user = {"uid": "different-user-456", "email": "different@drfirst.com"}
 
         with patch("app.api.v1.cases.prd_routes.firestore.Client") as mock_firestore:
             mock_db = Mock()
@@ -159,7 +159,7 @@ class TestPrdUpdateEndpoint:
     async def test_missing_user_id_in_token(self, mock_case_data, prd_update_request):
         """Test that 401 is returned when user ID is missing from token."""
         case_id = "test-case-123"
-        invalid_user = {"email": "test@example.com"}  # Missing uid
+        invalid_user = {"email": "test@drfirst.com"}  # Missing uid
 
         with pytest.raises(HTTPException) as exc_info:
             await update_prd_draft(case_id, prd_update_request, invalid_user)

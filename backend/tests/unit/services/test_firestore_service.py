@@ -11,6 +11,7 @@ from app.services.firestore_service import (
     FirestoreServiceError, 
     DocumentNotFoundError
 )
+from app.core.exceptions import UserNotFoundError, DatabaseError
 from app.models.firestore_models import User, BusinessCase, Job, JobStatus, UserRole, BusinessCaseRequest
 
 
@@ -35,7 +36,7 @@ class TestFirestoreService:
         """Sample user for testing"""
         return User(
             uid="test-uid-123",
-            email="test@example.com",
+            email="test@drfirst.com",
             display_name="Test User",
             systemRole=UserRole.USER,
             is_active=True
@@ -46,7 +47,7 @@ class TestFirestoreService:
         """Sample business case request for testing"""
         return BusinessCaseRequest(
             title="Test Business Case",
-            description="Test description",
+            description="This is a comprehensive test description with adequate length",
             requester_uid="test-uid-123",
             priority="high"
         )
@@ -92,7 +93,7 @@ class TestFirestoreService:
         """Test user creation error handling"""
         mock_db.collection.side_effect = Exception("Database error")
         
-        with pytest.raises(FirestoreServiceError) as exc_info:
+        with pytest.raises(DatabaseError) as exc_info:
             await firestore_service.create_user(sample_user)
         
         assert "Failed to create user" in str(exc_info.value)
@@ -198,7 +199,7 @@ class TestFirestoreService:
         with patch('asyncio.to_thread') as mock_to_thread:
             mock_to_thread.return_value = mock_doc
             
-            with pytest.raises(DocumentNotFoundError):
+            with pytest.raises(UserNotFoundError):
                 await firestore_service.update_user("nonexistent-uid", {"test": "value"})
 
     @pytest.mark.asyncio

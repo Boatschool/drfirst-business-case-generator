@@ -68,13 +68,10 @@ export default defineConfig({
           'markdown-vendor': ['react-markdown'],
         },
         // Optimize chunk names for better caching
-        chunkFileNames: (chunkInfo) => {
-          const facadeModuleId = chunkInfo.facadeModuleId ? chunkInfo.facadeModuleId.split('/').pop() : 'chunk';
+        chunkFileNames: () => {
           return `assets/[name]-[hash].js`;
         },
         assetFileNames: (assetInfo) => {
-          const info = assetInfo.name.split('.');
-          const ext = info[info.length - 1];
           if (/\.(png|jpe?g|svg|gif|tiff|bmp|ico)$/i.test(assetInfo.name)) {
             return `assets/images/[name]-[hash][extname]`;
           }

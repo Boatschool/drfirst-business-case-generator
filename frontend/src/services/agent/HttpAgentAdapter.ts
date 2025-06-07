@@ -563,7 +563,7 @@ export class HttpAgentAdapter implements AgentService {
 
   // ===== ENHANCED AGENT METHODS =====
 
-  async regeneratePrd(_caseId: string, _feedback?: string): Promise<import('./AgentService').EnhancedAgentResponse> {
+  async regeneratePrd(): Promise<import('./AgentService').EnhancedAgentResponse> {
     // TODO: Implement PRD regeneration with enhanced error handling
     return {
       success: false,
@@ -579,11 +579,7 @@ export class HttpAgentAdapter implements AgentService {
     };
   }
 
-  async regenerateSystemDesign(
-    _caseId: string,
-    _feedback?: string,
-    _onProgress?: (progress: import('./AgentService').AgentProgress) => void
-  ): Promise<import('./AgentService').EnhancedAgentResponse> {
+  async regenerateSystemDesign(): Promise<import('./AgentService').EnhancedAgentResponse> {
     // TODO: Implement system design regeneration with progress tracking
     return {
       success: false,
@@ -599,7 +595,7 @@ export class HttpAgentAdapter implements AgentService {
     };
   }
 
-  async regenerateFinancialEstimates(_caseId: string): Promise<import('./AgentService').EnhancedAgentResponse> {
+  async regenerateFinancialEstimates(): Promise<import('./AgentService').EnhancedAgentResponse> {
     // TODO: Implement financial estimates regeneration
     return {
       success: false,

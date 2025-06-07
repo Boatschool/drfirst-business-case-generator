@@ -127,11 +127,6 @@ export const AgentProvider: React.FC<AgentProviderProps> = ({ children }) => {
     };
   }, []);
 
-  // Helper function to check if authentication is ready
-  const isAuthReady = () => {
-    return authContext && !authContext.loading && authContext.currentUser;
-  };
-
   // SIMPLIFIED: Inline refresh helper - no dependencies, no complexity
   const inlineRefreshCaseDetails = async (
     caseId: string,

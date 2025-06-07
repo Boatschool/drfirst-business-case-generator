@@ -31,7 +31,6 @@ import {
   Assessment as AssessmentIcon,
 } from '@mui/icons-material';
 import { BusinessCaseDetails } from '../../services/agent/AgentService';
-import { STANDARD_STYLES } from '../../styles/constants';
 
 interface ValueAnalysisSectionProps {
   currentCaseDetails: BusinessCaseDetails;
@@ -57,10 +56,6 @@ export const ValueAnalysisSection: React.FC<ValueAnalysisSectionProps> = ({
     return `$${value.toLocaleString()}`;
   };
 
-  const canSubmitValueProjection = () => {
-    return status === 'VALUE_ANALYSIS_COMPLETE' && value_projection_v1;
-  };
-
   const canApproveRejectValueProjection = () => {
     return status === 'VALUE_ANALYSIS_COMPLETE' && value_projection_v1;
   };
@@ -76,7 +71,7 @@ export const ValueAnalysisSection: React.FC<ValueAnalysisSectionProps> = ({
       });
 
       if (response.ok) {
-        const result = await response.json();
+        await response.json();
         // Refresh the page to show updated status
         window.location.reload();
       } else {
@@ -108,7 +103,7 @@ export const ValueAnalysisSection: React.FC<ValueAnalysisSectionProps> = ({
       });
 
       if (response.ok) {
-        const result = await response.json();
+        await response.json();
         setIsRejectDialogOpen(false);
         setRejectionReason('');
         // Refresh the page to show updated status

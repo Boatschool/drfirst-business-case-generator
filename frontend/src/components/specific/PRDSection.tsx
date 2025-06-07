@@ -27,7 +27,6 @@ import { BusinessCaseDetails } from '../../services/agent/AgentService';
 import { useAgentContext } from '../../hooks/useAgentContext';
 import { useAuth } from '../../hooks/useAuth';
 import { PAPER_ELEVATION, STANDARD_STYLES } from '../../styles/constants';
-import { toAppError } from '../../types/api';
 
 interface PRDSectionProps {
   currentCaseDetails: BusinessCaseDetails | null;

@@ -9,6 +9,8 @@ from pydantic import BaseModel
 from enum import Enum
 import inspect
 
+from .agent_registry import AgentRegistry
+
 # Pydantic v2 compatibility
 def model_schema(model: Type[BaseModel]) -> Dict[str, Any]:
     """Get model schema compatible with both Pydantic v1 and v2"""

@@ -5,7 +5,7 @@ import { useAgentContext } from '../../hooks/useAgentContext';
 import { STANDARD_STYLES } from '../../styles/constants';
 
 const FinancialModelPage: React.FC = () => {
-  const { currentCaseDetails, isLoading, caseDetailsError } = useAgentContext();
+  const { currentCaseDetails, caseDetailsError } = useAgentContext();
 
   // Error state
   if (caseDetailsError) {

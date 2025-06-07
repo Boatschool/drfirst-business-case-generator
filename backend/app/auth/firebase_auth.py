@@ -4,7 +4,7 @@ from firebase_admin import auth
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from typing import Optional
-from app.services.auth_service import auth_service
+from app.services.auth_service import get_auth_service
 from app.services.user_service import user_service
 from app.models.firestore_models import UserRole
 
@@ -42,6 +42,7 @@ async def get_current_user(
     logger.info("🔐 [AUTH] Verifying Firebase ID token...")
     logger.info(f"🎫 [AUTH] Token preview: {token[:50] if token else 'NULL'}...")
 
+    auth_service = get_auth_service()
     if not auth_service.is_initialized:
         logger.info("❌ [AUTH] Firebase Admin SDK not initialized!")
         raise HTTPException(
@@ -51,7 +52,7 @@ async def get_current_user(
 
     try:
         logger.info("🔍 [AUTH] Calling auth_service.verify_id_token()...")
-        decoded_token = auth_service.verify_id_token(token)
+        decoded_token = await auth_service.verify_id_token(token)
 
         if not decoded_token:
             logger.info("❌ [AUTH] Token verification failed")

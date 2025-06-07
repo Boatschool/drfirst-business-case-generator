@@ -423,4 +423,103 @@ async def reject_prd(
         raise http_exc
     except Exception as e:
         logger.error(f"Error rejecting PRD for case {case_id}, user {user_id}: {e}")
-        raise HTTPException(status_code=500, detail=f"Failed to reject PRD: {str(e)}") 
+        raise HTTPException(status_code=500, detail=f"Failed to reject PRD: {str(e)}")
+
+
+@router.post(
+    "/cases/{case_id}/trigger-system-design",
+    status_code=200,
+    summary="Manually trigger system design generation for a PRD_APPROVED case",
+)
+async def trigger_system_design_generation(
+    case_id: str,
+    current_user: dict = Depends(get_current_active_user),
+    firestore_service: FirestoreService = Depends(get_firestore_service)
+):
+    """
+    Manually triggers system design generation for a business case that is PRD_APPROVED 
+    but missing system design (e.g., due to previous workflow failures).
+    """
+    user_id = current_user.get("uid")
+    user_email = current_user.get("email", f"User {user_id}")
+
+    if not user_id:
+        raise HTTPException(status_code=401, detail="User ID not found in token.")
+
+    try:
+        # Import BusinessCaseStatus from orchestrator_agent
+        from app.agents.orchestrator_agent import BusinessCaseStatus
+
+        # Use FirestoreService to get the business case
+        business_case = await firestore_service.get_business_case(case_id)
+        
+        if not business_case:
+            raise HTTPException(
+                status_code=404, detail=f"Business case {case_id} not found."
+            )
+
+        # Authorization check: verify user is the owner/initiator
+        if business_case.user_id != user_id:
+            raise HTTPException(
+                status_code=403,
+                detail="You do not have permission to trigger system design for this case.",
+            )
+
+        # Status check: ensure case is PRD_APPROVED
+        current_status_str = str(business_case.status)
+        if hasattr(business_case.status, "value"):
+            current_status_str = business_case.status.value
+
+        if current_status_str != BusinessCaseStatus.PRD_APPROVED.value:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Cannot trigger system design from current status: {current_status_str}. Case must be PRD_APPROVED.",
+            )
+
+        # Check if system design already exists
+        if hasattr(business_case, 'system_design_v1_draft') and business_case.system_design_v1_draft:
+            return {
+                "message": "System design already exists for this case",
+                "case_id": case_id,
+                "system_design_exists": True,
+            }
+
+        # Trigger system design generation
+        try:
+            from app.agents.orchestrator_agent import OrchestratorAgent
+
+            orchestrator = OrchestratorAgent()
+
+            logger.info(f"Manually triggering system design generation for case {case_id} by {user_email}")
+            design_result = await orchestrator.handle_prd_approval(case_id)
+
+            if design_result.get("status") == "success":
+                logger.info(f"System design generation completed successfully for case {case_id}")
+                return {
+                    "message": "System design generation initiated successfully",
+                    "new_status": design_result.get("new_status", BusinessCaseStatus.PRD_APPROVED.value),
+                    "case_id": case_id,
+                    "system_design_initiated": True,
+                }
+            else:
+                logger.warning(f"System design generation failed for case {case_id}: {design_result.get('message')}")
+                return {
+                    "message": "System design generation encountered an issue",
+                    "case_id": case_id,
+                    "system_design_initiated": False,
+                    "error": design_result.get("message"),
+                }
+        except Exception as design_error:
+            logger.error(f"Error triggering system design for case {case_id}: {str(design_error)}")
+            return {
+                "message": "Failed to initiate system design generation",
+                "case_id": case_id,
+                "system_design_initiated": False,
+                "error": str(design_error),
+            }
+
+    except HTTPException as http_exc:
+        raise http_exc
+    except Exception as e:
+        logger.error(f"Error triggering system design for case {case_id}, user {user_id}: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to trigger system design generation: {str(e)}")

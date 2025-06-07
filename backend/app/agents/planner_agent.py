@@ -5,7 +5,6 @@ Planner Agent for estimating development effort based on PRDs and system designs
 from typing import Dict, Any
 import json
 import re
-import vertexai
 from vertexai.generative_models import GenerativeModel
 import vertexai.preview.generative_models as generative_models
 from ..core.config import settings
@@ -32,13 +31,20 @@ class PlannerAgent:
         self.model_name = settings.vertex_ai_model_name or "gemini-2.0-flash-lite"
 
         try:
-            vertexai.init(project=self.project_id, location=self.location)
-            self.model = GenerativeModel(self.model_name)
-            logger.info(
-                f"PlannerAgent: Vertex AI initialized successfully with model {self.model_name}."
-            )
+            # Use centralized VertexAI service
+            from app.services.vertex_ai_service import vertex_ai_service
+            vertex_ai_service.initialize()
+            
+            if vertex_ai_service.is_initialized:
+                self.model = GenerativeModel(self.model_name)
+                logger.info(
+                    f"PlannerAgent: Vertex AI initialized successfully with model {self.model_name}."
+                )
+            else:
+                logger.error("PlannerAgent: VertexAI service not initialized")
+                self.model = None
         except Exception as e:
-            logger.info(f"PlannerAgent: Failed to initialize Vertex AI: {e}")
+            logger.info(f"PlannerAgent: Failed to initialize with VertexAI service: {e}")
             self.model = None
 
         logger.info("PlannerAgent: Initialized successfully.")

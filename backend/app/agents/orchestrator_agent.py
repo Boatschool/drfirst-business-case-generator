@@ -156,17 +156,83 @@ class OrchestratorAgent:
         self.description = "Coordinates the business case generation process"
         self.status = "initialized"
         self.echo_tool = EchoTool()
-        self.product_manager_agent = ProductManagerAgent()
-        self.architect_agent = ArchitectAgent()
-        self.planner_agent = PlannerAgent()
-        self.cost_analyst_agent = CostAnalystAgent()
-        self.sales_value_analyst_agent = SalesValueAnalystAgent()
-        self.financial_model_agent = FinancialModelAgent()
+        
+        # Lazy initialization of agents - they will be created when first accessed
+        self._product_manager_agent = None
+        self._architect_agent = None
+        self._planner_agent = None
+        self._cost_analyst_agent = None
+        self._sales_value_analyst_agent = None
+        self._financial_model_agent = None
+        
+        # Lazy initialization of database client
+        self._db = db
+        self._db_initialized = False
+        
         self.logger = logging.getLogger(__name__)
-
-        # Use dependency injection for database client
-        self.db = db if db is not None else get_db()
-        self.logger.info("OrchestratorAgent: Database client initialized successfully.")
+    
+    @property
+    def db(self):
+        """Lazy initialization of database client"""
+        if not self._db_initialized:
+            self._db = self._db if self._db is not None else get_db()
+            self._db_initialized = True
+            self.logger.info("OrchestratorAgent: Database client initialized successfully.")
+        return self._db
+    
+    @property
+    def product_manager_agent(self):
+        """Lazy initialization of ProductManagerAgent"""
+        if self._product_manager_agent is None:
+            from .product_manager_agent import ProductManagerAgent
+            self._product_manager_agent = ProductManagerAgent()
+            self.logger.info("OrchestratorAgent: Lazy initialized ProductManagerAgent")
+        return self._product_manager_agent
+    
+    @property
+    def architect_agent(self):
+        """Lazy initialization of ArchitectAgent"""
+        if self._architect_agent is None:
+            from .architect_agent import ArchitectAgent
+            self._architect_agent = ArchitectAgent()
+            self.logger.info("OrchestratorAgent: Lazy initialized ArchitectAgent")
+        return self._architect_agent
+    
+    @property
+    def planner_agent(self):
+        """Lazy initialization of PlannerAgent"""
+        if self._planner_agent is None:
+            from .planner_agent import PlannerAgent
+            self._planner_agent = PlannerAgent()
+            self.logger.info("OrchestratorAgent: Lazy initialized PlannerAgent")
+        return self._planner_agent
+    
+    @property
+    def cost_analyst_agent(self):
+        """Lazy initialization of CostAnalystAgent"""
+        if self._cost_analyst_agent is None:
+            from .cost_analyst_agent import CostAnalystAgent
+            self._cost_analyst_agent = CostAnalystAgent()
+            self.logger.info("OrchestratorAgent: Lazy initialized CostAnalystAgent")
+        return self._cost_analyst_agent
+    
+    @property
+    def sales_value_analyst_agent(self):
+        """Lazy initialization of SalesValueAnalystAgent"""
+        if self._sales_value_analyst_agent is None:
+            from .sales_value_analyst_agent import SalesValueAnalystAgent
+            self._sales_value_analyst_agent = SalesValueAnalystAgent()
+            self.logger.info("OrchestratorAgent: Lazy initialized SalesValueAnalystAgent")
+        return self._sales_value_analyst_agent
+    
+    @property
+    def financial_model_agent(self):
+        """Lazy initialization of FinancialModelAgent"""
+        if self._financial_model_agent is None:
+            from .financial_model_agent import FinancialModelAgent
+            self._financial_model_agent = FinancialModelAgent()
+            self.logger.info("OrchestratorAgent: Lazy initialized FinancialModelAgent")
+        return self._financial_model_agent
 
     async def handle_request(
         self, request_type: str, payload: Dict[str, Any], user_id: str
@@ -1161,6 +1227,160 @@ class OrchestratorAgent:
             )
             print(f"[OrchestratorAgent] {error_msg}")
             return {"status": "error", "message": error_msg}
+
+    async def handle_cost_completion(self, case_id: str) -> Dict[str, Any]:
+        """
+        Handle cost analysis completion by triggering value analysis generation.
+        
+        Args:
+            case_id (str): The business case ID
+            
+        Returns:
+            Dict[str, Any]: Result of the value analysis generation trigger
+        """
+        try:
+            orchestrator_logger = log_agent_operation(
+                self.logger, "OrchestratorAgent", case_id, "handle_cost_completion"
+            )
+            orchestrator_logger.info(f"Handling cost completion for case {case_id}")
+            
+            # Get the business case
+            case_doc_ref = self.db.collection(Collections.BUSINESS_CASES).document(case_id)
+            doc_snapshot = await asyncio.to_thread(case_doc_ref.get)
+            
+            if not doc_snapshot.exists:
+                return {
+                    "status": "error",
+                    "message": f"Business case {case_id} not found",
+                }
+            
+            case_data = doc_snapshot.to_dict()
+            
+            # Verify cost estimation is approved
+            if case_data.get("status") != BusinessCaseStatus.COSTING_APPROVED.value:
+                return {
+                    "status": "error",
+                    "message": f"Case status is {case_data.get('status')}, expected COSTING_APPROVED",
+                }
+            
+            # Check if PRD draft exists for value analysis
+            prd_draft = case_data.get("prd_draft")
+            if not prd_draft or not prd_draft.get("content_markdown"):
+                return {
+                    "status": "error",
+                    "message": "PRD draft content not found for value analysis",
+                }
+            
+            # Trigger Value Analysis generation
+            orchestrator_logger.info(f"Triggering value analysis generation for case {case_id}")
+            
+            # Update status to VALUE_ANALYSIS_IN_PROGRESS
+            current_time = datetime.now(timezone.utc)
+            case_doc_ref.update({
+                "status": BusinessCaseStatus.VALUE_ANALYSIS_IN_PROGRESS.value,
+                "updated_at": current_time,
+                "history": get_array_union([
+                    {
+                        "timestamp": current_time.isoformat(),
+                        "source": "ORCHESTRATOR_AGENT", 
+                        "type": "STATUS_UPDATE",
+                        "content": f"Status updated to {BusinessCaseStatus.VALUE_ANALYSIS_IN_PROGRESS.value}. SalesValueAnalystAgent initiated for value projection generation.",
+                    }
+                ]),
+            })
+            
+            # Generate value analysis using SalesValueAnalystAgent  
+            orchestrator_logger.info("[SalesValueAnalystAgent] Initiating value projection generation...")
+            value_response = await self.sales_value_analyst_agent.analyze_value(
+                prd_content=prd_draft.get("content_markdown"),
+                case_title=case_data.get("title", "Unknown")
+            )
+            
+            updated_at_time = datetime.now(timezone.utc)
+            
+            if value_response.get("status") == "success" and value_response.get("value_projection"):
+                # Value analysis generation successful
+                value_projection = value_response["value_projection"]
+                orchestrator_logger.info(f"[SalesValueAnalystAgent] Value projection generated successfully")
+                
+                # Add metadata to value projection
+                value_projection["generated_by"] = "SalesValueAnalystAgent"
+                value_projection["version"] = "v1"
+                value_projection["generated_timestamp"] = updated_at_time.isoformat()
+                
+                # Update case with value projection and change status to VALUE_ANALYSIS_COMPLETE
+                case_doc_ref.update({
+                    "value_projection_v1": value_projection,
+                    "status": BusinessCaseStatus.VALUE_ANALYSIS_COMPLETE.value,
+                    "updated_at": updated_at_time,
+                    "history": get_array_union([
+                        {
+                            "timestamp": updated_at_time.isoformat(),
+                            "source": "SALES_VALUE_ANALYST_AGENT",
+                            "type": "VALUE_PROJECTION",
+                            "content": f"Value projection generated for {case_data.get('title', 'Unknown')}",
+                        },
+                        {
+                            "timestamp": updated_at_time.isoformat(),
+                            "source": "ORCHESTRATOR_AGENT",
+                            "type": "STATUS_UPDATE", 
+                            "content": f"Status updated to {BusinessCaseStatus.VALUE_ANALYSIS_COMPLETE.value}. Value analysis generation completed.",
+                        }
+                    ]),
+                })
+                
+                orchestrator_logger.info(f"Value analysis generation completed successfully for case {case_id}")
+                
+                return {
+                    "status": "success",
+                    "message": "Value analysis generated successfully",
+                    "case_id": case_id,
+                    "new_status": BusinessCaseStatus.VALUE_ANALYSIS_COMPLETE.value,
+                }
+            else:
+                # Value analysis generation failed
+                error_message = value_response.get("message", "Failed to generate value projection")
+                log_error_with_context(
+                    orchestrator_logger, 
+                    f"SalesValueAnalystAgent failed for case {case_id}", 
+                    Exception(error_message),
+                    {'case_id': case_id, 'error_message': error_message}
+                )
+                
+                # Update with error information - revert to COSTING_APPROVED state
+                case_doc_ref.update({
+                    "status": BusinessCaseStatus.COSTING_APPROVED.value,
+                    "updated_at": updated_at_time,
+                    "history": get_array_union([
+                        {
+                            "timestamp": updated_at_time.isoformat(),
+                            "source": "ORCHESTRATOR_AGENT",
+                            "type": "ERROR",
+                            "content": f"Value analysis generation failed: {error_message}",
+                        }
+                    ]),
+                })
+                
+                return {
+                    "status": "error",
+                    "message": f"Value analysis generation failed: {error_message}",
+                    "case_id": case_id,
+                }
+                
+        except Exception as e:
+            orchestrator_logger = log_agent_operation(
+                self.logger, "OrchestratorAgent", case_id, "handle_cost_completion"
+            )
+            log_error_with_context(
+                orchestrator_logger, 
+                f"Error handling cost completion for case {case_id}", 
+                e,
+                {'case_id': case_id}
+            )
+            return {
+                "status": "error",
+                "message": f"Error handling cost completion: {str(e)}",
+            }
 
     async def _generate_financial_model(
         self,

@@ -57,7 +57,7 @@ class Settings(BaseSettings):
     vertex_ai_top_k: int = 40
 
     # CORS settings - comma-separated string that gets parsed into a list
-    backend_cors_origins: str = "http://localhost:4000,http://127.0.0.1:4000,https://drfirst-business-case-gen.web.app,https://drfirst-business-case-gen.firebaseapp.com"
+    backend_cors_origins: str = "http://localhost:4000,http://localhost:4002,http://127.0.0.1:4000,http://127.0.0.1:4002,https://drfirst-business-case-gen.web.app,https://drfirst-business-case-gen.firebaseapp.com"
 
     # Rate limiting settings
     default_rate_limit: str = "100/minute"

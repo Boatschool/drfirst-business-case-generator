@@ -33,6 +33,101 @@ interface PRDSectionProps {
   isLoading: boolean;
 }
 
+// Enhanced markdown styles for better formatting and readability
+const markdownStyles = {
+  '& h1': {
+    fontSize: '1.8rem',
+    fontWeight: 600,
+    color: '#1976d2',
+    marginTop: '2rem',
+    marginBottom: '1rem',
+    borderBottom: '2px solid #e3f2fd',
+    paddingBottom: '0.5rem',
+  },
+  '& h2': {
+    fontSize: '1.5rem',
+    fontWeight: 600,
+    color: '#333',
+    marginTop: '1.5rem',
+    marginBottom: '0.8rem',
+  },
+  '& h3': {
+    fontSize: '1.3rem',
+    fontWeight: 500,
+    color: '#444',
+    marginTop: '1.2rem',
+    marginBottom: '0.6rem',
+  },
+  '& h4': {
+    fontSize: '1.1rem',
+    fontWeight: 500,
+    color: '#555',
+    marginTop: '1rem',
+    marginBottom: '0.5rem',
+  },
+  '& p': {
+    marginBottom: '1rem',
+    lineHeight: 1.6,
+    color: '#333',
+    fontSize: '1rem',
+  },
+  '& ul, & ol': {
+    marginBottom: '1rem',
+    paddingLeft: '1.5rem',
+  },
+  '& li': {
+    marginBottom: '0.5rem',
+    lineHeight: 1.5,
+  },
+  '& strong': {
+    fontWeight: 600,
+    color: '#1976d2',
+  },
+  '& em': {
+    fontStyle: 'italic',
+    color: '#666',
+  },
+  '& blockquote': {
+    borderLeft: '4px solid #1976d2',
+    paddingLeft: '1rem',
+    margin: '1rem 0',
+    fontStyle: 'italic',
+    backgroundColor: '#f8f9fa',
+    padding: '0.5rem 1rem',
+    borderRadius: '4px',
+  },
+  '& code': {
+    backgroundColor: '#f5f5f5',
+    padding: '0.2rem 0.4rem',
+    borderRadius: '3px',
+    fontSize: '0.9em',
+    fontFamily: 'monospace',
+    color: '#d32f2f',
+  },
+  '& pre': {
+    backgroundColor: '#f5f5f5',
+    padding: '1rem',
+    borderRadius: '5px',
+    overflow: 'auto',
+    margin: '1rem 0',
+    border: '1px solid #e0e0e0',
+  },
+  '& table': {
+    width: '100%',
+    borderCollapse: 'collapse',
+    margin: '1rem 0',
+  },
+  '& th, & td': {
+    border: '1px solid #ddd',
+    padding: '8px 12px',
+    textAlign: 'left',
+  },
+  '& th': {
+    backgroundColor: '#f5f5f5',
+    fontWeight: 600,
+  },
+};
+
 // Helper function to improve text formatting for better readability
 const formatPrdContent = (content: string): string => {
   if (!content) return content;
@@ -348,7 +443,7 @@ export const PRDSection: React.FC<PRDSectionProps> = ({
 
         {/* PRD Content */}
         {!isEditingPrd ? (
-          <Box>
+          <Box sx={markdownStyles}>
             <ReactMarkdown>
               {formatPrdContent(currentCaseDetails.prd_draft.content_markdown)}
             </ReactMarkdown>

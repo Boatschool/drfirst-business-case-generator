@@ -20,6 +20,7 @@ import {
 } from '@mui/icons-material';
 import { Link as RouterLink, useNavigate } from 'react-router-dom';
 import { useAgentContext } from '../hooks/useAgentContext';
+import { AuthContext } from '../contexts/AuthContext';
 import { BusinessCaseSummary } from '../services/agent/AgentService';
 import StatusBadge from '../components/common/StatusBadge';
 import StatusFilter from '../components/common/StatusFilter';
@@ -50,6 +51,7 @@ const DashboardPage: React.FC = () => {
   useDocumentTitle('Dashboard');
 
   const navigate = useNavigate();
+  const authContext = React.useContext(AuthContext);
   const { cases, isLoadingCases, casesError, fetchUserCases } =
     useAgentContext();
 
@@ -67,9 +69,14 @@ const DashboardPage: React.FC = () => {
   }, []);
 
   useEffect(() => {
-    logger.debug('DashboardPage: Calling fetchUserCases');
-    fetchUserCases();
-  }, [fetchUserCases]);
+    // Only fetch cases when authentication is ready
+    if (authContext && !authContext.loading && authContext.currentUser) {
+      logger.debug('DashboardPage: Authentication ready, calling fetchUserCases');
+      fetchUserCases();
+    } else {
+      logger.debug('DashboardPage: Waiting for authentication to be ready');
+    }
+  }, [fetchUserCases, authContext]);
 
   // Sort function
   const sortCases = (cases: BusinessCaseSummary[], sortOption: SortOption): BusinessCaseSummary[] => {

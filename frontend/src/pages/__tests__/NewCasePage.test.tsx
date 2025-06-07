@@ -1,15 +1,16 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { render, screen, fireEvent, waitFor, act } from '@testing-library/react';
-import userEvent from '@testing-library/user-event';
+import React from 'react';
+import { render, screen, waitFor, act } from '@testing-library/react';
+import { vi, describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { BrowserRouter } from 'react-router-dom';
-import { NewCasePage } from '../NewCasePage';
+import NewCasePage from '../NewCasePage';
 import { AgentContext } from '../../contexts/AgentContext';
 import { AuthContext } from '../../contexts/AuthContext';
+import userEvent from '@testing-library/user-event';
 
 // Mock react-router-dom navigate
 const mockNavigate = vi.fn();
 vi.mock('react-router-dom', async () => {
-  const actual = await vi.importActual('react-router-dom');
+  const actual = await vi.importActual('react-router-dom') as any;
   return {
     ...actual,
     useNavigate: () => mockNavigate,
@@ -29,18 +30,32 @@ vi.mock('../../components/common/Breadcrumbs', () => ({
 
 // Mock auth context
 const mockAuthContextValue = {
-  user: {
+  currentUser: {
     uid: 'test-user-id',
     email: 'test@example.com',
     displayName: 'Test User',
+    photoURL: null,
+    emailVerified: true,
+    systemRole: 'PRODUCT_OWNER',
   },
-  isLoading: false,
+  loading: false,
   error: null,
-  signIn: vi.fn(),
-  signOut: vi.fn(),
   signUp: vi.fn(),
-  resetPassword: vi.fn(),
-  clearError: vi.fn(),
+  signIn: vi.fn(),
+  signInWithGoogle: vi.fn(),
+  signOut: vi.fn(),
+  getIdToken: vi.fn(),
+  getIdTokenResult: vi.fn(),
+  refreshIdToken: vi.fn(),
+  isDrFirstUser: true,
+  isValidUser: true,
+  systemRole: 'PRODUCT_OWNER',
+  isAdmin: false,
+  isDeveloper: false,
+  isSalesManager: false,
+  isFinanceApprover: false,
+  isProductOwner: true,
+  isFinalApprover: false,
 };
 
 // Mock agent context
@@ -63,6 +78,7 @@ const mockAgentContextValue = {
   fetchUserCases: vi.fn(),
   fetchCaseDetails: vi.fn(),
   updatePrdDraft: vi.fn(),
+  updateStatus: vi.fn(),
   submitPrdForReview: vi.fn(),
   approvePrd: vi.fn(),
   rejectPrd: vi.fn(),
@@ -70,6 +86,7 @@ const mockAgentContextValue = {
   submitSystemDesignForReview: vi.fn(),
   approveSystemDesign: vi.fn(),
   rejectSystemDesign: vi.fn(),
+  triggerSystemDesignGeneration: vi.fn(),
   updateEffortEstimate: vi.fn(),
   submitEffortEstimateForReview: vi.fn(),
   approveEffortEstimate: vi.fn(),
@@ -551,7 +568,7 @@ describe('NewCasePage', () => {
       render(
         <TestWrapper agentContextOverrides={{ 
           initiateBusinessCase: mockInitiateBusinessCase,
-          error: { message: 'Failed to create case' }
+          error: null
         }}>
           <NewCasePage />
         </TestWrapper>
@@ -577,7 +594,7 @@ describe('NewCasePage', () => {
       
       render(
         <TestWrapper agentContextOverrides={{ 
-          error: { message: 'Previous error' },
+          error: null,
           clearError: mockClearError
         }}>
           <NewCasePage />

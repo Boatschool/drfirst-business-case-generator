@@ -4,7 +4,7 @@ Pydantic models for business case API routes.
 
 from typing import List, Dict, Any, Optional
 from datetime import datetime
-from pydantic import BaseModel, Field, validator
+from pydantic import BaseModel, Field, field_validator
 import re
 
 
@@ -45,7 +45,7 @@ class PrdUpdateRequest(BaseModel):
         description="PRD content in markdown format"
     )
 
-    @validator('content_markdown')
+    @field_validator('content_markdown')
     def validate_content_markdown(cls, v):
         """Validate PRD markdown content"""
         content = v.strip()
@@ -79,7 +79,7 @@ class StatusUpdateRequest(BaseModel):
         description="Optional comment about the status update"
     )
 
-    @validator('comment')
+    @field_validator('comment')
     def validate_comment(cls, v):
         """Validate comment if provided"""
         if v is not None:
@@ -98,7 +98,7 @@ class SystemDesignUpdateRequest(BaseModel):
         description="System design content in markdown format"
     )
 
-    @validator('content_markdown')
+    @field_validator('content_markdown')
     def validate_content_markdown(cls, v):
         """Validate system design markdown content"""
         content = v.strip()
@@ -149,32 +149,35 @@ class EffortEstimateUpdateRequest(BaseModel):
         description="Additional notes about the effort estimate"
     )
 
-    @validator('roles', each_item=True)
-    def validate_role_structure(cls, role):
+    @field_validator('roles')
+    def validate_role_structure(cls, roles):
         """Validate each role in the roles list"""
-        if not isinstance(role, dict):
-            raise ValueError('Each role must be a dictionary')
-        
-        required_fields = ['role_name', 'hours']
-        for field in required_fields:
-            if field not in role:
-                raise ValueError(f'Each role must have a {field} field')
-        
-        # Validate role_name
-        if not isinstance(role['role_name'], str) or not role['role_name'].strip():
-            raise ValueError('role_name must be a non-empty string')
-        
-        # Validate hours
-        try:
-            hours = float(role['hours'])
-            if hours <= 0 or hours > 10000:
-                raise ValueError('Role hours must be between 0 and 10,000')
-        except (ValueError, TypeError):
-            raise ValueError('Role hours must be a valid positive number')
-        
-        return role
+        validated_roles = []
+        for role in roles:
+            if not isinstance(role, dict):
+                raise ValueError('Each role must be a dictionary')
+            
+            required_fields = ['role_name', 'hours']
+            for field in required_fields:
+                if field not in role:
+                    raise ValueError(f'Each role must have a {field} field')
+            
+            # Validate role_name
+            if not isinstance(role['role_name'], str) or not role['role_name'].strip():
+                raise ValueError('role_name must be a non-empty string')
+            
+            # Validate hours
+            try:
+                hours = float(role['hours'])
+                if hours <= 0 or hours > 10000:
+                    raise ValueError('Role hours must be between 0 and 10,000')
+            except (ValueError, TypeError):
+                raise ValueError('Role hours must be a valid positive number')
+            
+            validated_roles.append(role)
+        return validated_roles
 
-    @validator('complexity_assessment')
+    @field_validator('complexity_assessment')
     def validate_complexity_assessment(cls, v):
         """Validate complexity assessment content"""
         assessment = v.strip()
@@ -225,30 +228,33 @@ class CostEstimateUpdateRequest(BaseModel):
         description="Additional notes about the cost estimate"
     )
 
-    @validator('breakdown_by_role', each_item=True)
-    def validate_role_breakdown(cls, role):
+    @field_validator('breakdown_by_role')
+    def validate_role_breakdown(cls, roles):
         """Validate each role breakdown item"""
-        if not isinstance(role, dict):
-            raise ValueError('Each role breakdown must be a dictionary')
-        
-        required_fields = ['role_name', 'cost']
-        for field in required_fields:
-            if field not in role:
-                raise ValueError(f'Each role breakdown must have a {field} field')
-        
-        # Validate role_name
-        if not isinstance(role['role_name'], str) or not role['role_name'].strip():
-            raise ValueError('role_name must be a non-empty string')
-        
-        # Validate cost
-        try:
-            cost = float(role['cost'])
-            if cost < 0 or cost > 10000000:  # 10 million per role max
-                raise ValueError('Role cost must be between 0 and 10,000,000')
-        except (ValueError, TypeError):
-            raise ValueError('Role cost must be a valid number')
-        
-        return role
+        validated_roles = []
+        for role in roles:
+            if not isinstance(role, dict):
+                raise ValueError('Each role breakdown must be a dictionary')
+            
+            required_fields = ['role_name', 'cost']
+            for field in required_fields:
+                if field not in role:
+                    raise ValueError(f'Each role breakdown must have a {field} field')
+            
+            # Validate role_name
+            if not isinstance(role['role_name'], str) or not role['role_name'].strip():
+                raise ValueError('role_name must be a non-empty string')
+            
+            # Validate cost
+            try:
+                cost = float(role['cost'])
+                if cost < 0 or cost > 10000000:  # 10 million per role max
+                    raise ValueError('Role cost must be between 0 and 10,000,000')
+            except (ValueError, TypeError):
+                raise ValueError('Role cost must be a valid number')
+            
+            validated_roles.append(role)
+        return validated_roles
 
 
 class ValueProjectionUpdateRequest(BaseModel):
@@ -287,32 +293,35 @@ class ValueProjectionUpdateRequest(BaseModel):
         description="Additional notes about the value projection"
     )
 
-    @validator('scenarios', each_item=True)
-    def validate_scenario(cls, scenario):
+    @field_validator('scenarios')
+    def validate_scenario(cls, scenarios):
         """Validate each scenario in the scenarios list"""
-        if not isinstance(scenario, dict):
-            raise ValueError('Each scenario must be a dictionary')
-        
-        required_fields = ['name', 'value']
-        for field in required_fields:
-            if field not in scenario:
-                raise ValueError(f'Each scenario must have a {field} field')
-        
-        # Validate scenario name
-        if not isinstance(scenario['name'], str) or not scenario['name'].strip():
-            raise ValueError('Scenario name must be a non-empty string')
-        
-        # Validate value
-        try:
-            value = float(scenario['value'])
-            if value < 0 or value > 1000000000:  # 1 billion max
-                raise ValueError('Scenario value must be between 0 and 1,000,000,000')
-        except (ValueError, TypeError):
-            raise ValueError('Scenario value must be a valid number')
-        
-        return scenario
+        validated_scenarios = []
+        for scenario in scenarios:
+            if not isinstance(scenario, dict):
+                raise ValueError('Each scenario must be a dictionary')
+            
+            required_fields = ['name', 'value']
+            for field in required_fields:
+                if field not in scenario:
+                    raise ValueError(f'Each scenario must have a {field} field')
+            
+            # Validate scenario name
+            if not isinstance(scenario['name'], str) or not scenario['name'].strip():
+                raise ValueError('Scenario name must be a non-empty string')
+            
+            # Validate value
+            try:
+                value = float(scenario['value'])
+                if value < 0 or value > 1000000000:  # 1 billion max
+                    raise ValueError('Scenario value must be between 0 and 1,000,000,000')
+            except (ValueError, TypeError):
+                raise ValueError('Scenario value must be a valid number')
+            
+            validated_scenarios.append(scenario)
+        return validated_scenarios
 
-    @validator('assumptions')
+    @field_validator('assumptions')
     def validate_assumptions(cls, v):
         """Validate assumptions list"""
         if v is not None:
@@ -334,7 +343,7 @@ class PrdRejectRequest(BaseModel):
         description="Reason for rejecting the PRD"
     )
 
-    @validator('reason')
+    @field_validator('reason')
     def validate_reason(cls, v):
         """Validate rejection reason"""
         if v is not None:
@@ -353,7 +362,7 @@ class SystemDesignRejectRequest(BaseModel):
         description="Reason for rejecting the system design"
     )
 
-    @validator('reason')
+    @field_validator('reason')
     def validate_reason(cls, v):
         """Validate rejection reason"""
         if v is not None:
@@ -372,7 +381,7 @@ class EffortEstimateRejectRequest(BaseModel):
         description="Reason for rejecting the effort estimate"
     )
 
-    @validator('reason')
+    @field_validator('reason')
     def validate_reason(cls, v):
         """Validate rejection reason"""
         if v is not None:
@@ -391,7 +400,7 @@ class CostEstimateRejectRequest(BaseModel):
         description="Reason for rejecting the cost estimate"
     )
 
-    @validator('reason')
+    @field_validator('reason')
     def validate_reason(cls, v):
         """Validate rejection reason"""
         if v is not None:
@@ -410,7 +419,7 @@ class ValueProjectionRejectRequest(BaseModel):
         description="Reason for rejecting the value projection"
     )
 
-    @validator('reason')
+    @field_validator('reason')
     def validate_reason(cls, v):
         """Validate rejection reason"""
         if v is not None:
@@ -429,7 +438,7 @@ class FinalRejectRequest(BaseModel):
         description="Detailed reason for final rejection"
     )
 
-    @validator('reason')
+    @field_validator('reason')
     def validate_reason(cls, v):
         """Validate final rejection reason - should be more detailed"""
         if v is not None:

@@ -318,6 +318,18 @@ export class HttpAgentAdapter implements AgentService {
     });
   }
 
+  async triggerSystemDesignGeneration(
+    caseId: string
+  ): Promise<{ message: string; new_status: string; case_id: string }> {
+    return this.fetchWithAuth<{
+      message: string;
+      new_status: string;
+      case_id: string;
+    }>(`/cases/${caseId}/trigger-system-design`, {
+      method: 'POST',
+    });
+  }
+
   async updateEffortEstimate(
     caseId: string,
     data: EffortEstimate
@@ -547,6 +559,121 @@ export class HttpAgentAdapter implements AgentService {
 
     logger.debug('PDF export successful, returning blob');
     return response.blob();
+  }
+
+  // ===== ENHANCED AGENT METHODS =====
+
+  async regeneratePrd(): Promise<import('./AgentService').EnhancedAgentResponse> {
+    // TODO: Implement PRD regeneration with enhanced error handling
+    return {
+      success: false,
+      message: 'PRD regeneration not yet implemented',
+      errors: [{
+        code: 'NOT_IMPLEMENTED',
+        message: 'This feature is planned for future release'
+      }],
+      metadata: {
+        operation_id: `regen-prd-${Date.now()}`,
+        agent_version: '1.0.0'
+      }
+    };
+  }
+
+  async regenerateSystemDesign(): Promise<import('./AgentService').EnhancedAgentResponse> {
+    // TODO: Implement system design regeneration with progress tracking
+    return {
+      success: false,
+      message: 'System design regeneration not yet implemented',
+      errors: [{
+        code: 'NOT_IMPLEMENTED',
+        message: 'This feature is planned for future release'
+      }],
+      metadata: {
+        operation_id: `regen-design-${Date.now()}`,
+        agent_version: '1.0.0'
+      }
+    };
+  }
+
+  async regenerateFinancialEstimates(): Promise<import('./AgentService').EnhancedAgentResponse> {
+    // TODO: Implement financial estimates regeneration
+    return {
+      success: false,
+      message: 'Financial estimates regeneration not yet implemented',
+      errors: [{
+        code: 'NOT_IMPLEMENTED',
+        message: 'This feature is planned for future release'
+      }],
+      metadata: {
+        operation_id: `regen-financial-${Date.now()}`,
+        agent_version: '1.0.0'
+      }
+    };
+  }
+
+  async getOperationStatus(operationId: string): Promise<import('./AgentService').AgentProgress> {
+    // TODO: Implement operation status tracking
+    return {
+      operation_id: operationId,
+      status: 'failed',
+      progress_percentage: 0,
+      current_step: 'Not implemented',
+      error: 'Operation status tracking not yet implemented'
+    };
+  }
+
+  async cancelOperation(operationId: string): Promise<boolean> {
+    // TODO: Implement operation cancellation
+    console.warn(`Operation cancellation not yet implemented for operation: ${operationId}`);
+    return false;
+  }
+
+  async triggerEffortEstimateGeneration(
+    caseId: string
+  ): Promise<{ message: string; new_status: string; case_id: string }> {
+    return this.fetchWithAuth<{
+      message: string;
+      new_status: string;
+      case_id: string;
+    }>(`/cases/${caseId}/effort-estimate/generate`, {
+      method: 'POST',
+    });
+  }
+
+  async triggerCostAnalysisGeneration(
+    caseId: string
+  ): Promise<{ message: string; new_status: string; case_id: string }> {
+    return this.fetchWithAuth<{
+      message: string;
+      new_status: string;
+      case_id: string;
+    }>(`/cases/${caseId}/cost-analysis/generate`, {
+      method: 'POST',
+    });
+  }
+
+  async triggerValueAnalysisGeneration(
+    caseId: string
+  ): Promise<{ message: string; new_status: string; case_id: string }> {
+    return this.fetchWithAuth<{
+      message: string;
+      new_status: string;
+      case_id: string;
+    }>(`/cases/${caseId}/value-analysis/generate`, {
+      method: 'POST',
+    });
+  }
+
+  async triggerFinancialModelGeneration(
+    caseId: string
+  ): Promise<{ message: string; new_status: string; case_id: string }> {
+    return this.fetchWithAuth<{
+      message: string;
+      new_status: string;
+      case_id: string;
+    }>(`/cases/${caseId}/financial-model/generate`, {
+      method: 'POST',
+    });
   }
 }
 

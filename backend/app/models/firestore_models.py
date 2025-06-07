@@ -4,7 +4,7 @@ Pydantic models for Firestore database interactions
 
 from typing import Optional, Dict, Any, List
 from datetime import datetime
-from pydantic import BaseModel, Field, EmailStr, validator, HttpUrl
+from pydantic import BaseModel, Field, EmailStr, field_validator, model_validator, HttpUrl
 from enum import Enum
 import re
 
@@ -59,26 +59,26 @@ class User(BaseModel):
     last_login: Optional[datetime] = None
     is_active: bool = True
 
-    @validator('email')
+    @field_validator('email')
     def validate_drfirst_email(cls, v):
         """Ensure email is from DrFirst domain"""
         if not str(v).endswith('@drfirst.com'):
             raise ValueError('Email must be from DrFirst domain (@drfirst.com)')
         return v
 
-    @validator('display_name')
+    @field_validator('display_name')
     def validate_display_name(cls, v):
         """Validate display name doesn't contain special characters"""
         if v is not None and not re.match(r'^[a-zA-Z0-9\s\-\.]+$', v):
             raise ValueError('Display name can only contain letters, numbers, spaces, hyphens, and periods')
         return v
 
-    @validator('updated_at')
-    def updated_at_not_before_created_at(cls, v, values):
+    @model_validator(mode='after')
+    def updated_at_not_before_created_at(self):
         """Ensure updated_at is not before created_at"""
-        if 'created_at' in values and v < values['created_at']:
+        if self.updated_at < self.created_at:
             raise ValueError('updated_at cannot be before created_at')
-        return v
+        return self
 
 
 class RelevantLink(BaseModel):
@@ -92,7 +92,7 @@ class RelevantLink(BaseModel):
     )
     url: HttpUrl = Field(..., description="Valid URL")
 
-    @validator('name')
+    @field_validator('name')
     def validate_name_not_empty(cls, v):
         """Ensure name is not just whitespace"""
         if not v.strip():
@@ -138,7 +138,7 @@ class BusinessCaseRequest(BaseModel):
         description="List of relevant links (max 10)"
     )
 
-    @validator('title')
+    @field_validator('title')
     def validate_title(cls, v):
         """Validate title is not just whitespace and doesn't contain special chars"""
         title = v.strip()
@@ -148,7 +148,7 @@ class BusinessCaseRequest(BaseModel):
             raise ValueError('Title contains invalid characters')
         return title
 
-    @validator('description')
+    @field_validator('description')
     def validate_description(cls, v):
         """Validate description is meaningful"""
         desc = v.strip()
@@ -160,14 +160,14 @@ class BusinessCaseRequest(BaseModel):
             raise ValueError('Description must contain at least 3 words')
         return desc
 
-    @validator('deadline')
+    @field_validator('deadline')
     def validate_deadline(cls, v):
         """Ensure deadline is in the future"""
         if v is not None and v <= datetime.utcnow():
             raise ValueError('Deadline must be in the future')
         return v
 
-    @validator('requirements')
+    @field_validator('requirements')
     def validate_requirements(cls, v):
         """Validate requirements dictionary"""
         if not isinstance(v, dict):
@@ -197,33 +197,31 @@ class BusinessCase(BaseModel):
         description="List of agents that contributed (max 20)"
     )
 
-    @validator('generated_content')
+    @field_validator('generated_content')
     def validate_generated_content(cls, v):
         """Validate generated content size"""
         if len(str(v)) > 100000:  # 100KB limit
             raise ValueError('Generated content is too large (max 100KB)')
         return v
 
-    @validator('updated_at')
-    def updated_at_not_before_created_at(cls, v, values):
-        """Ensure updated_at is not before created_at"""
-        if 'created_at' in values and v < values['created_at']:
+    @model_validator(mode='after')
+    def validate_timestamps_and_status(self):
+        """Validate timestamp relationships and status consistency"""
+        # Ensure updated_at is not before created_at
+        if self.updated_at < self.created_at:
             raise ValueError('updated_at cannot be before created_at')
-        return v
-
-    @validator('completed_at')
-    def completed_at_validation(cls, v, values):
-        """Validate completed_at logic"""
-        if v is not None:
+        
+        # Validate completed_at logic
+        if self.completed_at is not None:
             # completed_at should not be before created_at
-            if 'created_at' in values and v < values['created_at']:
+            if self.completed_at < self.created_at:
                 raise ValueError('completed_at cannot be before created_at')
             # If completed_at is set, status should be completed or failed
-            if 'status' in values and values['status'] not in [JobStatus.COMPLETED, JobStatus.FAILED]:
+            if self.status not in [JobStatus.COMPLETED, JobStatus.FAILED]:
                 raise ValueError('completed_at can only be set when status is completed or failed')
-        return v
+        return self
 
-    @validator('generated_by_agents')
+    @field_validator('generated_by_agents')
     def validate_agent_names(cls, v):
         """Validate agent names are properly formatted"""
         for agent_name in v:
@@ -279,43 +277,39 @@ class Job(BaseModel):
         description="Additional job metadata"
     )
 
-    @validator('metadata')
+    @field_validator('metadata')
     def validate_metadata_size(cls, v):
         """Limit metadata size to prevent abuse"""
         if len(str(v)) > 5000:  # 5KB limit
             raise ValueError('Job metadata is too large (max 5KB)')
         return v
 
-    @validator('updated_at')
-    def updated_at_not_before_created_at(cls, v, values):
-        """Ensure updated_at is not before created_at"""
-        if 'created_at' in values and v < values['created_at']:
+    @model_validator(mode='after')
+    def validate_job_timestamps_and_status(self):
+        """Validate job timestamp relationships and status consistency"""
+        # Ensure updated_at is not before created_at
+        if self.updated_at < self.created_at:
             raise ValueError('updated_at cannot be before created_at')
-        return v
-
-    @validator('started_at')
-    def started_at_validation(cls, v, values):
-        """Validate started_at timing"""
-        if v is not None:
-            if 'created_at' in values and v < values['created_at']:
+        
+        # Validate started_at timing
+        if self.started_at is not None:
+            if self.started_at < self.created_at:
                 raise ValueError('started_at cannot be before created_at')
             # If started_at is set, status should not be pending
-            if 'status' in values and values['status'] == JobStatus.PENDING:
+            if self.status == JobStatus.PENDING:
                 raise ValueError('started_at cannot be set when status is pending')
-        return v
-
-    @validator('completed_at')
-    def completed_at_validation(cls, v, values):
-        """Validate completed_at timing and status consistency"""
-        if v is not None:
-            if 'created_at' in values and v < values['created_at']:
+        
+        # Validate completed_at timing and status consistency
+        if self.completed_at is not None:
+            if self.completed_at < self.created_at:
                 raise ValueError('completed_at cannot be before created_at')
-            if 'started_at' in values and values['started_at'] and v < values['started_at']:
+            if self.started_at and self.completed_at < self.started_at:
                 raise ValueError('completed_at cannot be before started_at')
             # If completed_at is set, status should be completed, failed, or cancelled
-            if 'status' in values and values['status'] not in [JobStatus.COMPLETED, JobStatus.FAILED, JobStatus.CANCELLED]:
+            if self.status not in [JobStatus.COMPLETED, JobStatus.FAILED, JobStatus.CANCELLED]:
                 raise ValueError('completed_at can only be set when status is completed, failed, or cancelled')
             # If status is completed, progress should be 100
-            if 'status' in values and values['status'] == JobStatus.COMPLETED and 'progress' in values and values['progress'] != 100:
+            if self.status == JobStatus.COMPLETED and self.progress != 100:
                 raise ValueError('Progress must be 100 when status is completed')
-        return v
+        
+        return self

@@ -10,6 +10,9 @@ import {
   IconButton,
   Button,
   Tooltip,
+  Paper,
+  Grid,
+  Chip,
 } from '@mui/material';
 import {
   ArrowBack as ArrowBackIcon,
@@ -20,7 +23,8 @@ import {
 import { useAgentContext } from '../hooks/useAgentContext';
 import useDocumentTitle from '../hooks/useDocumentTitle';
 import CaseNavigation from '../components/case/CaseNavigation';
-import { STANDARD_STYLES } from '../styles/constants';
+import ProgressStepper from '../components/common/ProgressStepper';
+import { PAPER_ELEVATION, STANDARD_STYLES } from '../styles/constants';
 import Logger from '../utils/logger';
 
 const logger = Logger.create('CaseLayout');
@@ -38,6 +42,19 @@ const CaseLayout: React.FC = () => {
   } = useAgentContext();
 
   const [isExportingPdf, setIsExportingPdf] = useState(false);
+
+  // Get status color for the chip
+  const getStatusColor = (status: string) => {
+    const statusColors: Record<string, 'success' | 'warning' | 'info' | 'error' | 'default'> = {
+      'APPROVED': 'success',
+      'PENDING_FINAL_APPROVAL': 'warning',
+      'REJECTED': 'error',
+      'FINANCIAL_MODEL_COMPLETE': 'info',
+      'PRD_APPROVED': 'success',
+      'SYSTEM_DESIGN_APPROVED': 'success',
+    };
+    return statusColors[status] || 'default';
+  };
 
   // Set document title dynamically based on case title
   useDocumentTitle(
@@ -181,6 +198,52 @@ const CaseLayout: React.FC = () => {
             </Tooltip>
           </Stack>
         </Stack>
+
+        {/* Executive Summary */}
+        <Paper elevation={PAPER_ELEVATION.MAIN_CONTENT} sx={{ ...STANDARD_STYLES.mainContentPaper, mb: 3 }}>
+          <Typography variant="h5" component="h2" gutterBottom>
+            Executive Summary
+          </Typography>
+
+          {/* Case Overview */}
+          <Grid container spacing={2} mb={3}>
+            <Grid item xs={12} md={6}>
+              <Typography variant="subtitle1" fontWeight="bold" gutterBottom>
+                Case Status
+              </Typography>
+              <Chip 
+                label={currentCaseDetails.status.replace(/_/g, ' ')} 
+                color={getStatusColor(currentCaseDetails.status)}
+                size="medium"
+              />
+            </Grid>
+            <Grid item xs={12} md={6}>
+              <Typography variant="subtitle1" fontWeight="bold" gutterBottom>
+                Last Updated
+              </Typography>
+              <Typography variant="body1">
+                {new Date(currentCaseDetails.updated_at).toLocaleDateString('en-US', {
+                  year: 'numeric',
+                  month: 'long',
+                  day: 'numeric',
+                  hour: '2-digit',
+                  minute: '2-digit'
+                })}
+              </Typography>
+            </Grid>
+          </Grid>
+
+          {/* Problem Statement */}
+          <Typography variant="subtitle1" fontWeight="bold" gutterBottom>
+            Problem Statement
+          </Typography>
+          <Typography variant="body1" paragraph>
+            {currentCaseDetails.problem_statement}
+          </Typography>
+        </Paper>
+
+        {/* Progress Stepper */}
+        <ProgressStepper currentCaseStatus={currentCaseDetails.status} />
 
         {/* Navigation */}
         {caseId && <CaseNavigation caseId={caseId} />}

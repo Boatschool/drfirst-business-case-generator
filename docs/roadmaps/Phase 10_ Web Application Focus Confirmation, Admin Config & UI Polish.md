@@ -108,7 +108,7 @@
 
 **Status:** Production-ready with comprehensive testing. Ready for Task 10.3 (UI Polish) implementation.
 
-**Development Server:** To test the breadcrumb implementation locally, run `cd frontend && npm run dev` (not from root directory). The development server will start on http://localhost:4001/ with full breadcrumb navigation and document title functionality.
+**Development Server:** To test the breadcrumb implementation locally, run `cd frontend && npm run dev` (not from root directory). The development server will start on http://localhost:4000/ with full breadcrumb navigation and document title functionality.
 
 ---
 
@@ -251,7 +251,7 @@ COMPREHENSIVE TESTING DOCUMENTATION:
 
 **Status:** Production-ready accessibility foundation established. The application now provides an inclusive experience that meets enterprise accessibility standards while maintaining excellent usability for all users. This creates a solid foundation for ongoing accessibility excellence in future development.
 
-**Development Server:** To test accessibility improvements locally, run `cd frontend && npm run dev` → http://localhost:4001/ with comprehensive accessibility features including skip links, keyboard navigation, screen reader support, and professional focus management.
+**Development Server:** To test accessibility improvements locally, run `cd frontend && npm run dev` → http://localhost:4000/ with comprehensive accessibility features including skip links, keyboard navigation, screen reader support, and professional focus management.
 
 ---
 

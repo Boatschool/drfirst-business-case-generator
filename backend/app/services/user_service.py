@@ -18,17 +18,28 @@ class UserService:
     """Service for managing users in Firestore and synchronizing roles with Firebase custom claims"""
 
     def __init__(self):
-        self.db = None
-        self._initialize_firestore()
+        self._db = None
+        self._db_initialized = False
 
     def _initialize_firestore(self):
         """Initialize Firestore client"""
+        if self._db_initialized:
+            return
+        
         try:
             from app.core.dependencies import get_db
-            self.db = get_db()
+            self._db = get_db()
+            self._db_initialized = True
             logger.info("✅ UserService: Firestore client initialized successfully")
         except Exception as e:
             logger.info(f"❌ UserService: Failed to initialize Firestore client: {e}")
+    
+    @property
+    def db(self):
+        """Lazy initialization of Firestore client"""
+        if not self._db_initialized:
+            self._initialize_firestore()
+        return self._db
 
     async def get_user_by_uid(self, uid: str) -> Optional[Dict[str, Any]]:
         """

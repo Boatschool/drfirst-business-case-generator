@@ -10,12 +10,12 @@ import time
 import platform
 import sys
 import os
-from typing import Dict, Any, Optional
+from typing import Dict, Any, Optional, List
 from fastapi import APIRouter, HTTPException, Depends
 from fastapi.responses import JSONResponse
 
 from app.services.vertex_ai_service import vertex_ai_service
-from app.services.auth_service import auth_service
+from app.services.auth_service import get_auth_service
 from app.core.config import settings
 
 logger = logging.getLogger(__name__)
@@ -36,6 +36,7 @@ async def health_check() -> Dict[str, Any]:
     try:
         # Check core services
         vertex_ai_healthy = vertex_ai_service.is_initialized
+        auth_service = get_auth_service()
         auth_healthy = auth_service.is_initialized
         
         # Overall health status
@@ -95,7 +96,7 @@ async def detailed_status() -> Dict[str, Any]:
             },
             "services": {
                 "vertex_ai": vertex_ai_service.get_status(),
-                "firebase_auth": auth_service.get_status()
+                "firebase_auth": get_auth_service().get_status()
             },
             "performance": {
                 "response_time_seconds": time.time() - start_time,
@@ -143,7 +144,7 @@ async def full_diagnostics() -> Dict[str, Any]:
             
             "service_diagnostics": {
                 "vertex_ai": vertex_ai_service.get_diagnostic_info(),
-                "firebase_auth": auth_service.get_diagnostic_info()
+                "firebase_auth": get_auth_service().get_diagnostic_info()
             },
             
             "dependency_diagnostics": _get_dependency_diagnostics(),
@@ -180,12 +181,52 @@ async def service_status(service_name: str) -> Dict[str, Any]:
     if service_name == "vertex_ai":
         return vertex_ai_service.get_status()
     elif service_name == "firebase_auth":
-        return auth_service.get_status()
+        return get_auth_service().get_status()
     else:
         raise HTTPException(
             status_code=404, 
             detail=f"Service '{service_name}' not found. Available services: vertex_ai, firebase_auth"
         )
+
+
+@router.get("/resources")
+async def resource_monitoring() -> Dict[str, Any]:
+    """
+    Monitor resource usage and singleton health to detect resource leaks.
+    
+    Returns:
+        dict: Resource monitoring information
+    """
+    start_time = time.time()
+    
+    try:
+        resource_info = {
+            "timestamp": time.time(),
+            "monitoring_version": "1.0.0",
+            "system_resources": {
+                "memory": _get_memory_usage(),
+                "cpu": _get_cpu_usage(),
+                "disk_usage": _get_disk_usage(),
+                "network_connections": _get_network_info()
+            },
+            "singleton_health": {
+                "database_client": _check_database_health(),
+                "auth_service": _check_auth_service_health(),
+                "vertex_ai_service": _check_vertex_ai_health()
+            },
+            "resource_warnings": _detect_resource_warnings(),
+            "collection_time": time.time() - start_time
+        }
+        
+        return resource_info
+        
+    except Exception as e:
+        logger.error(f"Resource monitoring failed: {e}")
+        return {
+            "status": "error", 
+            "message": str(e),
+            "timestamp": time.time()
+        }
 
 
 @router.get("/config")
@@ -405,7 +446,7 @@ def _get_troubleshooting_hints() -> Dict[str, Any]:
         hints["common_issues"].append("VertexAI service not initialized")
         hints["recommendations"].append("Check Google Cloud credentials and project configuration")
     
-    if not auth_service.is_initialized:
+    if not get_auth_service().is_initialized:
         hints["common_issues"].append("Firebase Auth service not initialized")
         hints["recommendations"].append("Check Firebase credentials and project configuration")
     
@@ -428,4 +469,164 @@ def _get_troubleshooting_hints() -> Dict[str, Any]:
         hints["next_steps"].append("Address the identified issues above")
         hints["next_steps"].append("Use /diagnostics endpoint for detailed troubleshooting information")
     
-    return hints 
+    return hints
+
+
+def _get_disk_usage() -> Optional[Dict[str, Any]]:
+    """Get disk usage information"""
+    try:
+        import psutil
+        disk = psutil.disk_usage('/')
+        return {
+            "total_gb": round(disk.total / 1024 / 1024 / 1024, 2),
+            "used_gb": round(disk.used / 1024 / 1024 / 1024, 2),
+            "free_gb": round(disk.free / 1024 / 1024 / 1024, 2),
+            "percent_used": round((disk.used / disk.total) * 100, 1)
+        }
+    except:
+        return None
+
+
+def _get_network_info() -> Optional[Dict[str, Any]]:
+    """Get network connection information"""
+    try:
+        import psutil
+        connections = psutil.net_connections()
+        connection_stats = {
+            "total_connections": len(connections),
+            "established": len([c for c in connections if c.status == 'ESTABLISHED']),
+            "listening": len([c for c in connections if c.status == 'LISTEN']),
+            "close_wait": len([c for c in connections if c.status == 'CLOSE_WAIT'])
+        }
+        return connection_stats
+    except:
+        return None
+
+
+def _check_database_health() -> Dict[str, Any]:
+    """Check database client singleton health"""
+    try:
+        from app.core.dependencies import get_db
+        from app.core.firestore_impl import FirestoreClient
+        
+        db_client = get_db()
+        if hasattr(db_client, 'get_status'):
+            return db_client.get_status()
+        else:
+            return {
+                "status": "unknown",
+                "message": "Database client does not support status checking",
+                "client_type": type(db_client).__name__
+            }
+    except Exception as e:
+        return {
+            "status": "error",
+            "message": str(e),
+            "error_type": type(e).__name__
+        }
+
+
+def _check_auth_service_health() -> Dict[str, Any]:
+    """Check auth service singleton health"""
+    try:
+        auth_service = get_auth_service()
+        return {
+            "status": "healthy" if auth_service.is_initialized else "unhealthy",
+            "initialized": auth_service.is_initialized,
+            "service_type": type(auth_service).__name__
+        }
+    except Exception as e:
+        return {
+            "status": "error",
+            "message": str(e),
+            "error_type": type(e).__name__
+        }
+
+
+def _check_vertex_ai_health() -> Dict[str, Any]:
+    """Check VertexAI service singleton health"""
+    try:
+        return {
+            "status": "healthy" if vertex_ai_service.is_initialized else "unhealthy",
+            "initialized": vertex_ai_service.is_initialized,
+            "initialization_count": getattr(vertex_ai_service, '_initialization_count', 0),
+            "error_count": getattr(vertex_ai_service, '_error_count', 0),
+            "service_type": type(vertex_ai_service).__name__
+        }
+    except Exception as e:
+        return {
+            "status": "error",
+            "message": str(e),
+            "error_type": type(e).__name__
+        }
+
+
+def _detect_resource_warnings() -> List[Dict[str, Any]]:
+    """Detect potential resource issues and warnings"""
+    warnings = []
+    
+    # Memory warnings
+    memory = _get_memory_usage()
+    if memory:
+        if memory["rss_mb"] > 1000:  # > 1GB
+            warnings.append({
+                "type": "memory",
+                "level": "high",
+                "message": f"High memory usage: {memory['rss_mb']:.1f} MB",
+                "recommendation": "Monitor for memory leaks"
+            })
+        elif memory["rss_mb"] > 500:  # > 500MB
+            warnings.append({
+                "type": "memory", 
+                "level": "medium",
+                "message": f"Elevated memory usage: {memory['rss_mb']:.1f} MB",
+                "recommendation": "Monitor memory usage trends"
+            })
+    
+    # Connection warnings
+    network = _get_network_info()
+    if network:
+        if network["close_wait"] > 10:
+            warnings.append({
+                "type": "network",
+                "level": "medium",
+                "message": f"High number of CLOSE_WAIT connections: {network['close_wait']}",
+                "recommendation": "Check for connection leaks"
+            })
+        
+        if network["total_connections"] > 100:
+            warnings.append({
+                "type": "network",
+                "level": "high", 
+                "message": f"High total connections: {network['total_connections']}",
+                "recommendation": "Monitor connection pooling and cleanup"
+            })
+    
+    # Disk warnings
+    disk = _get_disk_usage()
+    if disk and disk["percent_used"] > 90:
+        warnings.append({
+            "type": "disk",
+            "level": "high",
+            "message": f"Low disk space: {disk['percent_used']:.1f}% used",
+            "recommendation": "Free up disk space"
+        })
+    
+    # Service health warnings
+    if not vertex_ai_service.is_initialized:
+        warnings.append({
+            "type": "service",
+            "level": "high",
+            "message": "VertexAI service not initialized",
+            "recommendation": "Check service configuration and logs"
+        })
+    
+    if not get_auth_service().is_initialized:
+        warnings.append({
+            "type": "service",
+            "level": "high", 
+            "message": "Auth service not initialized",
+            "recommendation": "Check Firebase configuration and credentials"
+        })
+    
+    return warnings 

@@ -4,68 +4,93 @@ Agent Registry for managing agent instances and coordinating function calls
 
 from typing import Dict, Any, Optional
 import logging
-from ..agents.product_manager_agent import ProductManagerAgent
-from ..agents.architect_agent import ArchitectAgent
-from ..agents.planner_agent import PlannerAgent
-from ..agents.cost_analyst_agent import CostAnalystAgent
-from ..agents.sales_value_analyst_agent import SalesValueAnalystAgent
-from ..agents.financial_model_agent import FinancialModelAgent
-from ..services.prompt_service import PromptService
 from google.cloud import firestore
 
 
 class AgentRegistry:
-    """Registry for managing agent instances"""
+    """Registry for managing agent instances with lazy initialization"""
     
     def __init__(self, db: firestore.Client = None):
         self.agents: Dict[str, Any] = {}
         self.db = db or firestore.Client()
-        self.prompt_service = PromptService(self.db)
+        self._prompt_service = None
         self.logger = logging.getLogger(__name__)
         
-        # Initialize all agents
-        self._initialize_agents()
+        # Don't initialize agents at startup - use lazy initialization
+        self.logger.info("AgentRegistry initialized with lazy loading")
     
-    def _initialize_agents(self):
-        """Initialize all agent instances"""
+    @property
+    def prompt_service(self):
+        """Lazy initialization of prompt service"""
+        if self._prompt_service is None:
+            from ..services.prompt_service import PromptService
+            self._prompt_service = PromptService(self.db)
+        return self._prompt_service
+    
+    def _initialize_agent(self, agent_class: str) -> Any:
+        """Initialize a specific agent on demand"""
         try:
-            # Initialize Product Manager Agent
-            self.agents["ProductManagerAgent"] = ProductManagerAgent(
-                prompt_service=self.prompt_service
-            )
+            self.logger.info(f"Lazy initializing agent: {agent_class}")
             
-            # Initialize Architect Agent
-            self.agents["ArchitectAgent"] = ArchitectAgent()
+            if agent_class == "ProductManagerAgent":
+                from ..agents.product_manager_agent import ProductManagerAgent
+                agent = ProductManagerAgent(prompt_service=self.prompt_service)
+            elif agent_class == "ArchitectAgent":
+                from ..agents.architect_agent import ArchitectAgent
+                agent = ArchitectAgent()
+            elif agent_class == "PlannerAgent":
+                from ..agents.planner_agent import PlannerAgent
+                agent = PlannerAgent()
+            elif agent_class == "CostAnalystAgent":
+                from ..agents.cost_analyst_agent import CostAnalystAgent
+                agent = CostAnalystAgent()
+            elif agent_class == "SalesValueAnalystAgent":
+                from ..agents.sales_value_analyst_agent import SalesValueAnalystAgent
+                agent = SalesValueAnalystAgent()
+            elif agent_class == "FinancialModelAgent":
+                from ..agents.financial_model_agent import FinancialModelAgent
+                agent = FinancialModelAgent()
+            else:
+                raise ValueError(f"Unknown agent class: {agent_class}")
             
-            # Initialize Planner Agent
-            self.agents["PlannerAgent"] = PlannerAgent()
-            
-            # Initialize Cost Analyst Agent
-            self.agents["CostAnalystAgent"] = CostAnalystAgent()
-            
-            # Initialize Sales Value Analyst Agent
-            self.agents["SalesValueAnalystAgent"] = SalesValueAnalystAgent()
-            
-            # Initialize Financial Model Agent
-            self.agents["FinancialModelAgent"] = FinancialModelAgent()
-            
-            self.logger.info(f"Initialized {len(self.agents)} agents")
+            self.agents[agent_class] = agent
+            self.logger.info(f"Successfully initialized agent: {agent_class}")
+            return agent
             
         except Exception as e:
-            self.logger.error(f"Error initializing agents: {str(e)}")
+            self.logger.error(f"Error initializing agent {agent_class}: {str(e)}")
             raise
     
     def get_agent(self, agent_class: str) -> Optional[Any]:
-        """Get an agent instance by class name"""
+        """Get an agent instance by class name with lazy initialization"""
+        if agent_class not in self.agents:
+            self._initialize_agent(agent_class)
         return self.agents.get(agent_class)
     
     def get_all_agents(self) -> Dict[str, Any]:
-        """Get all agent instances"""
+        """Get all agent instances, initializing them if needed"""
+        agent_classes = [
+            "ProductManagerAgent", "ArchitectAgent", "PlannerAgent",
+            "CostAnalystAgent", "SalesValueAnalystAgent", "FinancialModelAgent"
+        ]
+        
+        for agent_class in agent_classes:
+            if agent_class not in self.agents:
+                self._initialize_agent(agent_class)
+        
         return self.agents
     
     def get_agent_status(self, agent_class: str) -> Dict[str, Any]:
         """Get status information for an agent"""
-        agent = self.get_agent(agent_class)
+        # Don't initialize agent just to get status
+        if agent_class not in self.agents:
+            return {
+                "status": "not_initialized", 
+                "agent_class": agent_class,
+                "available": False
+            }
+        
+        agent = self.agents[agent_class]
         if not agent:
             return {"status": "not_found", "agent_class": agent_class}
         
@@ -80,33 +105,26 @@ class AgentRegistry:
         }
     
     def get_all_agent_statuses(self) -> Dict[str, Dict[str, Any]]:
-        """Get status for all agents"""
+        """Get status for all agents without forcing initialization"""
+        agent_classes = [
+            "ProductManagerAgent", "ArchitectAgent", "PlannerAgent",
+            "CostAnalystAgent", "SalesValueAnalystAgent", "FinancialModelAgent"
+        ]
+        
         return {
             agent_class: self.get_agent_status(agent_class)
-            for agent_class in self.agents.keys()
+            for agent_class in agent_classes
         }
     
     def reinitialize_agent(self, agent_class: str) -> bool:
         """Reinitialize a specific agent"""
         try:
-            if agent_class == "ProductManagerAgent":
-                self.agents[agent_class] = ProductManagerAgent(
-                    prompt_service=self.prompt_service
-                )
-            elif agent_class == "ArchitectAgent":
-                self.agents[agent_class] = ArchitectAgent()
-            elif agent_class == "PlannerAgent":
-                self.agents[agent_class] = PlannerAgent()
-            elif agent_class == "CostAnalystAgent":
-                self.agents[agent_class] = CostAnalystAgent()
-            elif agent_class == "SalesValueAnalystAgent":
-                self.agents[agent_class] = SalesValueAnalystAgent()
-            elif agent_class == "FinancialModelAgent":
-                self.agents[agent_class] = FinancialModelAgent()
-            else:
-                return False
+            # Remove existing agent if it exists
+            if agent_class in self.agents:
+                del self.agents[agent_class]
             
-            self.logger.info(f"Reinitialized agent: {agent_class}")
+            # Initialize fresh agent
+            self._initialize_agent(agent_class)
             return True
             
         except Exception as e:
@@ -114,12 +132,12 @@ class AgentRegistry:
             return False
 
 
-# Global registry instance
+# Global registry instance with lazy initialization
 _global_agent_registry: Optional[AgentRegistry] = None
 
 
 def get_agent_registry(db: firestore.Client = None) -> AgentRegistry:
-    """Get the global agent registry instance"""
+    """Get the global agent registry instance with lazy initialization"""
     global _global_agent_registry
     
     if _global_agent_registry is None:

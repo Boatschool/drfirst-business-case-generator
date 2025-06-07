@@ -61,6 +61,12 @@ class VertexAIService:
         logger.info(f"🤖 VertexAI Initialization Request #{self._initialization_count}")
         logger.info(f"📊 Current Status: Initialized={self._initialized}")
         
+        if self._initialized:
+            total_duration = time.time() - start_time
+            logger.info(f"✅ VertexAI already initialized (checked in {total_duration:.3f}s)")
+            logger.info(f"📊 Service Stats: Init Count={self._initialization_count}, Errors={self._error_count}")
+            return
+        
         if not self._initialized:
             try:
                 # Log system environment
@@ -168,6 +174,52 @@ class VertexAIService:
         """
         self._initialized = False
         logger.info("🔄 Vertex AI service reset for reload")
+    
+    def cleanup(self) -> None:
+        """
+        Cleanup VertexAI resources to prevent resource leaks.
+        
+        This method performs comprehensive cleanup of VertexAI resources
+        including any cached models, connections, or other resources that
+        might accumulate during application lifecycle.
+        """
+        try:
+            logger.info("🧹 Starting VertexAI service cleanup...")
+            
+            # Reset initialization state
+            self._initialized = False
+            
+            # Clear any cached model references (if we were storing them)
+            # Note: VertexAI SDK handles most cleanup internally, but we reset our state
+            
+            # Reset metrics for clean state
+            self._initialization_count = 0
+            self._error_count = 0
+            self._last_error = None
+            self._initialization_time = None
+            
+            logger.info("✅ VertexAI service cleanup completed successfully")
+            
+        except Exception as e:
+            logger.error(f"❌ Error during VertexAI cleanup: {e}")
+            logger.exception("VertexAI cleanup error details:")
+        finally:
+            # Ensure state is reset even if cleanup fails
+            self._initialized = False
+            
+    @classmethod
+    def reset_singleton(cls) -> None:
+        """
+        Reset the singleton instance for clean application reloads.
+        
+        This method can be called to completely reset the VertexAI service
+        singleton, which is useful during development or testing.
+        """
+        if cls._instance is not None:
+            logger.info("🔄 Resetting VertexAI singleton instance...")
+            cls._instance.cleanup()
+            cls._instance = None
+            logger.info("✅ VertexAI singleton reset completed")
     
     @property
     def is_initialized(self) -> bool:

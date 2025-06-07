@@ -156,17 +156,83 @@ class OrchestratorAgent:
         self.description = "Coordinates the business case generation process"
         self.status = "initialized"
         self.echo_tool = EchoTool()
-        self.product_manager_agent = ProductManagerAgent()
-        self.architect_agent = ArchitectAgent()
-        self.planner_agent = PlannerAgent()
-        self.cost_analyst_agent = CostAnalystAgent()
-        self.sales_value_analyst_agent = SalesValueAnalystAgent()
-        self.financial_model_agent = FinancialModelAgent()
+        
+        # Lazy initialization of agents - they will be created when first accessed
+        self._product_manager_agent = None
+        self._architect_agent = None
+        self._planner_agent = None
+        self._cost_analyst_agent = None
+        self._sales_value_analyst_agent = None
+        self._financial_model_agent = None
+        
+        # Lazy initialization of database client
+        self._db = db
+        self._db_initialized = False
+        
         self.logger = logging.getLogger(__name__)
-
-        # Use dependency injection for database client
-        self.db = db if db is not None else get_db()
-        self.logger.info("OrchestratorAgent: Database client initialized successfully.")
+    
+    @property
+    def db(self):
+        """Lazy initialization of database client"""
+        if not self._db_initialized:
+            self._db = self._db if self._db is not None else get_db()
+            self._db_initialized = True
+            self.logger.info("OrchestratorAgent: Database client initialized successfully.")
+        return self._db
+    
+    @property
+    def product_manager_agent(self):
+        """Lazy initialization of ProductManagerAgent"""
+        if self._product_manager_agent is None:
+            from .product_manager_agent import ProductManagerAgent
+            self._product_manager_agent = ProductManagerAgent()
+            self.logger.info("OrchestratorAgent: Lazy initialized ProductManagerAgent")
+        return self._product_manager_agent
+    
+    @property
+    def architect_agent(self):
+        """Lazy initialization of ArchitectAgent"""
+        if self._architect_agent is None:
+            from .architect_agent import ArchitectAgent
+            self._architect_agent = ArchitectAgent()
+            self.logger.info("OrchestratorAgent: Lazy initialized ArchitectAgent")
+        return self._architect_agent
+    
+    @property
+    def planner_agent(self):
+        """Lazy initialization of PlannerAgent"""
+        if self._planner_agent is None:
+            from .planner_agent import PlannerAgent
+            self._planner_agent = PlannerAgent()
+            self.logger.info("OrchestratorAgent: Lazy initialized PlannerAgent")
+        return self._planner_agent
+    
+    @property
+    def cost_analyst_agent(self):
+        """Lazy initialization of CostAnalystAgent"""
+        if self._cost_analyst_agent is None:
+            from .cost_analyst_agent import CostAnalystAgent
+            self._cost_analyst_agent = CostAnalystAgent()
+            self.logger.info("OrchestratorAgent: Lazy initialized CostAnalystAgent")
+        return self._cost_analyst_agent
+    
+    @property
+    def sales_value_analyst_agent(self):
+        """Lazy initialization of SalesValueAnalystAgent"""
+        if self._sales_value_analyst_agent is None:
+            from .sales_value_analyst_agent import SalesValueAnalystAgent
+            self._sales_value_analyst_agent = SalesValueAnalystAgent()
+            self.logger.info("OrchestratorAgent: Lazy initialized SalesValueAnalystAgent")
+        return self._sales_value_analyst_agent
+    
+    @property
+    def financial_model_agent(self):
+        """Lazy initialization of FinancialModelAgent"""
+        if self._financial_model_agent is None:
+            from .financial_model_agent import FinancialModelAgent
+            self._financial_model_agent = FinancialModelAgent()
+            self.logger.info("OrchestratorAgent: Lazy initialized FinancialModelAgent")
+        return self._financial_model_agent
 
     async def handle_request(
         self, request_type: str, payload: Dict[str, Any], user_id: str

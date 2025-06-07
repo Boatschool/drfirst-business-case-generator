@@ -12,7 +12,7 @@ import os
 
 from app.core.config import settings
 from app.core.logging_config import setup_logging
-from app.services.auth_service import auth_service
+from app.services.auth_service import get_auth_service
 
 # Configure enhanced logging
 setup_logging()

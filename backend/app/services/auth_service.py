@@ -14,6 +14,8 @@ from app.core.config import settings
 from app.core.logging_config import log_error_with_context
 import os
 import json
+import asyncio
+import asyncio
 
 logger = logging.getLogger(__name__)
 
@@ -23,7 +25,8 @@ class AuthService:
 
     def __init__(self):
         self._initialized = False
-        self._initialize_firebase()
+        # Remove automatic initialization - will be done by lifecycle manager
+        # self._initialize_firebase()
 
     def _initialize_firebase(self):
         """
@@ -32,6 +35,10 @@ class AuthService:
         This method implements proper cleanup of stale Firebase apps and health checking
         to prevent re-initialization conflicts during Uvicorn reloads.
         """
+        if self._initialized:
+            logger.info("✅ Firebase already initialized, skipping")
+            return
+            
         try:
             logger.info("🚀 Starting Firebase Admin SDK initialization...")
             
@@ -179,7 +186,7 @@ class AuthService:
             # Set initialized to False so we can provide helpful error messages
             self._initialized = False
 
-    def verify_id_token(self, id_token: str) -> Optional[Dict[str, Any]]:
+    async def verify_id_token(self, id_token: str) -> Optional[Dict[str, Any]]:
         """
         Verify a Firebase ID token and return decoded claims
 
@@ -198,7 +205,7 @@ class AuthService:
                 "Verifying Firebase ID token",
                 extra={'token_length': len(id_token)}
             )
-            decoded_token = auth.verify_id_token(id_token)
+            decoded_token = await asyncio.to_thread(auth.verify_id_token, id_token)
             logger.info(
                 "Token verification successful",
                 extra={
@@ -260,6 +267,34 @@ class AuthService:
         except Exception as e:
             logger.info(f"❌ Error getting user: {e}")
             return None
+
+    async def revoke_refresh_tokens(self, uid: str) -> bool:
+        """
+        Revoke all refresh tokens for a user, effectively signing them out of all sessions.
+
+        Args:
+            uid: Firebase user UID
+
+        Returns:
+            True if successful, False otherwise
+        """
+        if not self._initialized:
+            logger.error("Firebase not initialized, cannot revoke tokens")
+            return False
+
+        try:
+            logger.info(f"Revoking refresh tokens for user: {uid}")
+            await asyncio.to_thread(auth.revoke_refresh_tokens, uid)
+            logger.info(f"Successfully revoked refresh tokens for user: {uid}")
+            return True
+        except Exception as e:
+            log_error_with_context(
+                logger,
+                f"Failed to revoke refresh tokens for user {uid}",
+                e,
+                {'user_uid': uid}
+            )
+            return False
 
     def reset(self):
         """
@@ -494,5 +529,12 @@ class AuthService:
         return analysis
 
 
-# Global auth service instance
-auth_service = AuthService()
+# Global auth service instance - lazy initialization
+_auth_service_instance: Optional[AuthService] = None
+
+def get_auth_service() -> AuthService:
+    """Get the global auth service instance with lazy initialization"""
+    global _auth_service_instance
+    if _auth_service_instance is None:
+        _auth_service_instance = AuthService()
+    return _auth_service_instance

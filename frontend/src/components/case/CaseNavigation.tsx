@@ -22,7 +22,7 @@ const CaseNavigation: React.FC<CaseNavigationProps> = ({ caseId }) => {
   // Determine the current tab based on the URL
   const getCurrentTab = (): string => {
     const path = location.pathname;
-    if (path.endsWith('/summary')) return 'summary';
+    if (path.endsWith('/summary')) return 'prd'; // Default to PRD for summary route
     if (path.endsWith('/prd')) return 'prd';
     if (path.endsWith('/prd-review')) return 'prd-review';
     if (path.endsWith('/design')) return 'design';
@@ -31,7 +31,7 @@ const CaseNavigation: React.FC<CaseNavigationProps> = ({ caseId }) => {
     if (path.endsWith('/value-analysis')) return 'value-analysis';
     if (path.endsWith('/financial-model')) return 'financial-model';
     if (path.endsWith('/financials')) return 'financials';
-    return 'summary'; // Default to summary for base route
+    return 'prd'; // Default to PRD for base route
   };
 
   const currentTab = getCurrentTab();

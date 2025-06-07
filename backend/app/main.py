@@ -21,8 +21,10 @@ from app.api.v1.diagnostics import router as diagnostics_router
 from app.core.config import settings
 from app.core.error_handlers import EXCEPTION_HANDLERS
 from app.core.logging_config import setup_logging
-from app.services.auth_service import auth_service
+from app.services.auth_service import get_auth_service
 from app.middleware.rate_limiter import limiter, rate_limit_exceeded_handler
+from app.core.dependencies import reset_all_singletons, cleanup_all_singletons
+from app.services.vertex_ai_service import vertex_ai_service
 
 # Configure enhanced logging
 setup_logging()
@@ -76,20 +78,20 @@ async def lifespan(app: FastAPI):
         logger.warning("⚠️ Working directory is not 'backend' - this may cause import issues")
         logger.warning("💡 Consider running: cd backend && PYTHONPATH=. uvicorn app.main:app --reload")
     
+    # Reset singletons to ensure clean state on reload
+    reset_all_singletons()
+
     try:
         # Initialize AuthService (Firebase Admin SDK)
         auth_start = time.time()
-        if not auth_service.is_initialized:
-            logger.info("🔧 Initializing AuthService...")
-            auth_service._initialize_firebase()
-        else:
-            logger.info("✅ AuthService already initialized")
+        logger.info("🔧 Initializing AuthService...")
+        auth_service = get_auth_service()
+        auth_service._initialize_firebase()
         auth_duration = time.time() - auth_start
         
         # Initialize VertexAIService
         vertex_start = time.time()
         logger.info("🤖 Initializing VertexAI service...")
-        from app.services.vertex_ai_service import vertex_ai_service
         vertex_ai_service.initialize()
         vertex_duration = time.time() - vertex_start
         
@@ -136,32 +138,32 @@ async def lifespan(app: FastAPI):
     # Shutdown
     shutdown_start_time = time.time()
     logger.info("🛑 Application shutdown: Cleaning up resources...")
+    logger.info("=" * 60)
     
     try:
-        # Cleanup AuthService (Firebase Admin SDK)
-        logger.info("🧹 Cleaning up AuthService...")
-        auth_service.cleanup()
+        # Comprehensive cleanup of all singletons and resources
+        cleanup_all_singletons()
         
-        # Reset VertexAIService
-        logger.info("🤖 Resetting VertexAI service...")
-        vertex_ai_service.reset()
-        
-        # Placeholder for other singletons - to be implemented in P1.3/P2
-        # from app.core.dependencies import reset_all_singletons
-        # reset_all_singletons()
+        # Reset all singletons for next potential startup
+        reset_all_singletons()
         
         shutdown_duration = time.time() - shutdown_start_time
-        logger.info(f"✅ Cleanup completed successfully in {shutdown_duration:.3f} seconds")
+        logger.info("=" * 60)
+        logger.info(f"✅ Complete shutdown cleanup in {shutdown_duration:.3f} seconds")
+        logger.info("🎉 Application shutdown completed cleanly")
+        logger.info("=" * 60)
         
     except Exception as e:
         shutdown_duration = time.time() - shutdown_start_time
+        logger.error("=" * 60)
         logger.error(f"❌ Error during cleanup after {shutdown_duration:.3f} seconds: {e}")
         logger.exception("Shutdown error details:")
+        logger.error("⚠️ Some resources may not have been cleaned up properly")
+        logger.error("=" * 60)
 
 
-# Initialize Firebase Admin SDK using our auth service at import time
-# The lifespan manager will ensure proper initialization during startup
-logger.info(f"🔍 Firebase Admin SDK initialization status at import: {auth_service.is_initialized}")
+# Firebase Admin SDK will be initialized by the lifespan manager during startup
+# No import-time initialization to prevent conflicts
 
 app = FastAPI(
     title="DrFirst Business Case Generator API",
@@ -215,6 +217,7 @@ async def health_check():
 @app.get("/debug/firebase-status")
 async def firebase_status():
     """Debug endpoint to check Firebase initialization status and configuration"""
+    auth_service = get_auth_service()
     firebase_debug_info = {
         "firebase_initialized": auth_service.is_initialized,
         "firebase_apps_count": len(firebase_admin._apps) if hasattr(firebase_admin, '_apps') else 0,

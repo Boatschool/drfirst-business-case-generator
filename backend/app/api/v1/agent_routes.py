@@ -5,7 +5,7 @@ Agent-related API routes for the DrFirst Business Case Generator
 import logging
 from fastapi import APIRouter, HTTPException, Depends, Path, Query, Request
 from typing import List, Dict, Any, Optional
-from pydantic import BaseModel, Field, validator
+from pydantic import BaseModel, Field, field_validator
 
 from app.middleware.rate_limiter import limiter
 
@@ -47,7 +47,7 @@ class BusinessCaseGenerationRequest(BaseModel):
         description="Target deadline in ISO format (optional)"
     )
 
-    @validator('title')
+    @field_validator('title')
     def validate_title(cls, v):
         """Validate title content"""
         title = v.strip()
@@ -55,7 +55,7 @@ class BusinessCaseGenerationRequest(BaseModel):
             raise ValueError('Title cannot be empty or just whitespace')
         return title
 
-    @validator('requirements')
+    @field_validator('requirements')
     def validate_requirements(cls, v):
         """Validate requirements structure and content"""
         if not isinstance(v, dict):
@@ -92,7 +92,7 @@ class AgentActionRequest(BaseModel):
         description="Payload data for the action"
     )
 
-    @validator('payload')
+    @field_validator('payload')
     def validate_payload(cls, v):
         """Validate payload structure"""
         if not isinstance(v, dict):

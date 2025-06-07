@@ -3,14 +3,18 @@ Product Manager Agent for handling PRD generation and related tasks.
 """
 
 from typing import Dict, Any, List
-import vertexai
+import uuid
 from vertexai.generative_models import GenerativeModel, Part, FinishReason
 import vertexai.preview.generative_models as generative_models
+from pydantic import ValidationError
+
 from ..core.config import settings
 from ..services.prompt_service import PromptService
 from ..utils.web_utils import fetch_web_content
 from google.cloud import firestore
+from ..models.agent_models import DraftPrdInput, DraftPrdOutput, PrdDraft, AgentStatus
 import logging
+from datetime import datetime
 
 # Set up logging
 logger = logging.getLogger(__name__)
@@ -46,15 +50,22 @@ class ProductManagerAgent:
             self.prompt_service = PromptService(db)
 
         try:
-            logger.info(f"ProductManagerAgent: Attempting to initialize VertexAI with project={self.project_id}, location={self.location}")
-            vertexai.init(project=self.project_id, location=self.location)
-            logger.info(f"ProductManagerAgent: VertexAI init successful, creating model {self.model_name}")
-            self.model = GenerativeModel(self.model_name)
-            logger.info(
-                f"ProductManagerAgent: Vertex AI initialized successfully with model {self.model_name}."
-            )
+            logger.info(f"ProductManagerAgent: Attempting to initialize with centralized VertexAI service")
+            # Use centralized VertexAI service
+            from app.services.vertex_ai_service import vertex_ai_service
+            vertex_ai_service.initialize()
+            
+            if vertex_ai_service.is_initialized:
+                logger.info(f"ProductManagerAgent: VertexAI service initialized, creating model {self.model_name}")
+                self.model = GenerativeModel(self.model_name)
+                logger.info(
+                    f"ProductManagerAgent: Vertex AI initialized successfully with model {self.model_name}."
+                )
+            else:
+                logger.error("ProductManagerAgent: VertexAI service not initialized")
+                self.model = None
         except Exception as e:
-            logger.error(f"ProductManagerAgent: Failed to initialize Vertex AI: {e}")
+            logger.error(f"ProductManagerAgent: Failed to initialize with VertexAI service: {e}")
             logger.error(f"ProductManagerAgent: Project ID: {self.project_id}, Location: {self.location}, Model: {self.model_name}")
             self.model = None
 
@@ -141,23 +152,43 @@ Summary:"""
 
     async def draft_prd(
         self,
-        problem_statement: str,
-        case_title: str,
-        relevant_links: List[Dict[str, str]] = None,
-    ) -> Dict[str, Any]:
+        input_data: 'DraftPrdInput',
+    ) -> 'DraftPrdOutput':
         """
         Generates a comprehensive, structured PRD based on the provided problem statement and title using Vertex AI.
         Returns a Markdown-formatted PRD with clear sections.
         """
+        # Generate operation ID for tracking
+        operation_id = str(uuid.uuid4())
+        start_time = datetime.now()
+        
+        try:
+            # Validate input
+            if not isinstance(input_data, DraftPrdInput):
+                input_data = DraftPrdInput(**input_data)
+        except ValidationError as e:
+            return DraftPrdOutput(
+                status=AgentStatus.ERROR,
+                message=f"Input validation failed: {str(e)}",
+                operation_id=operation_id,
+                prd_draft=None
+            )
+        
+        # Extract values from validated input
+        case_title = input_data.case_title
+        problem_statement = input_data.problem_statement
+        relevant_links = input_data.relevant_links
+        
         logger.info(f"[ProductManagerAgent] Received request to draft PRD for: {case_title}")
         logger.info(f"[ProductManagerAgent] Problem Statement: {problem_statement}")
 
         if not self.model:
-            return {
-                "status": "error",
-                "message": "ProductManagerAgent not properly initialized with Vertex AI model.",
-                "prd_draft": None,
-            }
+            return DraftPrdOutput(
+                status=AgentStatus.ERROR,
+                message="ProductManagerAgent not properly initialized with Vertex AI model.",
+                operation_id=operation_id,
+                prd_draft=None
+            )
 
         # Process relevant links: fetch content and generate summaries
         links_context = ""
@@ -330,26 +361,36 @@ Generate the PRD now:"""
                     f"[ProductManagerAgent] PRD draft length: {len(prd_draft_content)} characters"
                 )
 
-                return {
-                    "status": "success",
-                    "message": "Structured PRD draft generated successfully by Vertex AI.",
-                    "prd_draft": {
-                        "title": case_title,
-                        "content_markdown": prd_draft_content,
-                        "version": "1.0.0_structured",
-                        "generated_with": f"Vertex AI {self.model_name}",
-                        "sections": [
-                            "Introduction / Problem Statement",
-                            "Goals / Objectives",
-                            "Target Audience / Users",
-                            "Proposed Solution / Scope",
-                            "Key Features / User Stories",
-                            "Success Metrics / KPIs",
-                            "Technical Considerations / Dependencies",
-                            "Open Questions / Risks",
-                        ],
-                    },
-                }
+                # Calculate duration
+                duration_ms = int((datetime.now() - start_time).total_seconds() * 1000)
+                
+                # Create PRD draft object
+                prd_draft = PrdDraft(
+                    title=case_title,
+                    content_markdown=prd_draft_content,
+                    version="1.0.0_structured",
+                    generated_with=f"Vertex AI {self.model_name}",
+                    sections=[
+                        "Introduction / Problem Statement",
+                        "Goals / Objectives",
+                        "Target Audience / Users",
+                        "Proposed Solution / Scope",
+                        "Key Features / User Stories",
+                        "Success Metrics / KPIs",
+                        "Technical Considerations / Dependencies",
+                        "Open Questions / Risks",
+                    ],
+                    word_count=len(prd_draft_content.split())
+                )
+                
+                return DraftPrdOutput(
+                    status=AgentStatus.SUCCESS,
+                    message="Structured PRD draft generated successfully by Vertex AI.",
+                    operation_id=operation_id,
+                    duration_ms=duration_ms,
+                    prd_draft=prd_draft,
+                    new_status="PRD_DRAFTED"
+                )
             else:
                 finish_reason = (
                     response.candidates[0].finish_reason
@@ -369,15 +410,25 @@ Generate the PRD now:"""
                     if response.prompt_feedback.block_reason_message:
                         message += f" ({response.prompt_feedback.block_reason_message})"
                 logger.info(f"[ProductManagerAgent] Error: {message}")
-                return {"status": "error", "message": message, "prd_draft": None}
+                duration_ms = int((datetime.now() - start_time).total_seconds() * 1000)
+                return DraftPrdOutput(
+                    status=AgentStatus.ERROR,
+                    message=message,
+                    operation_id=operation_id,
+                    duration_ms=duration_ms,
+                    prd_draft=None
+                )
 
         except Exception as e:
             logger.info(f"[ProductManagerAgent] Error generating PRD with Vertex AI: {e}")
-            return {
-                "status": "error",
-                "message": f"An error occurred while generating the PRD with Vertex AI: {str(e)}",
-                "prd_draft": None,
-            }
+            duration_ms = int((datetime.now() - start_time).total_seconds() * 1000)
+            return DraftPrdOutput(
+                status=AgentStatus.ERROR,
+                message=f"An error occurred while generating the PRD with Vertex AI: {str(e)}",
+                operation_id=operation_id,
+                duration_ms=duration_ms,
+                prd_draft=None
+            )
 
     def get_status(self) -> Dict[str, str]:
         """Get the current status of the Product Manager agent."""

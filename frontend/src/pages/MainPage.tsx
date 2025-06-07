@@ -34,10 +34,13 @@ const MainPage: React.FC = () => {
   const authContext = useContext(AuthContext);
   const { cases, isLoadingCases, fetchUserCases } = useAgentContext();
 
-  // Fetch user cases when component mounts
+  // Fetch user cases when component mounts and authentication is ready
   React.useEffect(() => {
-    fetchUserCases();
-  }, [fetchUserCases]);
+    // Only fetch cases when authentication is ready
+    if (authContext && !authContext.loading && authContext.currentUser) {
+      fetchUserCases();
+    }
+  }, [fetchUserCases, authContext]);
 
   // Calculate some quick stats
   const totalCases = cases.length;

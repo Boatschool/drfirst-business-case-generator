@@ -8,7 +8,6 @@ import asyncio
 import logging
 import json
 import re
-import vertexai
 from vertexai.generative_models import GenerativeModel
 import vertexai.preview.generative_models as generative_models
 from google.cloud import firestore
@@ -37,16 +36,23 @@ class SalesValueAnalystAgent:
         self.location = settings.vertex_ai_location
         self.model_name = settings.vertex_ai_model_name or "gemini-2.0-flash-lite"
 
-        # Initialize Vertex AI for intelligent value projection
+        # Initialize Vertex AI for intelligent value projection using centralized service
         try:
-            vertexai.init(project=self.project_id, location=self.location)
-            self.model = GenerativeModel(self.model_name)
-            logger.info(
-                f"SalesValueAnalystAgent: Vertex AI initialized successfully with model {self.model_name}."
-            )
-            self.vertex_ai_available = True
+            from app.services.vertex_ai_service import vertex_ai_service
+            vertex_ai_service.initialize()
+            
+            if vertex_ai_service.is_initialized:
+                self.model = GenerativeModel(self.model_name)
+                logger.info(
+                    f"SalesValueAnalystAgent: Vertex AI initialized successfully with model {self.model_name}."
+                )
+                self.vertex_ai_available = True
+            else:
+                logger.error("SalesValueAnalystAgent: VertexAI service not initialized")
+                self.model = None
+                self.vertex_ai_available = False
         except Exception as e:
-            logger.info(f"SalesValueAnalystAgent: Failed to initialize Vertex AI: {e}")
+            logger.info(f"SalesValueAnalystAgent: Failed to initialize with VertexAI service: {e}")
             self.model = None
             self.vertex_ai_available = False
 

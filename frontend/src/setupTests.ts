@@ -139,3 +139,17 @@ Object.defineProperty(window, 'matchMedia', {
     dispatchEvent: vi.fn(),
   })),
 });
+
+// Mock console methods to avoid noise in tests
+global.console = {
+  ...console,
+  log: vi.fn(),
+  debug: vi.fn(),
+  info: vi.fn(),
+  warn: vi.fn(),
+  error: vi.fn(),
+};
+
+// Mock window.location
+delete (window as any).location;
+window.location = { ...window.location, assign: vi.fn(), reload: vi.fn() };

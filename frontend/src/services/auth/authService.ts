@@ -4,6 +4,8 @@ import {
   signInWithEmailAndPassword,
   createUserWithEmailAndPassword,
   signInWithPopup,
+  signInWithRedirect,
+  getRedirectResult,
   GoogleAuthProvider,
   onAuthStateChanged,
   signOut,
@@ -40,6 +42,10 @@ class AuthService {
     this.googleProvider = new GoogleAuthProvider();
     this.googleProvider.addScope('email');
     this.googleProvider.addScope('profile');
+    // Force account selection for better UX
+    this.googleProvider.setCustomParameters({
+      prompt: 'select_account'
+    });
 
     this.logger.debug('AuthService initialized');
   }
@@ -83,16 +89,62 @@ class AuthService {
   };
 
   /**
-   * Sign in with Google using popup
+   * Sign in with Google using popup with fallback to redirect
    */
   signInWithGoogle = async (): Promise<UserCredential> => {
     try {
-      this.logger.debug('Attempting Google sign-in...');
+      this.logger.debug('Attempting Google sign-in with popup...');
       const result = await signInWithPopup(auth, this.googleProvider);
-      this.logger.debug('Google sign-in successful:', result.user.email);
+      this.logger.debug('Google popup sign-in successful:', result.user.email);
       return result;
     } catch (error) {
-      this.logger.error('Google sign-in error:', error);
+      this.logger.error('Google popup sign-in error:', error);
+      
+      // Check if error is related to popup/COOP issues
+      const errorObj = error && typeof error === 'object' ? error as Record<string, unknown> : {};
+      const code = String(errorObj.code || '');
+      
+      if (code === 'auth/popup-blocked' || 
+          code === 'auth/popup-closed-by-user' ||
+          code === 'auth/cancelled-popup-request' ||
+          (String(errorObj.message || '').includes('Cross-Origin-Opener-Policy'))) {
+        
+        this.logger.warn('Popup authentication blocked, falling back to redirect...');
+        
+        try {
+          // Fallback to redirect authentication
+          await signInWithRedirect(auth, this.googleProvider);
+          
+          // signInWithRedirect doesn't return a promise with user data
+          // The result will be handled by getRedirectResult in the auth state listener
+          throw new Error('REDIRECT_IN_PROGRESS');
+        } catch (redirectError) {
+          this.logger.error('Google redirect sign-in error:', redirectError);
+          throw redirectError;
+        }
+      }
+      
+      // Re-throw original error if not popup-related
+      throw error;
+    }
+  };
+
+  /**
+   * Handle redirect result (call this on app initialization)
+   */
+  handleRedirectResult = async (): Promise<UserCredential | null> => {
+    try {
+      this.logger.debug('Checking for redirect authentication result...');
+      const result = await getRedirectResult(auth);
+      
+      if (result) {
+        this.logger.debug('Redirect authentication successful:', result.user.email);
+        return result;
+      }
+      
+      return null;
+    } catch (error) {
+      this.logger.error('Redirect result error:', error);
       throw error;
     }
   };

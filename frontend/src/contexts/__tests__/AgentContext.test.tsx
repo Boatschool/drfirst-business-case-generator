@@ -1,6 +1,6 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import React from 'react';
 import { render, screen, waitFor, act } from '@testing-library/react';
-import { AgentProvider, AgentContext } from '../AgentContext';
+import { vi, beforeEach, afterEach, type MockedFunction } from 'vitest';
 import { useContext } from 'react';
 import { 
   AgentService, 
@@ -10,43 +10,42 @@ import {
   BusinessCaseDetails,
   ProvideFeedbackPayload,
   UpdatePrdPayload,
-  EffortEstimate,
-  CostEstimate,
-  ValueProjection
 } from '../../services/agent/AgentService';
+import { AgentProvider, AgentContext } from '../AgentContext';
 
 // Mock the HttpAgentAdapter
-const mockAgentService: jest.Mocked<AgentService> = {
-  initiateCase: vi.fn(),
-  provideFeedback: vi.fn(),
-  onAgentUpdate: vi.fn(),
-  listCases: vi.fn(),
-  getCaseDetails: vi.fn(),
-  updatePrd: vi.fn(),
-  updateStatus: vi.fn(),
-  submitPrdForReview: vi.fn(),
-  approvePrd: vi.fn(),
-  rejectPrd: vi.fn(),
-  updateSystemDesign: vi.fn(),
-  submitSystemDesignForReview: vi.fn(),
-  approveSystemDesign: vi.fn(),
-  rejectSystemDesign: vi.fn(),
-  updateEffortEstimate: vi.fn(),
-  submitEffortEstimateForReview: vi.fn(),
-  updateCostEstimate: vi.fn(),
-  submitCostEstimateForReview: vi.fn(),
-  updateValueProjection: vi.fn(),
-  submitValueProjectionForReview: vi.fn(),
-  approveEffortEstimate: vi.fn(),
-  rejectEffortEstimate: vi.fn(),
-  approveCostEstimate: vi.fn(),
-  rejectCostEstimate: vi.fn(),
-  approveValueProjection: vi.fn(),
-  rejectValueProjection: vi.fn(),
-  submitCaseForFinalApproval: vi.fn(),
-  approveFinalCase: vi.fn(),
-  rejectFinalCase: vi.fn(),
-  exportCaseToPdf: vi.fn(),
+const mockAgentService = {
+  initiateCase: vi.fn() as MockedFunction<AgentService['initiateCase']>,
+  provideFeedback: vi.fn() as MockedFunction<AgentService['provideFeedback']>,
+  onAgentUpdate: vi.fn() as MockedFunction<AgentService['onAgentUpdate']>,
+  listCases: vi.fn() as MockedFunction<AgentService['listCases']>,
+  getCaseDetails: vi.fn() as MockedFunction<AgentService['getCaseDetails']>,
+  updatePrd: vi.fn() as MockedFunction<AgentService['updatePrd']>,
+  updateStatus: vi.fn() as MockedFunction<AgentService['updateStatus']>,
+  submitPrdForReview: vi.fn() as MockedFunction<AgentService['submitPrdForReview']>,
+  approvePrd: vi.fn() as MockedFunction<AgentService['approvePrd']>,
+  rejectPrd: vi.fn() as MockedFunction<AgentService['rejectPrd']>,
+  updateSystemDesign: vi.fn() as MockedFunction<AgentService['updateSystemDesign']>,
+  submitSystemDesignForReview: vi.fn() as MockedFunction<AgentService['submitSystemDesignForReview']>,
+  approveSystemDesign: vi.fn() as MockedFunction<AgentService['approveSystemDesign']>,
+  rejectSystemDesign: vi.fn() as MockedFunction<AgentService['rejectSystemDesign']>,
+  triggerSystemDesignGeneration: vi.fn() as MockedFunction<AgentService['triggerSystemDesignGeneration']>,
+  updateEffortEstimate: vi.fn() as MockedFunction<AgentService['updateEffortEstimate']>,
+  submitEffortEstimateForReview: vi.fn() as MockedFunction<AgentService['submitEffortEstimateForReview']>,
+  updateCostEstimate: vi.fn() as MockedFunction<AgentService['updateCostEstimate']>,
+  submitCostEstimateForReview: vi.fn() as MockedFunction<AgentService['submitCostEstimateForReview']>,
+  updateValueProjection: vi.fn() as MockedFunction<AgentService['updateValueProjection']>,
+  submitValueProjectionForReview: vi.fn() as MockedFunction<AgentService['submitValueProjectionForReview']>,
+  approveEffortEstimate: vi.fn() as MockedFunction<AgentService['approveEffortEstimate']>,
+  rejectEffortEstimate: vi.fn() as MockedFunction<AgentService['rejectEffortEstimate']>,
+  approveCostEstimate: vi.fn() as MockedFunction<AgentService['approveCostEstimate']>,
+  rejectCostEstimate: vi.fn() as MockedFunction<AgentService['rejectCostEstimate']>,
+  approveValueProjection: vi.fn() as MockedFunction<AgentService['approveValueProjection']>,
+  rejectValueProjection: vi.fn() as MockedFunction<AgentService['rejectValueProjection']>,
+  submitCaseForFinalApproval: vi.fn() as MockedFunction<AgentService['submitCaseForFinalApproval']>,
+  approveFinalCase: vi.fn() as MockedFunction<AgentService['approveFinalCase']>,
+  rejectFinalCase: vi.fn() as MockedFunction<AgentService['rejectFinalCase']>,
+  exportCaseToPdf: vi.fn() as MockedFunction<AgentService['exportCaseToPdf']>,
 };
 
 // Mock the HttpAgentAdapter module

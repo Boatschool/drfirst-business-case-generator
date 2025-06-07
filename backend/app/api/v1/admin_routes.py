@@ -167,13 +167,22 @@ class UpdateFinalApproverRoleRequest(BaseModel):
     )
 
 
-# Initialize Firestore client
-db = None
-try:
-    db = firestore.Client(project=settings.firebase_project_id)
-    logger.info("Admin routes: Firestore client initialized successfully.")
-except Exception as e:
-    logger.info(f"Admin routes: Failed to initialize Firestore client: {e}")
+# Lazy initialization of Firestore client
+_db_instance = None
+_db_initialized = False
+
+def get_admin_db():
+    """Get Firestore client with lazy initialization"""
+    global _db_instance, _db_initialized
+    if not _db_initialized:
+        try:
+            _db_instance = firestore.Client(project=settings.firebase_project_id)
+            _db_initialized = True
+            logger.info("Admin routes: Firestore client initialized successfully.")
+        except Exception as e:
+            logger.info(f"Admin routes: Failed to initialize Firestore client: {e}")
+            _db_instance = None
+    return _db_instance
 
 # Rate Cards CRUD Operations
 
@@ -200,6 +209,7 @@ async def list_rate_cards(
     )
 ):
     """Get a list of all rate cards (admin only)"""
+    db = get_admin_db()
     if not db:
         raise HTTPException(status_code=500, detail="Database connection not available")
 
@@ -234,6 +244,7 @@ async def create_rate_card(
     current_user: dict = Depends(require_admin_role),
 ):
     """Create a new rate card (admin only)"""
+    db = get_admin_db()
     if not db:
         raise HTTPException(status_code=500, detail="Database connection not available")
 
@@ -293,6 +304,7 @@ async def update_rate_card(
     current_user: dict = Depends(require_admin_role),
 ):
     """Update an existing rate card (admin only)"""
+    db = get_admin_db()
     if not db:
         raise HTTPException(status_code=500, detail="Database connection not available")
 
@@ -359,6 +371,7 @@ async def delete_rate_card(
     current_user: dict = Depends(require_admin_role)
 ):
     """Delete a rate card (admin only)"""
+    db = get_admin_db()
     if not db:
         raise HTTPException(status_code=500, detail="Database connection not available")
 
@@ -404,6 +417,7 @@ async def delete_rate_card(
 )
 async def list_pricing_templates(current_user: dict = Depends(require_admin_role)):
     """Get a list of all pricing templates (admin only)"""
+    db = get_admin_db()
     if not db:
         raise HTTPException(status_code=500, detail="Database connection not available")
 
@@ -440,6 +454,7 @@ async def create_pricing_template(
     current_user: dict = Depends(require_admin_role),
 ):
     """Create a new pricing template (admin only)"""
+    db = get_admin_db()
     if not db:
         raise HTTPException(status_code=500, detail="Database connection not available")
 
@@ -490,6 +505,7 @@ async def update_pricing_template(
     current_user: dict = Depends(require_admin_role),
 ):
     """Update an existing pricing template (admin only)"""
+    db = get_admin_db()
     if not db:
         raise HTTPException(status_code=500, detail="Database connection not available")
 
@@ -551,6 +567,7 @@ async def delete_pricing_template(
     template_id: str, current_user: dict = Depends(require_admin_role)
 ):
     """Delete a pricing template (admin only)"""
+    db = get_admin_db()
     if not db:
         raise HTTPException(status_code=500, detail="Database connection not available")
 
@@ -594,6 +611,7 @@ async def delete_pricing_template(
 @router.get("/users", response_model=List[User], summary="List all users")
 async def list_users(current_user: dict = Depends(require_admin_role)):
     """Get a list of all users with their system roles (admin only)"""
+    db = get_admin_db()
     if not db:
         raise HTTPException(status_code=500, detail="Database connection not available")
 
@@ -656,6 +674,7 @@ async def deploy_agent_updates(current_user: dict = Depends(require_admin_role))
 )
 async def get_final_approver_role(current_user: dict = Depends(require_admin_role)):
     """Get the currently configured global final approver role (admin only)"""
+    db = get_admin_db()
     if not db:
         raise HTTPException(status_code=500, detail="Database connection not available")
 
@@ -712,6 +731,7 @@ async def update_final_approver_role(
     current_user: dict = Depends(require_admin_role),
 ):
     """Update the global final approver role configuration (admin only)"""
+    db = get_admin_db()
     if not db:
         raise HTTPException(status_code=500, detail="Database connection not available")
 

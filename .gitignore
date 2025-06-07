@@ -99,3 +99,5 @@ serviceAccountKey.json
 
 # Docker
 .dockerignore .DS_Store
+# Service account credentials
+backend/credentials/

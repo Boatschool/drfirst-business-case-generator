@@ -25,7 +25,6 @@ import {
 import {
   CheckCircle as CheckCircleIcon,
   Cancel as RejectIcon,
-  PictureAsPdf as PdfIcon,
   Share as ShareIcon,
   TrendingUp as TrendingUpIcon,
   AttachMoney as MoneyIcon,
@@ -42,15 +41,13 @@ const SummaryPage: React.FC = () => {
     isLoading,
     submitCaseForFinalApproval,
     approveFinalCase,
-    rejectFinalCase,
-    exportCaseToPdf
+    rejectFinalCase
   } = useAgentContext();
   const { currentUser, systemRole } = useAuth();
 
   // State for final approval/rejection
   const [isRejectDialogOpen, setIsRejectDialogOpen] = useState(false);
   const [rejectionReason, setRejectionReason] = useState('');
-  const [isExporting, setIsExporting] = useState(false);
   const [actionSuccess, setActionSuccess] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
 
@@ -146,17 +143,7 @@ const SummaryPage: React.FC = () => {
     }
   };
 
-  const handleExportToPdf = async () => {
-    if (!currentCaseDetails.case_id) return;
-    setIsExporting(true);
-    try {
-      await exportCaseToPdf(currentCaseDetails.case_id);
-    } catch (err) {
-      setActionError('Failed to export PDF.');
-    } finally {
-      setIsExporting(false);
-    }
-  };
+
 
   const handleGenerateShareableLink = () => {
     const shareableUrl = `${window.location.origin}/cases/${currentCaseDetails.case_id}/view`;
@@ -182,68 +169,22 @@ const SummaryPage: React.FC = () => {
       )}
 
       {/* Header with Actions */}
-      <Paper elevation={PAPER_ELEVATION.MAIN_CONTENT} sx={{ ...STANDARD_STYLES.mainContentPaper, mb: 3 }}>
-        <Stack direction="row" justifyContent="space-between" alignItems="center" mb={2}>
-          <Typography variant="h5" component="h1">
-            Executive Summary
-          </Typography>
-          <Stack direction="row" spacing={1}>
+      {(currentCaseDetails.status === 'APPROVED' || currentCaseDetails.status === 'PENDING_FINAL_APPROVAL') && (
+        <Paper elevation={PAPER_ELEVATION.MAIN_CONTENT} sx={{ ...STANDARD_STYLES.mainContentPaper, mb: 3 }}>
+          <Stack direction="row" justifyContent="space-between" alignItems="center">
+            <Typography variant="h6" component="h2">
+              Quick Actions
+            </Typography>
             <Button
               variant="outlined"
-              startIcon={<PdfIcon />}
-              onClick={handleExportToPdf}
-              disabled={isExporting}
+              startIcon={<ShareIcon />}
+              onClick={handleGenerateShareableLink}
             >
-              {isExporting ? 'Exporting...' : 'Export PDF'}
+              Share Link
             </Button>
-            {(currentCaseDetails.status === 'APPROVED' || currentCaseDetails.status === 'PENDING_FINAL_APPROVAL') && (
-              <Button
-                variant="outlined"
-                startIcon={<ShareIcon />}
-                onClick={handleGenerateShareableLink}
-              >
-                Share Link
-              </Button>
-            )}
           </Stack>
-        </Stack>
-
-        {/* Case Overview */}
-        <Grid container spacing={2} mb={3}>
-          <Grid item xs={12} md={6}>
-            <Typography variant="subtitle1" fontWeight="bold" gutterBottom>
-              Case Status
-            </Typography>
-            <Chip 
-              label={currentCaseDetails.status.replace(/_/g, ' ')} 
-              color={getStatusColor(currentCaseDetails.status)}
-              size="medium"
-            />
-          </Grid>
-          <Grid item xs={12} md={6}>
-            <Typography variant="subtitle1" fontWeight="bold" gutterBottom>
-              Last Updated
-            </Typography>
-            <Typography variant="body1">
-              {new Date(currentCaseDetails.updated_at).toLocaleDateString('en-US', {
-                year: 'numeric',
-                month: 'long',
-                day: 'numeric',
-                hour: '2-digit',
-                minute: '2-digit'
-              })}
-            </Typography>
-          </Grid>
-        </Grid>
-
-        {/* Problem Statement */}
-        <Typography variant="subtitle1" fontWeight="bold" gutterBottom>
-          Problem Statement
-        </Typography>
-        <Typography variant="body1" paragraph>
-          {currentCaseDetails.problem_statement}
-        </Typography>
-      </Paper>
+        </Paper>
+      )}
 
       {/* Key Metrics */}
       <Grid container spacing={3} mb={3}>
@@ -336,91 +277,7 @@ const SummaryPage: React.FC = () => {
         )}
       </Grid>
 
-      {/* Progress Overview */}
-      <Paper elevation={PAPER_ELEVATION.MAIN_CONTENT} sx={{ ...STANDARD_STYLES.mainContentPaper, mb: 3 }}>
-        <Typography variant="h6" gutterBottom>
-          Project Progress
-        </Typography>
-        <Grid container spacing={2}>
-          <Grid item xs={12} sm={6} md={3}>
-            <Stack alignItems="center" spacing={1}>
-              <AssessmentIcon color={currentCaseDetails.prd_draft ? 'success' : 'disabled'} />
-              <Typography variant="body2" align="center">
-                PRD {currentCaseDetails.prd_draft ? 'Complete' : 'Pending'}
-              </Typography>
-            </Stack>
-          </Grid>
-          <Grid item xs={12} sm={6} md={3}>
-            <Stack alignItems="center" spacing={1}>
-              <AssessmentIcon color={currentCaseDetails.system_design_v1_draft ? 'success' : 'disabled'} />
-              <Typography variant="body2" align="center">
-                System Design {currentCaseDetails.system_design_v1_draft ? 'Complete' : 'Pending'}
-              </Typography>
-            </Stack>
-          </Grid>
-          <Grid item xs={12} sm={6} md={3}>
-            <Stack alignItems="center" spacing={1}>
-              <TrendingUpIcon color={currentCaseDetails.effort_estimate_v1 ? 'success' : 'disabled'} />
-              <Typography variant="body2" align="center">
-                Effort Estimate {currentCaseDetails.effort_estimate_v1 ? 'Complete' : 'Pending'}
-              </Typography>
-            </Stack>
-          </Grid>
-          <Grid item xs={12} sm={6} md={3}>
-            <Stack alignItems="center" spacing={1}>
-              <MoneyIcon color={currentCaseDetails.financial_summary_v1 ? 'success' : 'disabled'} />
-              <Typography variant="body2" align="center">
-                Financial Model {currentCaseDetails.financial_summary_v1 ? 'Complete' : 'Pending'}
-              </Typography>
-            </Stack>
-          </Grid>
-        </Grid>
-      </Paper>
 
-      {/* Action Buttons */}
-      <Paper elevation={PAPER_ELEVATION.MAIN_CONTENT} sx={STANDARD_STYLES.mainContentPaper}>
-        <Typography variant="h6" gutterBottom>
-          Actions
-        </Typography>
-        <Divider sx={{ mb: 2 }} />
-        
-        <Stack direction="row" spacing={2} flexWrap="wrap">
-          {canSubmitForFinalApproval() && (
-            <Button
-              variant="contained"
-              color="primary"
-              startIcon={<CheckCircleIcon />}
-              onClick={handleSubmitForFinalApproval}
-              disabled={isLoading}
-            >
-              Submit for Final Approval
-            </Button>
-          )}
-          
-          {canApproveFinalCase() && (
-            <>
-              <Button
-                variant="contained"
-                color="success"
-                startIcon={<CheckCircleIcon />}
-                onClick={handleApproveFinalCase}
-                disabled={isLoading}
-              >
-                Approve Business Case
-              </Button>
-              <Button
-                variant="outlined"
-                color="error"
-                startIcon={<RejectIcon />}
-                onClick={() => setIsRejectDialogOpen(true)}
-                disabled={isLoading}
-              >
-                Reject Business Case
-              </Button>
-            </>
-          )}
-        </Stack>
-      </Paper>
 
       {/* Rejection Dialog */}
       <Dialog

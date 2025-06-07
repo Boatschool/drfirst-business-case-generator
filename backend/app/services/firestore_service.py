@@ -36,14 +36,22 @@ class FirestoreService:
 
     def __init__(self, db: Optional[DatabaseClient] = None):
         self.logger = logging.getLogger(__name__)
-        self._db = db if db is not None else get_db()
+        self._db_instance = db
+        self._db_initialized = False
         
         # Collection names from settings
         self.users_collection = settings.firestore_collection_users
         self.business_cases_collection = settings.firestore_collection_business_cases
         self.jobs_collection = settings.firestore_collection_jobs
-        
-        self.logger.info("FirestoreService initialized successfully")
+    
+    @property
+    def _db(self):
+        """Lazy initialization of database client"""
+        if not self._db_initialized:
+            self._db_instance = self._db_instance if self._db_instance is not None else get_db()
+            self._db_initialized = True
+            self.logger.info("FirestoreService initialized successfully")
+        return self._db_instance
 
     # User operations
     async def create_user(self, user: User) -> bool:

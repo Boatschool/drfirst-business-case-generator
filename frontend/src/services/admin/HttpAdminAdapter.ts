@@ -22,8 +22,10 @@ export class HttpAdminAdapter implements AdminService {
   private logger = Logger.create('HttpAdminAdapter');
 
   constructor() {
-    // Use environment variable with fallback for development
-    this.apiBaseUrl = import.meta.env.VITE_API_BASE_URL || '/api/v1';
+    // Use environment variable with fallback for development - construct full API path
+    const baseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
+    const apiVersion = import.meta.env.VITE_API_VERSION || 'v1';
+    this.apiBaseUrl = `${baseUrl}/api/${apiVersion}`;
   }
 
   /**

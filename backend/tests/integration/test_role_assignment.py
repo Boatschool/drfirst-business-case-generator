@@ -23,12 +23,15 @@ class TestUserServiceRoleOperations:
     @pytest.mark.asyncio
     async def test_create_user_with_role(self):
         """Test creating a user with a specific role"""
-        test_uid = "test_user_123"
-        test_email = "test@drfirst.com"
-        test_role = UserRole.SALES_MANAGER
+        test_uid = "new_user_123"
+        test_email = "newuser@drfirst.com"
+        test_role = UserRole.TECHNICAL_ARCHITECT
 
         with patch("asyncio.to_thread") as mock_to_thread:
-            with patch.object(user_service, "db") as mock_firestore:
+            with patch.object(user_service, "_db") as mock_firestore:
+                # Ensure the service recognizes the db as initialized
+                user_service._db_initialized = True
+                
                 # Mock Firestore document operations
                 mock_doc_ref = Mock()
                 mock_collection = Mock()
@@ -83,7 +86,7 @@ class TestUserServiceRoleOperations:
         new_role = UserRole.FINANCE_APPROVER
 
         with patch("asyncio.to_thread") as mock_to_thread:
-            with patch.object(user_service, "db") as mock_firestore:
+            with patch.object(user_service, "_db") as mock_firestore:
                 # Mock Firestore operations
                 mock_doc_ref = Mock()
                 mock_collection = Mock()
@@ -136,7 +139,7 @@ class TestUserServiceRoleOperations:
         test_uid = "claims_test_user"
 
         with patch("asyncio.to_thread") as mock_to_thread:
-            with patch.object(user_service, "db") as mock_firestore:
+            with patch.object(user_service, "_db") as mock_firestore:
                 # Mock Firestore get operation
                 mock_doc_ref = Mock()
                 mock_collection = Mock()
@@ -179,7 +182,7 @@ class TestUserServiceRoleOperations:
         test_uid = "nonexistent_user"
 
         with patch("asyncio.to_thread") as mock_to_thread:
-            with patch.object(user_service, "db") as mock_firestore:
+            with patch.object(user_service, "_db") as mock_firestore:
                 # Mock Firestore get operation returning non-existent document
                 mock_doc_ref = Mock()
                 mock_collection = Mock()
@@ -229,10 +232,8 @@ class TestRoleAssignmentScripts:
         test_email = "validation@drfirst.com"
 
         with patch("firebase_admin.auth.get_user_by_email") as mock_get_user:
-            with patch.object(
-                user_service, "create_or_update_user"
-            ) as mock_create_user:
-                with patch.object(user_service, "sync_user_claims") as mock_sync_claims:
+            with patch("app.services.user_service.UserService.create_or_update_user") as mock_create_user:
+                with patch("app.services.user_service.UserService.sync_user_claims") as mock_sync_claims:
 
                     # Mock Firebase user lookup
                     mock_user_record = Mock()

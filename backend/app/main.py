@@ -244,6 +244,88 @@ async def firebase_status():
     }
 
 
+@app.post("/debug/recover-services")
+async def recover_services():
+    """
+    Emergency service recovery endpoint.
+    
+    This endpoint attempts to recover failed services by reinitializing them.
+    Use this if services become unhealthy during runtime.
+    """
+    recovery_start = time.time()
+    recovery_log = []
+    success_count = 0
+    error_count = 0
+    
+    try:
+        recovery_log.append("🚨 Starting emergency service recovery...")
+        
+        # Reset all singletons first
+        recovery_log.append("🔄 Resetting all singletons...")
+        reset_all_singletons()
+        recovery_log.append("✅ Singletons reset complete")
+        
+        # Recover AuthService
+        recovery_log.append("🔧 Recovering AuthService...")
+        try:
+            auth_service = get_auth_service()
+            auth_service._initialize_firebase()
+            if auth_service.is_initialized:
+                recovery_log.append("✅ AuthService recovery successful")
+                success_count += 1
+            else:
+                recovery_log.append("❌ AuthService recovery failed")
+                error_count += 1
+        except Exception as e:
+            recovery_log.append(f"❌ AuthService recovery error: {str(e)}")
+            error_count += 1
+        
+        # Recover VertexAI Service
+        recovery_log.append("🤖 Recovering VertexAI service...")
+        try:
+            vertex_ai_service.initialize()
+            if vertex_ai_service.is_initialized:
+                recovery_log.append("✅ VertexAI service recovery successful")
+                success_count += 1
+            else:
+                recovery_log.append("❌ VertexAI service recovery failed")
+                error_count += 1
+        except Exception as e:
+            recovery_log.append(f"❌ VertexAI service recovery error: {str(e)}")
+            error_count += 1
+        
+        recovery_duration = time.time() - recovery_start
+        overall_status = "success" if error_count == 0 else "partial" if success_count > 0 else "failed"
+        
+        recovery_log.append(f"🎯 Recovery complete in {recovery_duration:.3f} seconds")
+        recovery_log.append(f"📊 Results: {success_count} succeeded, {error_count} failed")
+        
+        return {
+            "status": overall_status,
+            "duration_seconds": recovery_duration,
+            "services_recovered": success_count,
+            "services_failed": error_count,
+            "recovery_log": recovery_log,
+            "timestamp": time.time(),
+            "final_service_status": {
+                "auth_service": get_auth_service().is_initialized,
+                "vertex_ai": vertex_ai_service.is_initialized
+            }
+        }
+        
+    except Exception as e:
+        recovery_duration = time.time() - recovery_start
+        recovery_log.append(f"❌ Recovery process failed: {str(e)}")
+        
+        return {
+            "status": "error",
+            "duration_seconds": recovery_duration,
+            "error": str(e),
+            "recovery_log": recovery_log,
+            "timestamp": time.time()
+        }
+
+
 if __name__ == "__main__":
     import uvicorn
 

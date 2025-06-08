@@ -3,7 +3,7 @@ Pydantic models for Firestore database interactions
 """
 
 from typing import Optional, Dict, Any, List
-from datetime import datetime
+from datetime import datetime, timezone
 from pydantic import BaseModel, Field, EmailStr, field_validator, model_validator, HttpUrl
 from enum import Enum
 import re
@@ -54,8 +54,8 @@ class User(BaseModel):
         description="User display name"
     )
     systemRole: UserRole = Field(UserRole.USER, description="User system role")
-    created_at: datetime = Field(default_factory=datetime.utcnow)
-    updated_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     last_login: Optional[datetime] = None
     is_active: bool = True
 
@@ -134,7 +134,7 @@ class BusinessCaseRequest(BaseModel):
     deadline: Optional[datetime] = Field(None, description="Target completion date")
     relevant_links: Optional[List[RelevantLink]] = Field(
         None, 
-        max_items=10,
+        max_length=10,
         description="List of relevant links (max 10)"
     )
 
@@ -163,7 +163,7 @@ class BusinessCaseRequest(BaseModel):
     @field_validator('deadline')
     def validate_deadline(cls, v):
         """Ensure deadline is in the future"""
-        if v is not None and v <= datetime.utcnow():
+        if v is not None and v <= datetime.now(timezone.utc):
             raise ValueError('Deadline must be in the future')
         return v
 
@@ -188,12 +188,12 @@ class BusinessCase(BaseModel):
         description="Generated business case content"
     )
     status: JobStatus = Field(JobStatus.PENDING, description="Generation status")
-    created_at: datetime = Field(default_factory=datetime.utcnow)
-    updated_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     completed_at: Optional[datetime] = None
     generated_by_agents: List[str] = Field(
         default_factory=list, 
-        max_items=20,
+        max_length=20,
         description="List of agents that contributed (max 20)"
     )
 
@@ -268,8 +268,8 @@ class Job(BaseModel):
         max_length=1000,
         description="Error message if failed"
     )
-    created_at: datetime = Field(default_factory=datetime.utcnow)
-    updated_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     started_at: Optional[datetime] = None
     completed_at: Optional[datetime] = None
     metadata: Dict[str, Any] = Field(

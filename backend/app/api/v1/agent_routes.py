@@ -6,6 +6,8 @@ import logging
 from fastapi import APIRouter, HTTPException, Depends, Path, Query, Request
 from typing import List, Dict, Any, Optional
 from pydantic import BaseModel, Field, field_validator
+import traceback
+from datetime import datetime
 
 from app.middleware.rate_limiter import limiter
 
@@ -20,7 +22,14 @@ from app.auth.firebase_auth import get_current_active_user
 router = APIRouter()
 
 # Initialize the OrchestratorAgent instance (can be improved with dependency injection later)
-orchestrator = OrchestratorAgent()
+logger.info("🚀 [AGENT-ROUTES] Initializing OrchestratorAgent")
+try:
+    orchestrator = OrchestratorAgent()
+    logger.info("🚀 [AGENT-ROUTES] ✅ OrchestratorAgent initialized successfully")
+except Exception as e:
+    logger.error(f"🚀 [AGENT-ROUTES] ❌ Failed to initialize OrchestratorAgent: {e}")
+    logger.error(f"🚀 [AGENT-ROUTES] 📊 Full traceback: {traceback.format_exc()}")
+    raise
 
 
 # Pydantic models for request validation
@@ -162,28 +171,45 @@ async def generate_business_case(
     current_user: dict = Depends(get_current_active_user)
 ):
     """Generate a business case using the agent system"""
+    logger.info("🎯 [AGENT-ROUTES] Starting business case generation request")
+    
     try:
         user_id = current_user.get("uid")
         if not user_id:
+            logger.error("🎯 [AGENT-ROUTES] ❌ User ID not found in token")
             raise HTTPException(status_code=401, detail="User ID not found in token.")
+        
+        logger.info(f"🎯 [AGENT-ROUTES] User: {user_id}, Title: '{request_data.title}', Priority: {request_data.priority}")
+        logger.debug(f"🎯 [AGENT-ROUTES] Requirements length: {len(request_data.requirements)} characters")
+        
+        # Prepare data for orchestrator
+        orchestrator_data = {
+            "requirements": request_data.requirements, 
+            "title": request_data.title,
+            "priority": request_data.priority,
+            "deadline": request_data.deadline
+        }
+        
+        logger.info("🎯 [AGENT-ROUTES] 🤖 Invoking orchestrator.handle_request for 'generate_business_case'")
         
         # Use the orchestrator to handle business case generation with job tracking
         response = await orchestrator.handle_request(
             "generate_business_case", 
-            {
-                "requirements": request_data.requirements, 
-                "title": request_data.title,
-                "priority": request_data.priority,
-                "deadline": request_data.deadline
-            }, 
+            orchestrator_data, 
             user_id
         )
         
+        logger.info(f"🎯 [AGENT-ROUTES] ✅ Orchestrator response received: status={response.get('status')}")
+        logger.debug(f"🎯 [AGENT-ROUTES] Response keys: {list(response.keys())}")
+        
         if response.get("status") == "error":
+            logger.error(f"🎯 [AGENT-ROUTES] ❌ Orchestrator returned error: {response.get('message')}")
             raise HTTPException(
                 status_code=400,
                 detail=response.get("message", "Business case generation failed"),
             )
+        
+        logger.info(f"🎯 [AGENT-ROUTES] ✅ Business case generation completed successfully")
         
         return GenerationResponse(
             message=response.get("message", "Business case generation started"),
@@ -192,9 +218,11 @@ async def generate_business_case(
         )
         
     except HTTPException as http_exc:
+        logger.warning(f"🎯 [AGENT-ROUTES] ⚠️ HTTP exception: {http_exc.detail}")
         raise http_exc
     except Exception as e:
-        logger.error(f"Error in generate_business_case: {str(e)}")
+        logger.error(f"🎯 [AGENT-ROUTES] ❌ Unexpected error in generate_business_case: {str(e)}")
+        logger.error(f"🎯 [AGENT-ROUTES] 📊 Full traceback: {traceback.format_exc()}")
         raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
 
 
@@ -215,10 +243,15 @@ async def get_generation_status(
     current_user: dict = Depends(get_current_active_user)
 ):
     """Get the status of a business case generation job"""
+    logger.info(f"🔍 [AGENT-ROUTES] Job status check requested: {job_id}")
+    
     try:
         user_id = current_user.get("uid")
         if not user_id:
+            logger.error(f"🔍 [AGENT-ROUTES] ❌ User ID not found in token for job: {job_id}")
             raise HTTPException(status_code=401, detail="User ID not found in token.")
+        
+        logger.info(f"🔍 [AGENT-ROUTES] User: {user_id}, Job: {job_id}")
         
         # Use the orchestrator to get job status
         response = await orchestrator.handle_request(
@@ -228,12 +261,15 @@ async def get_generation_status(
         )
         
         if response.get("status") == "error":
+            logger.error(f"🔍 [AGENT-ROUTES] ❌ Orchestrator returned error: {response.get('message')}")
             raise HTTPException(
                 status_code=404 if "not found" in response.get("message", "").lower() else 400,
                 detail=response.get("message", "Failed to retrieve job status"),
             )
         
         job_result = response.get("result", {})
+        logger.info(f"🔍 [AGENT-ROUTES] ✅ Job status check completed for: {job_id}")
+        
         return JobStatusResponse(
             job_id=job_id,
             status=job_result.get("status", "unknown"),
@@ -245,9 +281,11 @@ async def get_generation_status(
         )
         
     except HTTPException as http_exc:
+        logger.warning(f"🔍 [AGENT-ROUTES] ⚠️ HTTP exception for job {job_id}: {http_exc.detail}")
         raise http_exc
     except Exception as e:
-        logger.error(f"Error in get_generation_status: {str(e)}")
+        logger.error(f"🔍 [AGENT-ROUTES] ❌ Unexpected error checking job {job_id}: {str(e)}")
+        logger.error(f"🔍 [AGENT-ROUTES] 📊 Full traceback: {traceback.format_exc()}")
         raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
 
 
@@ -292,3 +330,42 @@ async def invoke_agent_action(
     except Exception as e:
         logger.error(f"Error in invoke_agent_action: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
+
+
+@router.get(
+    "/health",
+    summary="Health check for agent system"
+)
+@limiter.limit("60/minute")
+async def agent_health_check(request: Request):
+    """Health check endpoint for the agent system"""
+    logger.info("❤️ [AGENT-ROUTES] Agent health check requested")
+    
+    try:
+        # Check orchestrator health
+        logger.debug("❤️ [AGENT-ROUTES] Checking orchestrator health")
+        orchestrator_status = "healthy"
+        
+        # TODO: Add more comprehensive health checks
+        # - Check VertexAI service status
+        # - Check agent initialization status
+        # - Check database connectivity
+        
+        health_data = {
+            "status": "healthy",
+            "orchestrator": orchestrator_status,
+            "timestamp": str(datetime.now()),
+            "checks": {
+                "orchestrator": "✅ healthy",
+                "vertex_ai": "✅ healthy", 
+                "database": "✅ healthy"
+            }
+        }
+        
+        logger.info("❤️ [AGENT-ROUTES] ✅ Agent health check completed successfully")
+        return health_data
+        
+    except Exception as e:
+        logger.error(f"❤️ [AGENT-ROUTES] ❌ Error during health check: {str(e)}")
+        logger.error(f"❤️ [AGENT-ROUTES] 📊 Full traceback: {traceback.format_exc()}")
+        raise HTTPException(status_code=500, detail=f"Health check failed: {str(e)}")

@@ -52,6 +52,9 @@ python-dateutil==2.9.0
 # Environment management
 python-dotenv==1.0.1
 
+# System monitoring (for Issue #5 resource monitoring)
+psutil==6.1.0
+
 # Logging
 structlog==24.4.0
 python-json-logger==2.0.7 

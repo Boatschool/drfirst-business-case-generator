@@ -121,8 +121,8 @@ class SystemDesignUpdateRequest(BaseModel):
 class EffortEstimateUpdateRequest(BaseModel):
     roles: List[Dict[str, Any]] = Field(
         ...,
-        min_items=1,
-        max_items=20,
+        min_length=1,
+        max_length=20,
         description="List of roles with effort estimates"
     )
     total_hours: int = Field(
@@ -213,8 +213,8 @@ class CostEstimateUpdateRequest(BaseModel):
     )
     breakdown_by_role: List[Dict[str, Any]] = Field(
         ...,
-        min_items=1,
-        max_items=20,
+        min_length=1,
+        max_length=20,
         description="Cost breakdown by role"
     )
     calculation_method: Optional[str] = Field(
@@ -260,8 +260,8 @@ class CostEstimateUpdateRequest(BaseModel):
 class ValueProjectionUpdateRequest(BaseModel):
     scenarios: List[Dict[str, Any]] = Field(
         ...,
-        min_items=1,
-        max_items=10,
+        min_length=1,
+        max_length=10,
         description="List of value projection scenarios"
     )
     currency: str = Field(
@@ -284,7 +284,7 @@ class ValueProjectionUpdateRequest(BaseModel):
     )
     assumptions: Optional[List[str]] = Field(
         None,
-        max_items=20,
+        max_length=20,
         description="List of assumptions used"
     )
     notes: Optional[str] = Field(

@@ -53,7 +53,7 @@ class ProductManagerAgent:
             logger.info(f"ProductManagerAgent: Attempting to initialize with centralized VertexAI service")
             # Use centralized VertexAI service
             from app.services.vertex_ai_service import vertex_ai_service
-            vertex_ai_service.initialize()
+            vertex_ai_service.initialize(project_id=self.project_id, location=self.location)
             
             if vertex_ai_service.is_initialized:
                 logger.info(f"ProductManagerAgent: VertexAI service initialized, creating model {self.model_name}")

@@ -14,6 +14,7 @@ import os
 import vertexai
 from typing import Optional, Dict, Any
 from app.core.config import settings
+from google.cloud import aiplatform
 
 logger = logging.getLogger(__name__)
 
@@ -42,127 +43,74 @@ class VertexAIService:
             VertexAIService: The singleton instance
         """
         if cls._instance is None:
+            logger.info("🤖 [VERTEX-AI] Creating new VertexAIService instance")
             cls._instance = super().__new__(cls)
         return cls._instance
     
-    def initialize(self) -> None:
-        """
-        Initialize Vertex AI with comprehensive logging and diagnostics.
-        
-        This method is safe to call multiple times - it will only initialize
-        Vertex AI once per application lifecycle.
-        
-        Raises:
-            Exception: If Vertex AI initialization fails
-        """
-        start_time = time.time()
-        self._initialization_count += 1
-        
-        logger.info(f"🤖 VertexAI Initialization Request #{self._initialization_count}")
-        logger.info(f"📊 Current Status: Initialized={self._initialized}")
-        
-        if self._initialized:
-            total_duration = time.time() - start_time
-            logger.info(f"✅ VertexAI already initialized (checked in {total_duration:.3f}s)")
-            logger.info(f"📊 Service Stats: Init Count={self._initialization_count}, Errors={self._error_count}")
+    def __init__(self):
+        # Only initialize once
+        if hasattr(self, '_service_initialized'):
             return
         
-        if not self._initialized:
+        logger.info("🤖 [VERTEX-AI] Initializing VertexAI service")
+        self._service_initialized = True
+        self.project_id = None
+        self.location = "us-central1"  # Default location
+        logger.info("🤖 [VERTEX-AI] ✅ VertexAI service instance created")
+    
+    def initialize(self, project_id: Optional[str] = None, location: str = "us-central1") -> bool:
+        """Initialize VertexAI with project configuration"""
+        if self._initialized:
+            logger.info("🤖 [VERTEX-AI] ✅ Already initialized, skipping")
+            return True
+        
+        logger.info("🤖 [VERTEX-AI] 🔄 Starting VertexAI initialization")
+        
+        try:
+            # Get project ID from environment if not provided
+            if not project_id:
+                project_id = os.getenv('GOOGLE_CLOUD_PROJECT')
+                logger.info(f"🤖 [VERTEX-AI] 🔍 Using project ID from environment: {project_id}")
+            
+            # If still no project ID, try to get from settings
+            if not project_id:
+                try:
+                    from app.core.config import settings
+                    project_id = settings.google_cloud_project_id
+                    logger.info(f"🤖 [VERTEX-AI] 🔍 Using project ID from settings: {project_id}")
+                except Exception as settings_error:
+                    logger.warning(f"🤖 [VERTEX-AI] ⚠️ Could not load settings: {settings_error}")
+            
+            if not project_id:
+                logger.warning("🤖 [VERTEX-AI] ⚠️ No project ID found, using default project")
+                project_id = "default-project"
+            
+            self.project_id = project_id
+            self.location = location
+            
+            logger.info(f"🤖 [VERTEX-AI] 🎯 Initializing with project: {project_id}, location: {location}")
+            
+            # Initialize VertexAI
+            vertexai.init(project=project_id, location=location)
+            logger.info("🤖 [VERTEX-AI] ✅ VertexAI initialized successfully")
+            
+            # Initialize AI Platform client for additional functionality
             try:
-                # Log system environment
-                logger.info(f"🖥️  System Environment:")
-                logger.info(f"  - Platform: {platform.platform()}")
-                logger.info(f"  - Python Version: {sys.version}")
-                logger.info(f"  - Working Directory: {os.getcwd()}")
-                logger.info(f"  - Python Path: {sys.path[:3]}...")  # First 3 entries
-                
-                # Log dependency versions
-                try:
-                    import vertexai
-                    logger.info(f"  - VertexAI Version: {vertexai.__version__ if hasattr(vertexai, '__version__') else 'Unknown'}")
-                except:
-                    logger.warning("  - VertexAI Version: Could not determine")
-                
-                project_id = settings.google_cloud_project_id or "drfirst-business-case-gen"
-                location = settings.vertex_ai_location
-                
-                logger.info(f"🔧 VertexAI Configuration:")
-                logger.info(f"  - Project ID: {project_id}")
-                logger.info(f"  - Location: {location}")
-                logger.info(f"  - Model: {settings.vertex_ai_model_name}")
-                logger.info(f"  - Temperature: {settings.vertex_ai_temperature}")
-                logger.info(f"  - Max Tokens: {settings.vertex_ai_max_tokens}")
-                logger.info(f"  - Top P: {settings.vertex_ai_top_p}")
-                logger.info(f"  - Top K: {settings.vertex_ai_top_k}")
-                
-                # Check environment variables
-                logger.info(f"🔍 Environment Check:")
-                google_creds = os.environ.get('GOOGLE_APPLICATION_CREDENTIALS')
-                if google_creds:
-                    logger.info(f"  - GOOGLE_APPLICATION_CREDENTIALS: {google_creds}")
-                    logger.info(f"  - Credentials file exists: {os.path.exists(google_creds) if google_creds else False}")
-                else:
-                    logger.info("  - GOOGLE_APPLICATION_CREDENTIALS: Not set (using default credentials)")
-                
-                logger.info(f"⏳ Starting VertexAI initialization...")
-                init_start = time.time()
-                
-                vertexai.init(project=project_id, location=location)
-                
-                init_duration = time.time() - init_start
-                self._initialization_time = init_duration
-                self._initialized = True
-                
-                total_duration = time.time() - start_time
-                
-                logger.info(f"✅ VertexAI initialized successfully!")
-                logger.info(f"⏱️  Timing Information:")
-                logger.info(f"  - VertexAI Init Time: {init_duration:.3f} seconds")
-                logger.info(f"  - Total Setup Time: {total_duration:.3f} seconds")
-                logger.info(f"  - Initialization Count: {self._initialization_count}")
-                
-                # Verify initialization by testing basic functionality
-                try:
-                    from vertexai.generative_models import GenerativeModel
-                    test_model = GenerativeModel(settings.vertex_ai_model_name)
-                    logger.info(f"✅ Model creation test successful: {settings.vertex_ai_model_name}")
-                except Exception as model_error:
-                    logger.warning(f"⚠️ Model creation test failed: {model_error}")
-                
-            except Exception as e:
-                error_duration = time.time() - start_time
-                self._error_count += 1
-                self._last_error = str(e)
-                
-                logger.error(f"❌ VertexAI initialization failed!")
-                logger.error(f"❌ Error #{self._error_count}: {type(e).__name__}: {str(e)}")
-                logger.error(f"⏱️  Failed after {error_duration:.3f} seconds")
-                
-                # Enhanced error diagnostics
-                logger.error(f"🔍 Detailed Error Information:")
-                logger.error(f"  - Error Type: {type(e)}")
-                logger.error(f"  - Error Message: {str(e)}")
-                logger.error(f"  - Project ID Used: {project_id}")
-                logger.error(f"  - Location Used: {location}")
-                
-                # Log full traceback for debugging
-                logger.error(f"📋 Full Traceback:")
-                for line in traceback.format_exc().splitlines():
-                    logger.error(f"  {line}")
-                
-                # Provide troubleshooting hints
-                logger.error(f"💡 Troubleshooting Hints:")
-                logger.error(f"  - Ensure GOOGLE_APPLICATION_CREDENTIALS is set correctly")
-                logger.error(f"  - Verify project '{project_id}' has Vertex AI API enabled")
-                logger.error(f"  - Check if location '{location}' is valid for your project")
-                logger.error(f"  - Ensure billing is enabled for the project")
-                
-                self._initialized = False
-                raise
-        else:
-            total_duration = time.time() - start_time
-            logger.info(f"✅ VertexAI already initialized (checked in {total_duration:.3f}s)")
-            logger.info(f"📊 Service Stats: Init Count={self._initialization_count}, Errors={self._error_count}")
+                aiplatform.init(project=project_id, location=location)
+                logger.info("🤖 [VERTEX-AI] ✅ AI Platform client initialized")
+            except Exception as platform_error:
+                logger.warning(f"🤖 [VERTEX-AI] ⚠️ AI Platform client initialization failed: {platform_error}")
+                # Continue without AI Platform client
+            
+            self._initialized = True
+            logger.info(f"🤖 [VERTEX-AI] 🎉 VertexAI service fully initialized for project: {project_id}")
+            return True
+            
+        except Exception as e:
+            logger.error(f"🤖 [VERTEX-AI] ❌ Failed to initialize VertexAI: {e}")
+            logger.error(f"🤖 [VERTEX-AI] 📊 Full traceback: {traceback.format_exc()}")
+            self._initialized = False
+            return False
     
     def reset(self) -> None:
         """
@@ -172,8 +120,17 @@ class VertexAIService:
         initialization state, allowing for clean re-initialization on
         the next startup cycle.
         """
-        self._initialized = False
-        logger.info("🔄 Vertex AI service reset for reload")
+        logger.info("🤖 [VERTEX-AI] 🔄 Resetting VertexAI service state")
+        
+        try:
+            # Reset initialization state
+            self._initialized = False
+            self.project_id = None
+            logger.info("🤖 [VERTEX-AI] ✅ Service state reset successfully")
+            
+        except Exception as e:
+            logger.error(f"🤖 [VERTEX-AI] ❌ Error during reset: {e}")
+            logger.error(f"🤖 [VERTEX-AI] 📊 Full traceback: {traceback.format_exc()}")
     
     def cleanup(self) -> None:
         """
@@ -229,7 +186,9 @@ class VertexAIService:
         Returns:
             bool: True if Vertex AI is initialized, False otherwise
         """
-        return self._initialized
+        status = self._initialized
+        logger.debug(f"🤖 [VERTEX-AI] Initialization status: {status}")
+        return status
     
     def get_status(self) -> Dict[str, Any]:
         """
@@ -246,8 +205,8 @@ class VertexAIService:
             
             # Configuration
             "configuration": {
-                "project_id": settings.google_cloud_project_id,
-                "location": settings.vertex_ai_location,
+                "project_id": self.project_id,
+                "location": self.location,
                 "model_name": settings.vertex_ai_model_name,
                 "temperature": settings.vertex_ai_temperature,
                 "max_tokens": settings.vertex_ai_max_tokens,
@@ -342,8 +301,8 @@ class VertexAIService:
             "configuration_diagnostics": {
                 "settings_module": str(settings.__class__),
                 "all_vertex_settings": {
-                    "project_id": settings.google_cloud_project_id,
-                    "location": settings.vertex_ai_location,
+                    "project_id": self.project_id,
+                    "location": self.location,
                     "model_name": settings.vertex_ai_model_name,
                     "temperature": settings.vertex_ai_temperature,
                     "max_tokens": settings.vertex_ai_max_tokens,
@@ -355,4 +314,5 @@ class VertexAIService:
 
 
 # Global singleton instance
-vertex_ai_service = VertexAIService() 
+vertex_ai_service = VertexAIService()
+logger.info("🤖 [VERTEX-AI] 🌟 VertexAI service singleton created") 

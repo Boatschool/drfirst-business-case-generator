@@ -10,6 +10,9 @@ import time
 import platform
 import sys
 import os
+import asyncio
+import traceback
+import psutil  # Add this import for resource monitoring
 from typing import Dict, Any, Optional, List
 from fastapi import APIRouter, HTTPException, Depends
 from fastapi.responses import JSONResponse
@@ -190,43 +193,52 @@ async def service_status(service_name: str) -> Dict[str, Any]:
 
 
 @router.get("/resources")
-async def resource_monitoring() -> Dict[str, Any]:
+async def get_resource_usage():
     """
-    Monitor resource usage and singleton health to detect resource leaks.
+    Get comprehensive system resource usage information for Issue #5 monitoring.
     
-    Returns:
-        dict: Resource monitoring information
+    This endpoint monitors resource usage to detect and prevent resource leaks
+    during application lifecycle events.
     """
-    start_time = time.time()
-    
     try:
-        resource_info = {
-            "timestamp": time.time(),
-            "monitoring_version": "1.0.0",
-            "system_resources": {
-                "memory": _get_memory_usage(),
-                "cpu": _get_cpu_usage(),
-                "disk_usage": _get_disk_usage(),
-                "network_connections": _get_network_info()
-            },
-            "singleton_health": {
-                "database_client": _check_database_health(),
-                "auth_service": _check_auth_service_health(),
-                "vertex_ai_service": _check_vertex_ai_health()
-            },
-            "resource_warnings": _detect_resource_warnings(),
-            "collection_time": time.time() - start_time
-        }
+        # Memory usage information
+        memory_info = _get_memory_usage()
         
-        return resource_info
+        # Disk usage information  
+        disk_info = _get_disk_usage()
+        
+        # Network connection information
+        network_info = _get_network_info()
+        
+        # Database connection health
+        database_health = _check_database_health()
+        
+        # Service health checks
+        auth_health = _check_auth_service_health()
+        vertex_health = _check_vertex_ai_health()
+        
+        # Resource warnings detection
+        warnings = _detect_resource_warnings(memory_info, network_info)
+        
+        return {
+            "timestamp": time.time(),
+            "resource_usage": {
+                "memory": memory_info,
+                "disk": disk_info,
+                "network": network_info
+            },
+            "service_health": {
+                "database": database_health,
+                "auth_service": auth_health,
+                "vertex_ai": vertex_health
+            },
+            "warnings": warnings,
+            "status": "healthy" if not warnings else "warning"
+        }
         
     except Exception as e:
-        logger.error(f"Resource monitoring failed: {e}")
-        return {
-            "status": "error", 
-            "message": str(e),
-            "timestamp": time.time()
-        }
+        logger.error(f"Error getting resource usage: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to get resource usage: {str(e)}")
 
 
 @router.get("/config")
@@ -271,19 +283,21 @@ async def configuration_info() -> Dict[str, Any]:
         raise HTTPException(status_code=500, detail=f"Configuration info failed: {str(e)}")
 
 
-def _get_memory_usage() -> Optional[Dict[str, Any]]:
-    """Get memory usage information"""
+def _get_memory_usage() -> Dict[str, Any]:
+    """Get detailed memory usage information"""
     try:
-        import psutil
         process = psutil.Process()
         memory_info = process.memory_info()
+        
         return {
-            "rss_mb": memory_info.rss / 1024 / 1024,  # Resident Set Size
-            "vms_mb": memory_info.vms / 1024 / 1024,  # Virtual Memory Size
-            "percent": process.memory_percent()
+            "rss_mb": round(memory_info.rss / 1024 / 1024, 2),  # Resident Set Size
+            "vms_mb": round(memory_info.vms / 1024 / 1024, 2),  # Virtual Memory Size
+            "percent": round(process.memory_percent(), 2),
+            "available_mb": round(psutil.virtual_memory().available / 1024 / 1024, 2),
+            "total_mb": round(psutil.virtual_memory().total / 1024 / 1024, 2)
         }
-    except:
-        return None
+    except Exception as e:
+        return {"error": str(e), "available": False}
 
 
 def _get_cpu_usage() -> Optional[float]:
@@ -472,161 +486,122 @@ def _get_troubleshooting_hints() -> Dict[str, Any]:
     return hints
 
 
-def _get_disk_usage() -> Optional[Dict[str, Any]]:
-    """Get disk usage information"""
+def _get_disk_usage() -> Dict[str, Any]:
+    """Get disk usage information for the working directory"""
     try:
-        import psutil
-        disk = psutil.disk_usage('/')
+        usage = psutil.disk_usage(os.getcwd())
+        
         return {
-            "total_gb": round(disk.total / 1024 / 1024 / 1024, 2),
-            "used_gb": round(disk.used / 1024 / 1024 / 1024, 2),
-            "free_gb": round(disk.free / 1024 / 1024 / 1024, 2),
-            "percent_used": round((disk.used / disk.total) * 100, 1)
+            "total_gb": round(usage.total / 1024 / 1024 / 1024, 2),
+            "used_gb": round(usage.used / 1024 / 1024 / 1024, 2),
+            "free_gb": round(usage.free / 1024 / 1024 / 1024, 2),
+            "percent_used": round((usage.used / usage.total) * 100, 2)
         }
-    except:
-        return None
+    except Exception as e:
+        return {"error": str(e), "available": False}
 
 
-def _get_network_info() -> Optional[Dict[str, Any]]:
-    """Get network connection information"""
+def _get_network_info() -> Dict[str, Any]:
+    """Get network connection information to detect connection leaks"""
     try:
-        import psutil
         connections = psutil.net_connections()
-        connection_stats = {
+        
+        # Count connections by status
+        status_counts = {}
+        for conn in connections:
+            status = conn.status
+            status_counts[status] = status_counts.get(status, 0) + 1
+        
+        # Count connections by local port (to detect port accumulation)
+        port_counts = {}
+        for conn in connections:
+            if conn.laddr:
+                port = conn.laddr.port
+                port_counts[port] = port_counts.get(port, 0) + 1
+        
+        return {
             "total_connections": len(connections),
-            "established": len([c for c in connections if c.status == 'ESTABLISHED']),
-            "listening": len([c for c in connections if c.status == 'LISTEN']),
-            "close_wait": len([c for c in connections if c.status == 'CLOSE_WAIT'])
+            "status_breakdown": status_counts,
+            "close_wait_count": status_counts.get("CLOSE_WAIT", 0),
+            "established_count": status_counts.get("ESTABLISHED", 0),
+            "listening_count": status_counts.get("LISTEN", 0),
+            "port_usage": dict(list(sorted(port_counts.items(), key=lambda x: x[1], reverse=True))[:10])
         }
-        return connection_stats
-    except:
-        return None
+    except Exception as e:
+        return {"error": str(e), "available": False}
 
 
 def _check_database_health() -> Dict[str, Any]:
-    """Check database client singleton health"""
+    """Check database connection health"""
     try:
         from app.core.dependencies import get_db
-        from app.core.firestore_impl import FirestoreClient
+        db = get_db()
         
-        db_client = get_db()
-        if hasattr(db_client, 'get_status'):
-            return db_client.get_status()
+        if hasattr(db, 'get_status'):
+            return db.get_status()
         else:
             return {
                 "status": "unknown",
-                "message": "Database client does not support status checking",
-                "client_type": type(db_client).__name__
+                "message": "Database client does not support status check"
             }
     except Exception as e:
         return {
             "status": "error",
-            "message": str(e),
-            "error_type": type(e).__name__
+            "error": str(e)
         }
 
 
 def _check_auth_service_health() -> Dict[str, Any]:
-    """Check auth service singleton health"""
+    """Check auth service health"""
     try:
         auth_service = get_auth_service()
         return {
-            "status": "healthy" if auth_service.is_initialized else "unhealthy",
             "initialized": auth_service.is_initialized,
-            "service_type": type(auth_service).__name__
+            "status": "healthy" if auth_service.is_initialized else "not_initialized"
         }
     except Exception as e:
         return {
             "status": "error",
-            "message": str(e),
-            "error_type": type(e).__name__
+            "error": str(e)
         }
 
 
 def _check_vertex_ai_health() -> Dict[str, Any]:
-    """Check VertexAI service singleton health"""
+    """Check Vertex AI service health"""
     try:
+        status = vertex_ai_service.get_status()
         return {
-            "status": "healthy" if vertex_ai_service.is_initialized else "unhealthy",
-            "initialized": vertex_ai_service.is_initialized,
-            "initialization_count": getattr(vertex_ai_service, '_initialization_count', 0),
-            "error_count": getattr(vertex_ai_service, '_error_count', 0),
-            "service_type": type(vertex_ai_service).__name__
+            "initialized": status["initialized"],
+            "status": status["health"]["status"],
+            "metrics": status["metrics"]
         }
     except Exception as e:
         return {
-            "status": "error",
-            "message": str(e),
-            "error_type": type(e).__name__
+            "status": "error", 
+            "error": str(e)
         }
 
 
-def _detect_resource_warnings() -> List[Dict[str, Any]]:
-    """Detect potential resource issues and warnings"""
+def _detect_resource_warnings(memory_info: Dict[str, Any], network_info: Dict[str, Any]) -> List[str]:
+    """Detect potential resource leak warnings"""
     warnings = []
     
     # Memory warnings
-    memory = _get_memory_usage()
-    if memory:
-        if memory["rss_mb"] > 1000:  # > 1GB
-            warnings.append({
-                "type": "memory",
-                "level": "high",
-                "message": f"High memory usage: {memory['rss_mb']:.1f} MB",
-                "recommendation": "Monitor for memory leaks"
-            })
-        elif memory["rss_mb"] > 500:  # > 500MB
-            warnings.append({
-                "type": "memory", 
-                "level": "medium",
-                "message": f"Elevated memory usage: {memory['rss_mb']:.1f} MB",
-                "recommendation": "Monitor memory usage trends"
-            })
+    if "rss_mb" in memory_info:
+        if memory_info["rss_mb"] > 1000:  # More than 1GB
+            warnings.append(f"High memory usage: {memory_info['rss_mb']}MB RSS")
+        elif memory_info["rss_mb"] > 500:  # More than 500MB
+            warnings.append(f"Medium memory usage: {memory_info['rss_mb']}MB RSS")
     
-    # Connection warnings
-    network = _get_network_info()
-    if network:
-        if network["close_wait"] > 10:
-            warnings.append({
-                "type": "network",
-                "level": "medium",
-                "message": f"High number of CLOSE_WAIT connections: {network['close_wait']}",
-                "recommendation": "Check for connection leaks"
-            })
-        
-        if network["total_connections"] > 100:
-            warnings.append({
-                "type": "network",
-                "level": "high", 
-                "message": f"High total connections: {network['total_connections']}",
-                "recommendation": "Monitor connection pooling and cleanup"
-            })
+    # Network connection warnings  
+    if "close_wait_count" in network_info:
+        if network_info["close_wait_count"] > 10:
+            warnings.append(f"High CLOSE_WAIT connections: {network_info['close_wait_count']} (potential connection leak)")
+        elif network_info["close_wait_count"] > 5:
+            warnings.append(f"Moderate CLOSE_WAIT connections: {network_info['close_wait_count']}")
     
-    # Disk warnings
-    disk = _get_disk_usage()
-    if disk and disk["percent_used"] > 90:
-        warnings.append({
-            "type": "disk",
-            "level": "high",
-            "message": f"Low disk space: {disk['percent_used']:.1f}% used",
-            "recommendation": "Free up disk space"
-        })
-    
-    # Service health warnings
-    if not vertex_ai_service.is_initialized:
-        warnings.append({
-            "type": "service",
-            "level": "high",
-            "message": "VertexAI service not initialized",
-            "recommendation": "Check service configuration and logs"
-        })
-    
-    if not get_auth_service().is_initialized:
-        warnings.append({
-            "type": "service",
-            "level": "high", 
-            "message": "Auth service not initialized",
-            "recommendation": "Check Firebase configuration and credentials"
-        })
+    if "total_connections" in network_info:
+        if network_info["total_connections"] > 100:
+            warnings.append(f"High total connections: {network_info['total_connections']}")
     
     return warnings 

@@ -8,6 +8,7 @@ from fastapi import APIRouter, Depends, Query, Path, Request
 from datetime import datetime
 from slowapi import Limiter
 from slowapi.util import get_remote_address
+import traceback
 
 from app.auth.firebase_auth import get_current_active_user
 from app.core.dependencies import get_firestore_service
@@ -71,19 +72,25 @@ async def list_user_cases(
     )
 ):
     """
-    Retrieves a list of business cases initiated by the authenticated user.
-    Supports pagination, filtering, and sorting.
+    Lists business cases for the authenticated user with optional filtering, sorting, and pagination.
     """
+    logger.info("🗂️ [CASES-LIST] Starting business case list request")
+    
     user_id = current_user.get("uid")
     if not user_id:
+        logger.error("🗂️ [CASES-LIST] ❌ No user ID found in token")
         raise AuthenticationError("User ID not found in token")
 
+    logger.info(f"🗂️ [CASES-LIST] ✅ EXTRACTED USER ID FROM TOKEN: {user_id}")
+    logger.info(f"🗂️ [CASES-LIST] 🔍 Current user object: {current_user}")
+    logger.info(f"🗂️ [CASES-LIST] User: {user_id}, Filters: status={status_filter}, limit={limit}, offset={offset}")
+
     # Create contextual logger for this request
-    request_logger = log_api_request(logger, "list_cases", user_id, "/cases", "GET")
-    
+    request_logger = log_business_case_operation(logger, "list", user_id, "list_cases")
+
     try:
         request_logger.info(
-            "Listing business cases for user", 
+            "🗂️ [CASES-LIST] Retrieving business cases for user",
             extra={
                 'limit': limit,
                 'offset': offset,
@@ -93,32 +100,33 @@ async def list_user_cases(
             }
         )
         
-        # Use FirestoreService instead of direct database calls
-        business_cases = await firestore_service.list_business_cases_for_user(user_id)
+        logger.info("🗂️ [CASES-LIST] 📞 Calling firestore_service.list_business_cases_for_user")
         
-        # Apply filters
-        if status_filter:
-            business_cases = [case for case in business_cases if str(case.status).upper() == status_filter.upper()]
+        # Get all cases for the user first (filtering by status if provided)
+        logger.info(f"🗂️ [CASES-LIST] 🔍 QUERYING FIRESTORE FOR USER ID: {user_id}")
+        business_cases = await firestore_service.list_business_cases_for_user(
+            user_id, status_filter=status_filter
+        )
         
-        if created_after:
+        logger.info(f"🗂️ [CASES-LIST] ✅ Retrieved {len(business_cases)} cases from Firestore for user {user_id}")
+        if len(business_cases) == 0:
+            logger.warning(f"🗂️ [CASES-LIST] ⚠️ NO CASES FOUND for user ID: {user_id}")
+            logger.warning(f"🗂️ [CASES-LIST] 🔍 This might indicate a user ID mismatch!")
+        
+        # Convert to summary format
+        summaries = []
+        for i, case in enumerate(business_cases):
             try:
-                filter_date = datetime.fromisoformat(created_after.replace('Z', '+00:00'))
-                business_cases = [case for case in business_cases if case.created_at >= filter_date]
-            except ValueError:
-                raise ValueError("created_after must be in ISO format (e.g., '2023-01-01T00:00:00Z')")
-        
-        # Convert to BusinessCaseSummary models
-        summaries: List[BusinessCaseSummary] = []
-        for case in business_cases:
-            # Convert status Enum to string if it's an Enum object, otherwise assume it's already a string
-            status_value = case.status
-            if hasattr(status_value, "value"):  # Check if it's an Enum instance
-                status_str = status_value.value
-            else:
-                status_str = str(status_value)  # Fallback to string conversion
-
-            summaries.append(
-                BusinessCaseSummary(
+                logger.debug(f"🗂️ [CASES-LIST] 🔄 Processing case {i+1}/{len(business_cases)}: {case.case_id}")
+                
+                # Convert enum status to string
+                status_value = case.status
+                if hasattr(status_value, "value"):
+                    status_str = status_value.value
+                else:
+                    status_str = str(status_value)
+                
+                summary = BusinessCaseSummary(
                     case_id=case.case_id,
                     user_id=case.user_id,
                     title=case.title or "N/A",
@@ -126,9 +134,42 @@ async def list_user_cases(
                     created_at=case.created_at,
                     updated_at=case.updated_at,
                 )
-            )
+                summaries.append(summary)
+                logger.debug(f"🗂️ [CASES-LIST] ✅ Successfully processed case: {case.case_id}")
+                
+            except Exception as case_error:
+                logger.error(f"🗂️ [CASES-LIST] ❌ Error processing case {case.case_id}: {case_error}")
+                logger.error(f"🗂️ [CASES-LIST] 🔍 Case data: {case}")
+                logger.error(f"🗂️ [CASES-LIST] 📊 Full traceback: {traceback.format_exc()}")
+                # Continue processing other cases instead of failing completely
+                continue
+        
+        logger.info(f"🗂️ [CASES-LIST] ✅ Successfully converted {len(summaries)} cases to summaries")
+        
+        # HARDENING: Alert if no cases were converted but cases were found
+        if len(business_cases) > 0 and len(summaries) == 0:
+            logger.critical(f"🗂️ [CASES-LIST] 🚨 CRITICAL: Found {len(business_cases)} cases but converted 0 summaries - possible data conversion issue!")
+            logger.critical(f"🗂️ [CASES-LIST] 🔍 This indicates a serious bug in the API response generation")
+        
+        # HARDENING: Log successful conversion ratio
+        conversion_ratio = len(summaries) / len(business_cases) if len(business_cases) > 0 else 1.0
+        if conversion_ratio < 1.0:
+            logger.warning(f"🗂️ [CASES-LIST] ⚠️ Conversion ratio: {conversion_ratio:.2%} ({len(summaries)}/{len(business_cases)})")
+        else:
+            logger.info(f"🗂️ [CASES-LIST] ✅ Perfect conversion ratio: 100% ({len(summaries)}/{len(business_cases)})")
+        
+        # Apply date filtering if provided
+        if created_after:
+            try:
+                filter_date = datetime.fromisoformat(created_after.replace("Z", "+00:00"))
+                summaries = [s for s in summaries if s.created_at and s.created_at >= filter_date]
+                logger.info(f"🗂️ [CASES-LIST] 📅 Date filter applied, {len(summaries)} cases remain")
+            except ValueError as ve:
+                logger.error(f"🗂️ [CASES-LIST] ❌ Invalid date format: {created_after}")
+                raise AuthenticationError(f"Invalid date format: {str(ve)}")
         
         # Apply sorting
+        logger.info(f"🗂️ [CASES-LIST] 🔤 Applying sort: {sort_by} {sort_order}")
         reverse_sort = sort_order == "desc"
         if sort_by == "created_at":
             summaries.sort(key=lambda x: x.created_at or datetime.min, reverse=reverse_sort)
@@ -143,8 +184,10 @@ async def list_user_cases(
         total_count = len(summaries)
         paginated_summaries = summaries[offset:offset + limit]
         
+        logger.info(f"🗂️ [CASES-LIST] ✅ Successfully completed list request: {len(paginated_summaries)}/{total_count} cases returned")
+        
         request_logger.info(
-            "Successfully listed business cases", 
+            "🗂️ [CASES-LIST] Successfully listed business cases", 
             extra={
                 'total_count': total_count,
                 'returned_count': len(paginated_summaries),
@@ -154,15 +197,20 @@ async def list_user_cases(
         )
         
         return paginated_summaries
+        
     except ValueError as ve:
+        logger.error(f"🗂️ [CASES-LIST] ❌ Value error: {ve}")
         raise AuthenticationError(str(ve))
-    except DatabaseError:
+    except DatabaseError as de:
+        logger.error(f"🗂️ [CASES-LIST] ❌ Database error: {de}")
         # Re-raise database errors as they're already properly formatted
         raise
     except Exception as e:
+        logger.error(f"🗂️ [CASES-LIST] ❌ Unexpected error: {e}")
+        logger.error(f"🗂️ [CASES-LIST] 📊 Full traceback: {traceback.format_exc()}")
         log_error_with_context(
             request_logger,
-            "Failed to list business cases for user",
+            "🗂️ [CASES-LIST] Failed to list business cases for user",
             e,
             {"user_id": user_id}
         )
@@ -202,36 +250,51 @@ async def get_case_details(
     Retrieves the full details for a specific business case.
     Ensures the authenticated user is the owner of the case or has appropriate access.
     """
+    logger.info(f"📋 [CASE-DETAILS] Starting case details request for case: {case_id}")
+    
     user_id = current_user.get("uid")
     if not user_id:
+        logger.error(f"📋 [CASE-DETAILS] ❌ No user ID found in token for case: {case_id}")
         raise AuthenticationError("User ID not found in token")
+
+    logger.info(f"📋 [CASE-DETAILS] User: {user_id}, Case: {case_id}, Include history: {include_history}, Include drafts: {include_drafts}")
 
     # Create contextual logger for this request
     request_logger = log_business_case_operation(logger, case_id, user_id, "get_details")
 
     try:
         request_logger.info(
-            "Retrieving business case details",
+            f"📋 [CASE-DETAILS] Retrieving business case details for {case_id}",
             extra={
                 'include_history': include_history,
                 'include_drafts': include_drafts
             }
         )
         
+        logger.info(f"📋 [CASE-DETAILS] 📞 Calling firestore_service.get_business_case({case_id})")
+        
         # Use FirestoreService to get the business case
         business_case = await firestore_service.get_business_case(case_id)
         
         if not business_case:
+            logger.warning(f"📋 [CASE-DETAILS] ❌ Business case not found: {case_id}")
             request_logger.warning("Business case not found")
             raise BusinessCaseNotFoundError(case_id)
 
+        logger.info(f"📋 [CASE-DETAILS] ✅ Retrieved business case from Firestore: {case_id}")
+        logger.debug(f"📋 [CASE-DETAILS] 🔍 Case data: user_id={business_case.user_id}, status={business_case.status}, title={business_case.title}")
+
         # Authorization logic: Check if user has permission to view this case
         case_owner_id = business_case.user_id
+        
+        logger.info(f"📋 [CASE-DETAILS] 🔐 Authorization check: case_owner={case_owner_id}, requesting_user={user_id}")
         
         # Convert enum status to string if needed
         case_status_str = str(business_case.status)
         if hasattr(business_case.status, "value"):
             case_status_str = business_case.status.value
+
+        logger.info(f"📋 [CASE-DETAILS] 📊 Case status: {case_status_str}")
 
         # Define "shareable" statuses that any authenticated user can view
         shareable_statuses = [
@@ -243,7 +306,13 @@ async def get_case_details(
         # Allow access if:
         # 1. User is the case owner/initiator, OR
         # 2. Case is in a shareable status (for authenticated DrFirst users)
-        if case_owner_id != user_id and case_status_str not in shareable_statuses:
+        is_owner = case_owner_id == user_id
+        is_shareable = case_status_str in shareable_statuses
+        
+        logger.info(f"📋 [CASE-DETAILS] 🔐 Authorization: is_owner={is_owner}, is_shareable={is_shareable}")
+        
+        if not is_owner and not is_shareable:
+            logger.warning(f"📋 [CASE-DETAILS] ❌ User unauthorized to view business case: {case_id}")
             request_logger.warning(
                 "User unauthorized to view business case",
                 extra={
@@ -257,6 +326,8 @@ async def get_case_details(
                 context={"case_id": case_id, "case_status": case_status_str}
             )
 
+        logger.info(f"📋 [CASE-DETAILS] ✅ Authorization passed for case: {case_id}")
+
         # Convert status to string for response
         status_value = business_case.status
         if hasattr(status_value, "value"):  # Check if it's an Enum instance
@@ -264,8 +335,10 @@ async def get_case_details(
         else:
             status_str = str(status_value)  # Fallback to string conversion
 
+        logger.info(f"📋 [CASE-DETAILS] 🔄 Building response data for case: {case_id}")
+
         request_logger.info(
-            "Successfully retrieved business case details",
+            f"📋 [CASE-DETAILS] Successfully retrieved business case details for {case_id}",
             extra={
                 'case_status': status_str,
                 'is_owner': case_owner_id == user_id
@@ -287,8 +360,10 @@ async def get_case_details(
         # Conditionally include history
         if include_history:
             response_data["history"] = business_case.history or []
+            logger.debug(f"📋 [CASE-DETAILS] ✅ Included history: {len(business_case.history or [])} entries")
         else:
             response_data["history"] = []
+            logger.debug(f"📋 [CASE-DETAILS] ⏭️ Skipped history inclusion")
 
         # Conditionally include drafts
         if include_drafts:
@@ -300,6 +375,7 @@ async def get_case_details(
                 "value_projection_v1": business_case.value_projection_v1,
                 "financial_summary_v1": business_case.financial_summary_v1,
             })
+            logger.debug(f"📋 [CASE-DETAILS] ✅ Included draft content for case: {case_id}")
         else:
             response_data.update({
                 "prd_draft": None,
@@ -309,16 +385,30 @@ async def get_case_details(
                 "value_projection_v1": None,
                 "financial_summary_v1": None,
             })
+            logger.debug(f"📋 [CASE-DETAILS] ⏭️ Skipped draft content inclusion")
 
-        return BusinessCaseDetailsModel(**response_data)
+        logger.info(f"📋 [CASE-DETAILS] 🏗️ Creating BusinessCaseDetailsModel for case: {case_id}")
+        
+        try:
+            result = BusinessCaseDetailsModel(**response_data)
+            logger.info(f"📋 [CASE-DETAILS] ✅ Successfully created response model for case: {case_id}")
+            return result
+        except Exception as model_error:
+            logger.error(f"📋 [CASE-DETAILS] ❌ Error creating response model for case {case_id}: {model_error}")
+            logger.error(f"📋 [CASE-DETAILS] 🔍 Response data keys: {list(response_data.keys())}")
+            logger.error(f"📋 [CASE-DETAILS] 📊 Full traceback: {traceback.format_exc()}")
+            raise
         
     except (AuthenticationError, AuthorizationError, BusinessCaseNotFoundError, DatabaseError):
         # Re-raise custom exceptions as they're already properly formatted
+        logger.info(f"📋 [CASE-DETAILS] ⚠️ Known exception for case {case_id}, re-raising")
         raise
     except Exception as e:
+        logger.error(f"📋 [CASE-DETAILS] ❌ Unexpected error for case {case_id}: {e}")
+        logger.error(f"📋 [CASE-DETAILS] 📊 Full traceback: {traceback.format_exc()}")
         log_error_with_context(
             request_logger,
-            "Failed to retrieve business case details",
+            f"📋 [CASE-DETAILS] Failed to retrieve business case details for {case_id}",
             e,
             {"case_id": case_id, "user_id": user_id}
         )

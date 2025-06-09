@@ -18,6 +18,8 @@ import { ProfilePage } from './pages/ProfilePage';
 
 import ReadOnlyCaseViewPage from './pages/ReadOnlyCaseViewPage';
 import AdminPage from './pages/AdminPage';
+import PromptManagementPage from './pages/admin/PromptManagementPage';
+import HumanEvaluationPage from './pages/HumanEvaluationPage';
 import ErrorDemoPage from './pages/ErrorDemoPage';
 import AppLayout from './layouts/AppLayout';
 import CaseLayout from './layouts/CaseLayout';
@@ -265,7 +267,10 @@ function App() {
                   />
                   <Route path="/admin" element={<AdminProtectedRoute />}>
                     <Route index element={<AdminPage />} />
-                    <Route path=":adminAction" element={<AdminPage />} />
+                    <Route path="prompts" element={<PromptManagementPage />} />
+                  </Route>
+                  <Route path="/evaluations" element={<AdminProtectedRoute />}>
+                    <Route index element={<HumanEvaluationPage />} />
                   </Route>
                   {/* Add other protected routes here */}
                 </Route>

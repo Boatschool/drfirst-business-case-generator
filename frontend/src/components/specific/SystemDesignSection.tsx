@@ -27,6 +27,7 @@ import ReactMarkdown from 'react-markdown';
 import { BusinessCaseDetails } from '../../services/agent/AgentService';
 import { useAgentContext } from '../../hooks/useAgentContext';
 import { useAuth } from '../../hooks/useAuth';
+import { useStageApproverConfig } from '../../hooks/useStageApproverConfig';
 import { PAPER_ELEVATION, STANDARD_STYLES } from '../../styles/constants';
 import { toAppError } from '../../types/api';
 
@@ -130,6 +131,41 @@ const markdownStyles = {
   },
 };
 
+const formatSystemDesignContent = (content: string): string => {
+  if (!content) return content;
+
+  // Remove markdown code fences if present
+  const cleanedContent = content
+    // Remove opening markdown code fence
+    .replace(/^```markdown\n?/i, '')
+    // Remove closing code fence
+    .replace(/\n?```\s*$/i, '')
+    // Also handle case where there might be just ``` without markdown
+    .replace(/^```\n?/, '')
+    .replace(/\n?```\s*$/, '');
+
+  // More comprehensive formatting for complex markdown content
+  const formatted = cleanedContent
+    // Clean up problematic nested markdown patterns like **text:** inside headings
+    .replace(/^(#{1,6}\s+)(.*?)\*\*(.*?)\*\*(.*?)$/gm, '$1$2**$3**$4')
+    // Handle bullet points with embedded formatting
+    .replace(/^\s*\*\s+\*\*(.*?)\*\*:\s*(.*?)$/gm, '* **$1:** $2')
+    // Clean up extra asterisks and plus signs that might be raw markdown
+    .replace(/\+\+/g, '')
+    // Ensure proper spacing around headings
+    .replace(/^(#{1,6}\s.+)$/gm, '$1\n')
+    .replace(/([^\n])\n(#{1,6}\s)/g, '$1\n\n$2')
+    // Better bullet point handling
+    .replace(/^(\s*[*-+]\s.+)$/gm, '$1')
+    .replace(/^(\s*[*-+]\s.+)(\n(?!\s*[*-+]))/gm, '$1\n$2')
+    // Clean up multiple consecutive line breaks
+    .replace(/\n{3,}/g, '\n\n')
+    // Ensure there's a line break at the end
+    .trim();
+
+  return formatted;
+};
+
 export const SystemDesignSection: React.FC<SystemDesignSectionProps> = ({
   currentCaseDetails,
   isLoading,
@@ -142,6 +178,7 @@ export const SystemDesignSection: React.FC<SystemDesignSectionProps> = ({
     triggerSystemDesignGeneration,
   } = useAgentContext();
   const { currentUser, systemRole } = useAuth();
+  const { canApproveStage } = useStageApproverConfig();
 
   // Local state for system design editing
   const [isEditingSystemDesign, setIsEditingSystemDesign] = useState(false);
@@ -331,9 +368,10 @@ export const SystemDesignSection: React.FC<SystemDesignSectionProps> = ({
 
   const canApproveRejectSystemDesign = () => {
     if (!currentCaseDetails || !currentUser) return false;
-    const isDeveloper = systemRole === 'DEVELOPER';
+    const isInitiator = currentCaseDetails.user_id === currentUser.uid;
+    const isApprover = canApproveStage('SystemDesign', systemRole);
     return (
-      isDeveloper &&
+      (isInitiator || isApprover) &&
       currentCaseDetails.status === 'SYSTEM_DESIGN_PENDING_REVIEW'
     );
   };
@@ -533,7 +571,7 @@ export const SystemDesignSection: React.FC<SystemDesignSectionProps> = ({
               </Typography>
             )}
             <ReactMarkdown>
-              {currentCaseDetails.system_design_v1_draft.content_markdown}
+              {formatSystemDesignContent(currentCaseDetails.system_design_v1_draft.content_markdown)}
             </ReactMarkdown>
           </Box>
         ) : (

@@ -14,6 +14,7 @@ import os
 
 from app.api.v1 import agent_routes as agent_routes_v1
 from app.api.v1 import auth_routes, admin_routes, debug_routes
+from app.api.v1 import evaluation_routes
 from app.api.v1.cases import cases_router
 from app.api.v1 import prompts
 from app.api.v1 import function_calling_routes
@@ -195,6 +196,7 @@ app.include_router(
 )
 app.include_router(auth_routes.router, prefix="/api/v1/auth", tags=["auth"])
 app.include_router(admin_routes.router, prefix="/api/v1/admin", tags=["admin"])
+app.include_router(evaluation_routes.router, prefix="/api/v1/evaluations", tags=["evaluations"])
 app.include_router(cases_router, prefix="/api/v1", tags=["Business Cases"])
 app.include_router(debug_routes.router, prefix="/api/v1", tags=["debug"])
 app.include_router(prompts.router, prefix="/api/v1/prompts", tags=["prompts"])

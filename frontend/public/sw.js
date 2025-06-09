@@ -19,6 +19,11 @@ const API_CACHE_PATTERNS = [
   /^https:\/\/.*\.firebaseapp\.com\//
 ];
 
+// Admin endpoints that need longer timeouts and special handling
+const ADMIN_API_PATTERNS = [
+  /^https:\/\/drfirst-backend-.*\.run\.app\/api\/.*\/admin\/.*/
+];
+
 // Assets that should be cached with cache-first strategy
 const CACHE_FIRST_PATTERNS = [
   /\.(?:png|jpg|jpeg|svg|gif|webp|ico)$/,
@@ -97,17 +102,24 @@ async function handleRequest(request) {
       return await cacheFirst(request);
     }
 
-    // Strategy 2: Network-first for API calls
+    // Strategy 2: Network-first with extended timeout for admin endpoints
+    if (ADMIN_API_PATTERNS.some(pattern => pattern.test(request.url))) {
+      console.log('[SW] Admin endpoint detected:', request.url);
+      return await networkFirstAdmin(request);
+    }
+
+    // Strategy 3: Network-first for regular API calls
     if (API_CACHE_PATTERNS.some(pattern => pattern.test(request.url))) {
+      console.log('[SW] Regular API endpoint detected:', request.url);
       return await networkFirst(request);
     }
 
-    // Strategy 3: Stale-while-revalidate for HTML pages
+    // Strategy 4: Stale-while-revalidate for HTML pages
     if (request.destination === 'document' || url.pathname.endsWith('.html')) {
       return await staleWhileRevalidate(request);
     }
 
-    // Strategy 4: Network-only for everything else
+    // Strategy 5: Network-only for everything else
     return await fetch(request);
 
   } catch (error) {
@@ -144,6 +156,27 @@ async function cacheFirst(request) {
   return response;
 }
 
+// Network-first strategy for admin endpoints with extended timeout
+async function networkFirstAdmin(request) {
+  const cache = await caches.open(DYNAMIC_CACHE_NAME);
+  
+      try {
+    console.log('[SW] Network first (admin):', request.url);
+    // Extended timeout for admin operations (30 seconds)
+    const response = await fetch(request, {
+      signal: AbortSignal.timeout(30000)
+    });
+    
+    // Don't cache admin responses due to sensitive data and frequent changes
+    console.log('[SW] Admin request successful, not caching due to sensitive data');
+    return response;
+  } catch (error) {
+    console.log('[SW] Admin request failed:', request.url, error.message);
+    // Don't fall back to cache for admin endpoints as they may contain stale sensitive data
+    throw error;
+  }
+}
+
 // Network-first strategy: Try network first, fallback to cache
 async function networkFirst(request) {
   const cache = await caches.open(DYNAMIC_CACHE_NAME);
@@ -151,8 +184,8 @@ async function networkFirst(request) {
   try {
     console.log('[SW] Network first:', request.url);
     const response = await fetch(request, {
-      // Add timeout for faster fallback
-      signal: AbortSignal.timeout(5000)
+      // Standard timeout for regular API calls (10 seconds)
+      signal: AbortSignal.timeout(10000)
     });
     
     // Cache successful responses

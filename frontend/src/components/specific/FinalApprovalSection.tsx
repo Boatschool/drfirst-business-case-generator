@@ -53,7 +53,7 @@ export const FinalApprovalSection: React.FC<FinalApprovalSectionProps> = ({
   const canSubmitForFinalApproval = () => {
     if (!currentCaseDetails || !currentUser) return false;
     const isInitiator = currentCaseDetails.user_id === currentUser.uid;
-    return isInitiator && currentCaseDetails.status === 'FINANCIAL_MODEL_COMPLETE';
+    return isInitiator && currentCaseDetails.status === 'FINANCIAL_MODEL_APPROVED';
   };
 
   const canApproveRejectFinalCase = () => {
@@ -244,7 +244,7 @@ export const FinalApprovalSection: React.FC<FinalApprovalSectionProps> = ({
               Ready for Final Approval
             </Typography>
             <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-              All prerequisite components (PRD, System Design, and Financial Model) have been completed. 
+              All prerequisite components (PRD, System Design, and Financial Model) have been completed and approved. 
               You can now submit this business case for final approval.
             </Typography>
             <Stack direction="row" spacing={2} alignItems="center">

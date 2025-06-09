@@ -82,6 +82,9 @@ interface AgentContextType extends AgentContextState {
   rejectCostEstimate: (caseId: string, reason?: string) => Promise<boolean>;
   approveValueProjection: (caseId: string) => Promise<boolean>;
   rejectValueProjection: (caseId: string, reason?: string) => Promise<boolean>;
+  submitFinancialModelForReview: (caseId: string) => Promise<boolean>;
+  approveFinancialModel: (caseId: string) => Promise<boolean>;
+  rejectFinancialModel: (caseId: string, reason?: string) => Promise<boolean>;
   submitCaseForFinalApproval: (caseId: string) => Promise<boolean>;
   approveFinalCase: (caseId: string) => Promise<boolean>;
   rejectFinalCase: (caseId: string, reason?: string) => Promise<boolean>;
@@ -127,10 +130,7 @@ export const AgentProvider: React.FC<AgentProviderProps> = ({ children }) => {
     };
   }, []);
 
-  // Helper function to check if authentication is ready
-  const isAuthReady = () => {
-    return authContext && !authContext.loading && authContext.currentUser;
-  };
+
 
   // SIMPLIFIED: Inline refresh helper - no dependencies, no complexity
   const inlineRefreshCaseDetails = async (
@@ -173,7 +173,12 @@ export const AgentProvider: React.FC<AgentProviderProps> = ({ children }) => {
       }));
     } catch (err) {
       const appError = toAppError(err, 'api');
-      logger.error('Error fetching user cases:', appError);
+      // Only log as error if the user is actually authenticated
+      if (authContext && authContext.currentUser) {
+        logger.error('Error fetching user cases:', appError);
+      } else {
+        logger.debug('Skipping case fetch error logging - user not authenticated');
+      }
       setState((prevState) => ({
         ...prevState,
         isLoadingCases: false,
@@ -824,6 +829,45 @@ export const AgentProvider: React.FC<AgentProviderProps> = ({ children }) => {
     [state.currentCaseId]
   );
 
+  const submitFinancialModelForReview = useCallback(
+    async (caseId: string): Promise<boolean> => {
+      try {
+        await agentService.submitFinancialModelForReview(caseId);
+        await inlineRefreshCaseDetails(caseId, state.currentCaseId);
+        return true;
+      } catch {
+        return false;
+      }
+    },
+    [state.currentCaseId]
+  );
+
+  const approveFinancialModel = useCallback(
+    async (caseId: string): Promise<boolean> => {
+      try {
+        await agentService.approveFinancialModel(caseId);
+        await inlineRefreshCaseDetails(caseId, state.currentCaseId);
+        return true;
+      } catch {
+        return false;
+      }
+    },
+    [state.currentCaseId]
+  );
+
+  const rejectFinancialModel = useCallback(
+    async (caseId: string, reason?: string): Promise<boolean> => {
+      try {
+        await agentService.rejectFinancialModel(caseId, reason);
+        await inlineRefreshCaseDetails(caseId, state.currentCaseId);
+        return true;
+      } catch {
+        return false;
+      }
+    },
+    [state.currentCaseId]
+  );
+
   const triggerFinancialModelGeneration = useCallback(
     async (caseId: string): Promise<boolean> => {
       setState((prevState) => ({ ...prevState, isLoading: true, error: null }));
@@ -878,6 +922,9 @@ export const AgentProvider: React.FC<AgentProviderProps> = ({ children }) => {
       rejectCostEstimate,
       approveValueProjection,
       rejectValueProjection,
+      submitFinancialModelForReview,
+      approveFinancialModel,
+      rejectFinancialModel,
       submitCaseForFinalApproval,
       approveFinalCase,
       rejectFinalCase,
@@ -918,6 +965,9 @@ export const AgentProvider: React.FC<AgentProviderProps> = ({ children }) => {
       rejectCostEstimate,
       approveValueProjection,
       rejectValueProjection,
+      submitFinancialModelForReview,
+      approveFinancialModel,
+      rejectFinancialModel,
       submitCaseForFinalApproval,
       approveFinalCase,
       rejectFinalCase,

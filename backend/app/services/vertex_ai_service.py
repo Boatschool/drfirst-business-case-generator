@@ -12,11 +12,25 @@ import platform
 import sys
 import os
 import vertexai
-from typing import Optional, Dict, Any
+import asyncio
+import json
+import re
+from typing import Optional, Dict, Any, Callable
 from app.core.config import settings
 from google.cloud import aiplatform
+import vertexai.preview.generative_models as generative_models
 
 logger = logging.getLogger(__name__)
+
+
+class LLMParsingError(Exception):
+    """Custom exception for LLM response parsing errors"""
+    pass
+
+
+class LLMTimeoutError(Exception):
+    """Custom exception for LLM timeout errors"""
+    pass
 
 
 class VertexAIService:
@@ -25,7 +39,7 @@ class VertexAIService:
     
     This singleton service ensures that Vertex AI is initialized only once per
     application lifecycle, preventing conflicts and resource issues during
-    server reloads.
+    server reloads. Also provides common LLM utility functions.
     """
     
     _instance: Optional['VertexAIService'] = None
@@ -34,6 +48,14 @@ class VertexAIService:
     _initialization_count: int = 0
     _error_count: int = 0
     _last_error: Optional[str] = None
+
+    # Default safety settings for all LLM calls
+    DEFAULT_SAFETY_SETTINGS = {
+        generative_models.HarmCategory.HARM_CATEGORY_HATE_SPEECH: generative_models.HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE,
+        generative_models.HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT: generative_models.HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE,
+        generative_models.HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT: generative_models.HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE,
+        generative_models.HarmCategory.HARM_CATEGORY_HARASSMENT: generative_models.HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE,
+    }
     
     def __new__(cls) -> 'VertexAIService':
         """
@@ -311,6 +333,250 @@ class VertexAIService:
                 }
             }
         }
+
+    @staticmethod
+    def extract_json_from_text(text: str, log_raw_text: bool = True) -> Optional[Dict[str, Any]]:
+        """
+        Extract JSON object from text using regex pattern matching.
+        Handles cases where LLM returns JSON surrounded by additional text.
+        
+        Args:
+            text (str): The text containing JSON
+            log_raw_text (bool): Whether to log the raw text on parsing errors
+            
+        Returns:
+            Optional[Dict[str, Any]]: Parsed JSON object or None if parsing fails
+        """
+        if not text or not text.strip():
+            logger.warning("🔍 [JSON-EXTRACT] Empty or None text provided")
+            return None
+            
+        try:
+            # First try to parse the entire text as JSON
+            return json.loads(text.strip())
+        except json.JSONDecodeError:
+            pass
+        
+        try:
+            # Extract JSON using regex - find the first complete JSON object
+            json_match = re.search(r'\{.*\}', text, re.DOTALL)
+            if json_match:
+                json_text = json_match.group()
+                return json.loads(json_text)
+            else:
+                logger.warning("🔍 [JSON-EXTRACT] No JSON object pattern found in text")
+                if log_raw_text:
+                    logger.debug(f"🔍 [JSON-EXTRACT] Raw text: {text[:500]}...")
+                return None
+                
+        except json.JSONDecodeError as e:
+            logger.error(f"🔍 [JSON-EXTRACT] JSON parsing error: {str(e)}")
+            if log_raw_text:
+                logger.debug(f"🔍 [JSON-EXTRACT] Raw text: {text[:500]}...")
+            return None
+
+    @staticmethod
+    def extract_json_array_from_text(text: str, log_raw_text: bool = True) -> Optional[list]:
+        """
+        Extract JSON array from text using regex pattern matching.
+        
+        Args:
+            text (str): The text containing JSON array
+            log_raw_text (bool): Whether to log the raw text on parsing errors
+            
+        Returns:
+            Optional[list]: Parsed JSON array or None if parsing fails
+        """
+        if not text or not text.strip():
+            logger.warning("🔍 [JSON-EXTRACT] Empty or None text provided")
+            return None
+            
+        try:
+            # First try to parse the entire text as JSON
+            result = json.loads(text.strip())
+            return result if isinstance(result, list) else None
+        except json.JSONDecodeError:
+            pass
+        
+        try:
+            # Extract JSON array using regex
+            json_match = re.search(r'\[.*\]', text, re.DOTALL)
+            if json_match:
+                json_text = json_match.group()
+                result = json.loads(json_text)
+                return result if isinstance(result, list) else None
+            else:
+                logger.warning("🔍 [JSON-EXTRACT] No JSON array pattern found in text")
+                if log_raw_text:
+                    logger.debug(f"🔍 [JSON-EXTRACT] Raw text: {text[:500]}...")
+                return None
+                
+        except json.JSONDecodeError as e:
+            logger.error(f"🔍 [JSON-EXTRACT] JSON array parsing error: {str(e)}")
+            if log_raw_text:
+                logger.debug(f"🔍 [JSON-EXTRACT] Raw text: {text[:500]}...")
+            return None
+
+    @staticmethod
+    async def generate_with_retry(
+        model,
+        prompt: str,
+        generation_config: Dict[str, Any],
+        model_name: str = "unknown",
+        max_retries: int = 2,
+        timeout_seconds: int = 120,
+        safety_settings: Optional[Dict] = None,
+        log_llm_call: Optional[Callable] = None,
+        agent_name: str = "Unknown"
+    ) -> Optional[str]:
+        """
+        Generate content with retry logic, exponential backoff, and timeout protection.
+        
+        Args:
+            model: The Vertex AI GenerativeModel instance
+            prompt (str): The prompt to send to the model
+            generation_config (Dict[str, Any]): Generation configuration parameters
+            model_name (str): Name of the model for logging
+            max_retries (int): Maximum number of retry attempts (default: 2)
+            timeout_seconds (int): Timeout for each generation attempt (default: 120)
+            safety_settings (Optional[Dict]): Safety settings, uses defaults if None
+            log_llm_call (Optional[Callable]): Function to log LLM interactions
+            agent_name (str): Name of the calling agent for logging
+            
+        Returns:
+            Optional[str]: Generated content or None if all attempts fail
+            
+        Raises:
+            LLMTimeoutError: If all attempts timeout
+            Exception: If non-recoverable error occurs
+        """
+        if safety_settings is None:
+            safety_settings = VertexAIService.DEFAULT_SAFETY_SETTINGS
+        
+        last_error = None
+        
+        for attempt in range(1, max_retries + 2):  # +2 because range is exclusive and we want max_retries + 1 total attempts
+            try:
+                logger.info(f"🔄 [{agent_name}] LLM generation attempt {attempt}/{max_retries + 1}")
+                
+                llm_start_time = time.time()
+                
+                # Apply timeout to the actual Vertex AI call
+                response = await asyncio.wait_for(
+                    model.generate_content_async(
+                        [prompt],
+                        generation_config=generation_config,
+                        safety_settings=safety_settings,
+                        stream=False,
+                    ),
+                    timeout=timeout_seconds
+                )
+                
+                llm_response_time_ms = (time.time() - llm_start_time) * 1000
+
+                # Check if we got a valid response
+                if response.candidates and response.candidates[0].content.parts:
+                    content = response.candidates[0].content.parts[0].text.strip()
+                    logger.info(f"✅ [{agent_name}] Successfully generated content ({len(content)} characters)")
+                    
+                    # Log successful LLM interaction
+                    if log_llm_call:
+                        log_llm_call(
+                            model_name=model_name,
+                            prompt=prompt,
+                            parameters=generation_config,
+                            response=content,
+                            response_time_ms=llm_response_time_ms
+                        )
+                    
+                    return content
+                else:
+                    error_msg = f"No content generated on attempt {attempt}"
+                    logger.warning(f"⚠️ [{agent_name}] {error_msg}")
+                    
+                    # Log LLM interaction with no content
+                    if log_llm_call:
+                        log_llm_call(
+                            model_name=model_name,
+                            prompt=prompt,
+                            parameters=generation_config,
+                            response_time_ms=llm_response_time_ms,
+                            error=error_msg
+                        )
+                    
+                    last_error = Exception(error_msg)
+
+            except asyncio.TimeoutError as e:
+                error_msg = f"LLM call timed out after {timeout_seconds}s on attempt {attempt}"
+                logger.error(f"⏰ [{agent_name}] {error_msg}")
+                
+                # Log timeout error
+                if log_llm_call:
+                    log_llm_call(
+                        model_name=model_name,
+                        prompt=prompt,
+                        parameters=generation_config,
+                        error=error_msg
+                    )
+                
+                last_error = LLMTimeoutError(error_msg)
+                
+            except Exception as e:
+                error_msg = f"Error on attempt {attempt}: {str(e)}"
+                logger.error(f"❌ [{agent_name}] {error_msg}")
+                
+                # Log general error
+                if log_llm_call:
+                    log_llm_call(
+                        model_name=model_name,
+                        prompt=prompt,
+                        parameters=generation_config,
+                        error=str(e)
+                    )
+                
+                last_error = e
+                
+                # Don't retry on certain non-recoverable errors
+                if "permission" in str(e).lower() or "authentication" in str(e).lower():
+                    logger.error(f"❌ [{agent_name}] Non-recoverable error, not retrying: {str(e)}")
+                    raise e
+            
+            # Apply exponential backoff before retry (except on last attempt)
+            if attempt <= max_retries:
+                backoff_seconds = 2 ** attempt
+                logger.info(f"⏳ [{agent_name}] Waiting {backoff_seconds}s before retry...")
+                await asyncio.sleep(backoff_seconds)
+        
+        # All attempts failed
+        if isinstance(last_error, LLMTimeoutError):
+            raise LLMTimeoutError(f"LLM generation timed out after {max_retries + 1} attempts")
+        elif last_error:
+            raise last_error
+        else:
+            raise Exception(f"LLM generation failed after {max_retries + 1} attempts with unknown error")
+
+    @staticmethod
+    def truncate_content(content: str, max_length: int, truncation_message: str = "\n\n[Content truncated for processing...]") -> tuple[str, bool]:
+        """
+        Truncate content to fit within token/character limits.
+        
+        Args:
+            content (str): Content to potentially truncate
+            max_length (int): Maximum allowed length
+            truncation_message (str): Message to append when content is truncated
+            
+        Returns:
+            tuple[str, bool]: (truncated_content, was_truncated)
+        """
+        if not content:
+            return "", False
+            
+        if len(content) <= max_length:
+            return content, False
+        
+        # Truncate and add message
+        truncated = content[:max_length - len(truncation_message)] + truncation_message
+        return truncated, True
 
 
 # Global singleton instance

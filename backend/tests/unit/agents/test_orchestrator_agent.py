@@ -46,7 +46,7 @@ def sample_business_case_data():
         "problem_statement": "This is a test problem statement",
         "status": BusinessCaseStatus.SYSTEM_DESIGN_APPROVED.value,
         "prd_draft": {
-            "content_markdown": "# Test PRD Content\n\nThis is a test PRD.",
+            "content_markdown": "# Test PRD Content\n\nThis is a comprehensive test PRD with detailed requirements and specifications that meets the minimum character length requirements for validation. It contains multiple sections covering functional requirements, non-functional requirements, and technical specifications.",
             "generated_by": "ProductManagerAgent",
             "version": "v1"
         },
@@ -167,8 +167,9 @@ class TestHandleSystemDesignApproval:
             # Mock the Firestore operations
             mock_to_thread.side_effect = [
                 db_mocks['doc_snapshot'],  # get() call
-                None,  # first update() call (status change)
-                None   # second update() call (effort estimate save)
+                None,  # first update() call (status change to PLANNING_IN_PROGRESS)
+                None,  # second update() call (effort estimate save and PLANNING_COMPLETE)
+                None   # third update() call (transition to EFFORT_PENDING_REVIEW)
             ]
             
             # Execute the method
@@ -176,20 +177,20 @@ class TestHandleSystemDesignApproval:
             
             # Assertions
             assert result["status"] == "success"
-            assert result["message"] == "Effort estimation generated successfully"
+            assert result["message"] == "Effort estimation generated successfully and ready for review"
             assert result["case_id"] == "test-case-123"
-            assert result["new_status"] == BusinessCaseStatus.PLANNING_COMPLETE.value
+            assert result["new_status"] == BusinessCaseStatus.EFFORT_PENDING_REVIEW.value
             
             # Verify PlannerAgent was called correctly
             mock_planner.estimate_effort.assert_called_once_with(
-                prd_content="# Test PRD Content\n\nThis is a test PRD.",
+                prd_content="# Test PRD Content\n\nThis is a comprehensive test PRD with detailed requirements and specifications that meets the minimum character length requirements for validation. It contains multiple sections covering functional requirements, non-functional requirements, and technical specifications.",
                 system_design_content="# Test System Design\n\nThis is a test system design.",
                 case_title="Test Business Case"
             )
             
             # Verify Firestore operations
-            assert mock_to_thread.call_count == 3
-            db_mocks['db'].collection.assert_called_with("businessCases")
+            assert mock_to_thread.call_count == 4
+            db_mocks['db'].collection.assert_called_with("business_cases")
             db_mocks['collection'].document.assert_called_with("test-case-123")
 
     @pytest.mark.asyncio
@@ -417,6 +418,220 @@ class TestHandlePrdApproval:
             
             assert result["status"] == "error"
             assert "expected PRD_APPROVED" in result["message"]
+
+
+# New tests for handle_effort_approval
+class TestHandleEffortApproval:
+    """Test suite for handle_effort_approval method"""
+
+    @pytest.fixture
+    def sample_cost_estimate(self):
+        """Sample cost estimate response from CostAnalystAgent"""
+        return {
+            "status": "success",
+            "message": "Cost calculation completed successfully",
+            "cost_estimate": {
+                "estimated_cost": 62000.0,
+                "currency": "USD",
+                "rate_card_used": "Default Rates",
+                "breakdown_by_role": [
+                    {"role": "Product Manager", "hours": 40, "hourly_rate": 120, "total_cost": 4800},
+                    {"role": "Lead Developer", "hours": 120, "hourly_rate": 150, "total_cost": 18000},
+                    {"role": "Senior Developer", "hours": 200, "hourly_rate": 120, "total_cost": 24000},
+                    {"role": "Junior Developer", "hours": 80, "hourly_rate": 80, "total_cost": 6400},
+                    {"role": "QA Engineer", "hours": 60, "hourly_rate": 85, "total_cost": 5100},
+                    {"role": "DevOps Engineer", "hours": 40, "hourly_rate": 110, "total_cost": 4400}
+                ],
+                "calculation_method": "rate_card_based",
+                "notes": "Cost calculated using standard rate card"
+            }
+        }
+
+    @pytest.fixture
+    def effort_approved_case_data(self, sample_business_case_data):
+        """Business case data in EFFORT_APPROVED status"""
+        case_data = sample_business_case_data.copy()
+        case_data["status"] = BusinessCaseStatus.EFFORT_APPROVED.value
+        case_data["effort_estimate_v1"] = {
+            "roles": [
+                {"role": "Product Manager", "hours": 40},
+                {"role": "Lead Developer", "hours": 120},
+                {"role": "Senior Developer", "hours": 200},
+                {"role": "Junior Developer", "hours": 80},
+                {"role": "QA Engineer", "hours": 60},
+                {"role": "DevOps Engineer", "hours": 40}
+            ],
+            "total_hours": 540,
+            "estimated_duration_weeks": 8,
+            "complexity_assessment": "Medium",
+            "notes": "Effort estimate for testing",
+            "generated_by": "PlannerAgent",
+            "version": "v1",
+            "generated_timestamp": "2025-06-08T18:00:00.000000+00:00"
+        }
+        return case_data
+
+    @pytest.mark.asyncio
+    async def test_handle_effort_approval_success(
+        self, mock_firestore_db, effort_approved_case_data, sample_cost_estimate
+    ):
+        """Test successful effort approval with cost analysis"""
+        # Setup mocks
+        db_mocks = mock_firestore_db
+        db_mocks['doc_snapshot'].exists = True
+        db_mocks['doc_snapshot'].to_dict.return_value = effort_approved_case_data
+        
+        # Create orchestrator with mocked database
+        orchestrator = OrchestratorAgent(db=db_mocks['db'])
+        
+        # Mock CostAnalystAgent
+        mock_cost_analyst = AsyncMock()
+        mock_cost_analyst.calculate_cost.return_value = sample_cost_estimate
+        orchestrator._cost_analyst_agent = mock_cost_analyst
+        
+        with patch('asyncio.to_thread') as mock_to_thread:
+            # Mock the Firestore operations
+            mock_to_thread.side_effect = [
+                db_mocks['doc_snapshot'],  # get() call
+                None,  # first update() call (status change to COSTING_IN_PROGRESS)
+                None,  # second update() call (cost estimate save and COSTING_COMPLETE)
+                None   # third update() call (transition to COSTING_PENDING_REVIEW)
+            ]
+            
+            # Execute the method
+            result = await orchestrator.handle_effort_approval("test-case-123")
+            
+            # Assertions
+            assert result["status"] == "success"
+            assert result["message"] == "Cost estimation completed successfully and ready for review"
+            assert result["case_id"] == "test-case-123"
+            assert result["new_status"] == BusinessCaseStatus.COSTING_PENDING_REVIEW.value
+            
+            # Verify CostAnalystAgent was called correctly
+            mock_cost_analyst.calculate_cost.assert_called_once_with(
+                effort_breakdown=effort_approved_case_data["effort_estimate_v1"],
+                case_title="Test Business Case",
+                case_id="test-case-123"
+            )
+            
+            # Verify Firestore operations
+            assert mock_to_thread.call_count == 4
+            db_mocks['db'].collection.assert_called_with("business_cases")
+            db_mocks['collection'].document.assert_called_with("test-case-123")
+
+    @pytest.mark.asyncio
+    async def test_handle_effort_approval_case_not_found(
+        self, mock_firestore_db
+    ):
+        """Test effort approval when case doesn't exist"""
+        # Setup mocks
+        db_mocks = mock_firestore_db
+        db_mocks['doc_snapshot'].exists = False
+        
+        orchestrator = OrchestratorAgent(db=db_mocks['db'])
+        
+        with patch('asyncio.to_thread') as mock_to_thread:
+            mock_to_thread.return_value = db_mocks['doc_snapshot']
+            
+            result = await orchestrator.handle_effort_approval("nonexistent-case")
+            
+            assert result["status"] == "error"
+            assert result["message"] == "Business case nonexistent-case not found"
+
+    @pytest.mark.asyncio
+    async def test_handle_effort_approval_wrong_status(
+        self, mock_firestore_db, sample_business_case_data
+    ):
+        """Test effort approval with wrong case status"""
+        # Setup mocks with wrong status
+        db_mocks = mock_firestore_db
+        db_mocks['doc_snapshot'].exists = True
+        wrong_status_data = sample_business_case_data.copy()
+        wrong_status_data["status"] = BusinessCaseStatus.EFFORT_PENDING_REVIEW.value
+        db_mocks['doc_snapshot'].to_dict.return_value = wrong_status_data
+        
+        orchestrator = OrchestratorAgent(db=db_mocks['db'])
+        
+        with patch('asyncio.to_thread') as mock_to_thread:
+            mock_to_thread.return_value = db_mocks['doc_snapshot']
+            
+            result = await orchestrator.handle_effort_approval("test-case-123")
+            
+            assert result["status"] == "error"
+            assert "expected EFFORT_APPROVED" in result["message"]
+
+    @pytest.mark.asyncio
+    async def test_handle_effort_approval_missing_effort_estimate(
+        self, mock_firestore_db, sample_business_case_data
+    ):
+        """Test effort approval when effort estimate is missing"""
+        # Setup mocks without effort estimate
+        db_mocks = mock_firestore_db
+        db_mocks['doc_snapshot'].exists = True
+        no_effort_data = sample_business_case_data.copy()
+        no_effort_data["status"] = BusinessCaseStatus.EFFORT_APPROVED.value
+        # Note: no effort_estimate_v1 field
+        db_mocks['doc_snapshot'].to_dict.return_value = no_effort_data
+        
+        orchestrator = OrchestratorAgent(db=db_mocks['db'])
+        
+        with patch('asyncio.to_thread') as mock_to_thread:
+            mock_to_thread.return_value = db_mocks['doc_snapshot']
+            
+            result = await orchestrator.handle_effort_approval("test-case-123")
+            
+            assert result["status"] == "error"
+            assert result["message"] == "Effort estimate not found"
+
+    @pytest.mark.asyncio
+    async def test_handle_effort_approval_cost_analyst_failure(
+        self, mock_firestore_db, effort_approved_case_data
+    ):
+        """Test effort approval when CostAnalystAgent fails"""
+        # Setup mocks
+        db_mocks = mock_firestore_db
+        db_mocks['doc_snapshot'].exists = True
+        db_mocks['doc_snapshot'].to_dict.return_value = effort_approved_case_data
+        
+        orchestrator = OrchestratorAgent(db=db_mocks['db'])
+        
+        # Mock CostAnalystAgent to fail
+        mock_cost_analyst = AsyncMock()
+        mock_cost_analyst.calculate_cost.return_value = {
+            "status": "error",
+            "message": "Rate card not available"
+        }
+        orchestrator._cost_analyst_agent = mock_cost_analyst
+        
+        with patch('asyncio.to_thread') as mock_to_thread:
+            mock_to_thread.side_effect = [
+                db_mocks['doc_snapshot'],  # get() call
+                None,  # first update() call (status change)
+                None   # rollback update() call
+            ]
+            
+            result = await orchestrator.handle_effort_approval("test-case-123")
+            
+            assert result["status"] == "error"
+            assert "Failed to generate cost estimate: Rate card not available" in result["message"]
+
+    @pytest.mark.asyncio
+    async def test_handle_effort_approval_exception_handling(
+        self, mock_firestore_db
+    ):
+        """Test effort approval with unexpected exception"""
+        # Setup mocks to raise exception
+        db_mocks = mock_firestore_db
+        
+        orchestrator = OrchestratorAgent(db=db_mocks['db'])
+        
+        with patch('asyncio.to_thread') as mock_to_thread:
+            mock_to_thread.side_effect = Exception("Database connection error")
+            
+            result = await orchestrator.handle_effort_approval("test-case-123")
+            
+            assert result["status"] == "error"
+            assert "Error handling effort approval:" in result["message"]
 
 
 # Example of how to run this test locally (optional, for demonstration)

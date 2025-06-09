@@ -50,30 +50,30 @@ async def submit_case_for_final_approval(
                 status_code=404, detail=f"Business case {case_id} not found."
             )
 
-        # Authorization check: only case initiator can submit for final approval
+        # Authorization check: verify user is the owner/initiator
         if business_case.user_id != user_id:
             raise HTTPException(
                 status_code=403,
-                detail="Only the case initiator can submit for final approval.",
+                detail="You do not have permission to submit this business case for final approval.",
             )
 
-        # Status check: must be in FINANCIAL_MODEL_COMPLETE
+        # Status check: ensure case is in FINANCIAL_MODEL_APPROVED status
         current_status_str = str(business_case.status)
         if hasattr(business_case.status, "value"):
             current_status_str = business_case.status.value
 
-        if current_status_str != BusinessCaseStatus.FINANCIAL_MODEL_COMPLETE.value:
+        if current_status_str != BusinessCaseStatus.FINANCIAL_MODEL_APPROVED.value:
             raise HTTPException(
                 status_code=400,
-                detail=f"Cannot submit for final approval from current status: {current_status_str}. Must be in FINANCIAL_MODEL_COMPLETE status.",
+                detail=f"Cannot submit for final approval from current status: {current_status_str}. Must be in FINANCIAL_MODEL_APPROVED status.",
             )
 
         # Prepare history entry
         history_entry = {
             "timestamp": datetime.now(timezone.utc),
             "source": "USER",
-            "messageType": "FINAL_SUBMISSION",
-            "content": f"Case submitted for final approval by {user_email}",
+            "messageType": "SUBMIT_FOR_FINAL_APPROVAL",
+            "content": f"Business case submitted for final approval by {user_email}",
         }
 
         # Prepare update data
@@ -116,12 +116,12 @@ async def submit_case_for_final_approval(
 )
 async def approve_final_case(
     case_id: str,
-    current_user: dict = Depends(lambda: require_dynamic_final_approver_role()()),
+    current_user: dict = Depends(get_current_active_user),
     firestore_service: FirestoreService = Depends(get_firestore_service)
 ):
     """
     Approves the entire business case by updating status to APPROVED.
-    Only users with FINAL_APPROVER role can approve.
+    Uses dynamic final approver role configuration with admin override.
     Case must be in PENDING_FINAL_APPROVAL status.
     """
     user_id = current_user.get("uid")
@@ -140,6 +140,10 @@ async def approve_final_case(
             raise HTTPException(
                 status_code=404, detail=f"Business case {case_id} not found."
             )
+
+        # Use centralized final approval permission logic with admin override
+        from app.utils.approval_permissions import check_final_approval_permissions
+        await check_final_approval_permissions(current_user, business_case.user_id)
 
         # Status check: must be in PENDING_FINAL_APPROVAL
         current_status_str = str(business_case.status)
@@ -201,12 +205,12 @@ async def approve_final_case(
 async def reject_final_case(
     case_id: str,
     reject_request: FinalRejectRequest = FinalRejectRequest(),
-    current_user: dict = Depends(lambda: require_dynamic_final_approver_role()()),
+    current_user: dict = Depends(get_current_active_user),
     firestore_service: FirestoreService = Depends(get_firestore_service)
 ):
     """
     Rejects the entire business case by updating status to REJECTED.
-    Only users with FINAL_APPROVER role can reject.
+    Uses dynamic final approver role configuration with admin override.
     Case must be in PENDING_FINAL_APPROVAL status.
     """
     user_id = current_user.get("uid")
@@ -225,6 +229,10 @@ async def reject_final_case(
             raise HTTPException(
                 status_code=404, detail=f"Business case {case_id} not found."
             )
+
+        # Use centralized final approval permission logic with admin override
+        from app.utils.approval_permissions import check_final_approval_permissions
+        await check_final_approval_permissions(current_user, business_case.user_id)
 
         # Status check: must be in PENDING_FINAL_APPROVAL
         current_status_str = str(business_case.status)

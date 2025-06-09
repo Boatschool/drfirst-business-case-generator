@@ -53,6 +53,7 @@ import {
 } from '../services/agent/AgentService';
 
 import { useAuth } from '../hooks/useAuth';
+import { useStageApproverConfig } from '../hooks/useStageApproverConfig';
 import { PageLoading, LoadingButton } from '../components/common/LoadingIndicators';
 import { PAPER_ELEVATION, STANDARD_STYLES } from '../styles/constants';
 import { toAppError } from '../types/api';
@@ -185,6 +186,7 @@ const BusinessCaseDetailPage: React.FC = () => {
     clearCurrentCaseDetails,
   } = useAgentContext();
   const { currentUser, systemRole, isFinalApprover } = useAuth();
+  const { canApproveStage } = useStageApproverConfig();
 
   const [isEditingPrd, setIsEditingPrd] = useState(false);
   const [editablePrdContent, setEditablePrdContent] = useState('');
@@ -995,23 +997,29 @@ const BusinessCaseDetailPage: React.FC = () => {
   const canApproveRejectEffortEstimate = () => {
     if (!currentCaseDetails || !currentUser) return false;
     const isInitiator = currentCaseDetails.user_id === currentUser.uid;
-    return isInitiator && currentCaseDetails.status === 'EFFORT_PENDING_REVIEW';
+    const isApprover = canApproveStage('EffortEstimate', systemRole);
+    return (
+      (isInitiator || isApprover) && 
+      currentCaseDetails.status === 'EFFORT_PENDING_REVIEW'
+    );
   };
 
   const canApproveRejectCostEstimate = () => {
     if (!currentCaseDetails || !currentUser) return false;
     const isInitiator = currentCaseDetails.user_id === currentUser.uid;
+    const isApprover = canApproveStage('CostEstimate', systemRole);
     return (
-      isInitiator && currentCaseDetails.status === 'COSTING_PENDING_REVIEW'
+      (isInitiator || isApprover) && 
+      currentCaseDetails.status === 'COSTING_PENDING_REVIEW'
     );
   };
 
   const canApproveRejectValueProjection = () => {
     if (!currentCaseDetails || !currentUser) return false;
     const isInitiator = currentCaseDetails.user_id === currentUser.uid;
-    const isSalesManagerApprover = systemRole === 'SALES_MANAGER_APPROVER';
+    const isApprover = canApproveStage('ValueProjection', systemRole);
     return (
-      (isInitiator || isSalesManagerApprover) &&
+      (isInitiator || isApprover) &&
       currentCaseDetails.status === 'VALUE_PENDING_REVIEW'
     );
   };
@@ -1397,10 +1405,11 @@ const BusinessCaseDetailPage: React.FC = () => {
                       </Button>
                     )}
 
-                  {/* Approve System Design Button - Show only for DEVELOPER role when status is SYSTEM_DESIGN_PENDING_REVIEW */}
+                  {/* Approve System Design Button - Show for case owner or approver roles when status is SYSTEM_DESIGN_PENDING_REVIEW */}
                   {!isEditingSystemDesign &&
                     status === 'SYSTEM_DESIGN_PENDING_REVIEW' &&
-                    systemRole === 'DEVELOPER' && (
+                    (currentCaseDetails?.user_id === currentUser?.uid ||
+                      canApproveStage('SystemDesign', systemRole)) && (
                       <Button
                         variant="contained"
                         size="small"
@@ -1413,10 +1422,11 @@ const BusinessCaseDetailPage: React.FC = () => {
                       </Button>
                     )}
 
-                  {/* Reject System Design Button - Show only for DEVELOPER role when status is SYSTEM_DESIGN_PENDING_REVIEW */}
+                  {/* Reject System Design Button - Show for case owner or approver roles when status is SYSTEM_DESIGN_PENDING_REVIEW */}
                   {!isEditingSystemDesign &&
                     status === 'SYSTEM_DESIGN_PENDING_REVIEW' &&
-                    systemRole === 'DEVELOPER' && (
+                    (currentCaseDetails?.user_id === currentUser?.uid ||
+                      canApproveStage('SystemDesign', systemRole)) && (
                       <Button
                         variant="outlined"
                         size="small"
@@ -1496,7 +1506,7 @@ const BusinessCaseDetailPage: React.FC = () => {
                     p: 3,
                     mt: 1,
                     border: '1px solid #eee',
-                    backgroundColor: '#fafafa',
+                    backgroundColor: '#ffffff',
                     ...markdownStyles,
                   }}
                 >

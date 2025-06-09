@@ -1,11 +1,12 @@
 import React from 'react';
 import { Alert, Container, Typography, Box, Paper } from '@mui/material';
 import { FinancialSummarySection } from '../../components/specific/FinancialSummarySection';
+import { FinancialModelApprovalSection } from '../../components/specific/FinancialModelApprovalSection';
 import { useAgentContext } from '../../hooks/useAgentContext';
 import { STANDARD_STYLES } from '../../styles/constants';
 
 const FinancialModelPage: React.FC = () => {
-  const { currentCaseDetails, isLoading, caseDetailsError } = useAgentContext();
+  const { currentCaseDetails, caseDetailsError, isLoadingCaseDetails } = useAgentContext();
 
   // Error state
   if (caseDetailsError) {
@@ -40,6 +41,11 @@ const FinancialModelPage: React.FC = () => {
           Review ROI calculations, scenario analysis, and financial recommendations.
         </Typography>
       </Paper>
+      
+      <FinancialModelApprovalSection
+        currentCaseDetails={currentCaseDetails}
+        isLoading={isLoadingCaseDetails}
+      />
       
       <FinancialSummarySection
         currentCaseDetails={currentCaseDetails}

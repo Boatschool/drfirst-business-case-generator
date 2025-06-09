@@ -245,12 +245,9 @@ async def approve_prd(
                 status_code=404, detail=f"Business case {case_id} not found."
             )
 
-        # Authorization check: verify user is the owner/initiator (V1 - self-approval)
-        if business_case.user_id != user_id:
-            raise HTTPException(
-                status_code=403,
-                detail="You do not have permission to approve this PRD.",
-            )
+        # Use centralized approval permission logic with admin override
+        from app.utils.approval_permissions import check_approval_permissions
+        await check_approval_permissions(current_user, business_case.user_id, "PRD")
 
         # Status check: ensure case is in PRD_REVIEW status
         current_status_str = str(business_case.status)
@@ -366,11 +363,9 @@ async def reject_prd(
                 status_code=404, detail=f"Business case {case_id} not found."
             )
 
-        # Authorization check: verify user is the owner/initiator (V1 - self-approval)
-        if business_case.user_id != user_id:
-            raise HTTPException(
-                status_code=403, detail="You do not have permission to reject this PRD."
-            )
+        # Use centralized rejection permission logic with admin override
+        from app.utils.approval_permissions import check_approval_permissions
+        await check_approval_permissions(current_user, business_case.user_id, "PRD")
 
         # Status check: ensure case is in PRD_REVIEW status
         current_status_str = str(business_case.status)

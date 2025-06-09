@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import '@testing-library/jest-dom';
 import { vi } from 'vitest';
 
@@ -65,10 +66,13 @@ vi.mock('firebase/auth', () => ({
   signOut: mockAuth.signOut,
   createUserWithEmailAndPassword: mockAuth.createUserWithEmailAndPassword,
   signInWithPopup: vi.fn().mockResolvedValue({ user: mockUser }),
+  signInWithRedirect: vi.fn().mockResolvedValue(undefined),
+  getRedirectResult: vi.fn().mockResolvedValue(null),
   getIdToken: vi.fn().mockResolvedValue('mock-token'),
   getIdTokenResult: vi.fn().mockResolvedValue(mockIdTokenResult),
   GoogleAuthProvider: vi.fn().mockImplementation(() => ({
     addScope: vi.fn(),
+    setCustomParameters: vi.fn(),
   })),
   browserLocalPersistence: {
     type: 'LOCAL'
@@ -111,12 +115,20 @@ vi.mock('./hooks/useAgentContext', () => ({
   }),
 }));
 
-// Global test utilities
-global.ResizeObserver = vi.fn().mockImplementation(() => ({
-  observe: vi.fn(),
-  unobserve: vi.fn(),
-  disconnect: vi.fn(),
-}));
+// Global test utilities - Enhanced ResizeObserver mock for Material-UI
+class MockResizeObserver {
+  observe = vi.fn();
+  unobserve = vi.fn();
+  disconnect = vi.fn();
+}
+
+global.ResizeObserver = MockResizeObserver;
+
+// Fix ResizeObserver for Material-UI components
+Object.defineProperty(window, 'ResizeObserver', {
+  writable: true,
+  value: MockResizeObserver,
+});
 
 // Mock IntersectionObserver
 global.IntersectionObserver = vi.fn().mockImplementation(() => ({

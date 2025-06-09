@@ -1,0 +1,59 @@
+{
+  "metadata": {
+    "version": "1.0-test",
+    "created_date": "2025-06-08",
+    "description": "Minimal golden dataset for testing Firestore integration",
+    "total_examples": 2,
+    "examples_per_agent": {
+      "ProductManagerAgent": 1,
+      "PlannerAgent": 1
+    },
+    "agents_covered": [
+      "ProductManagerAgent",
+      "PlannerAgent"
+    ]
+  },
+  "datasets": {
+    "ProductManagerAgent": [
+      {
+        "inputId": "test_prd_001",
+        "agentName": "ProductManagerAgent",
+        "input_payload": {
+          "case_title": "Test Patient Portal",
+          "problem_statement": "Test problem statement for Firestore integration testing.",
+          "relevant_links": []
+        },
+        "expected_characteristics_or_ideal_output": {
+          "must_contain_sections": ["Introduction", "Problem Statement", "Goals"],
+          "ideal_introduction_snippet": "This test project aims to verify Firestore integration",
+          "quality_notes": "Should handle minimal test input gracefully"
+        }
+      }
+    ],
+    "PlannerAgent": [
+      {
+        "inputId": "test_plan_001",
+        "agentName": "PlannerAgent",
+        "input_payload": {
+          "prd_content": "Test PRD content for planning estimation",
+          "system_design_content": "Test system design for effort estimation",
+          "case_title": "Test Planning Case"
+        },
+        "expected_characteristics_or_ideal_output": {
+          "json_schema_requirements": {
+            "roles": "array",
+            "total_hours": "number",
+            "estimated_duration_weeks": "number",
+            "complexity_assessment": "string",
+            "notes": "string"
+          },
+          "reasonable_hour_ranges": {
+            "Product Manager": [10, 30],
+            "Developer": [20, 60]
+          },
+          "quality_notes": "Should provide reasonable estimates for test case"
+        }
+      }
+    ]
+  }
+} 

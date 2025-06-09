@@ -12,7 +12,6 @@ import {
   List,
   ListItem,
   ListItemText,
-  ListItemIcon,
   Divider,
   Paper,
 } from '@mui/material';
@@ -143,19 +142,19 @@ const MainPage: React.FC = () => {
 
       <Grid container spacing={3}>
         {/* Quick Actions */}
-        <Grid item xs={12} md={6}>
+        <Grid item xs={12}>
           <Paper elevation={PAPER_ELEVATION.MAIN_CONTENT} sx={STANDARD_STYLES.mainContentPaper}>
             <Typography variant="h5" component="h2" gutterBottom>
               Quick Actions
             </Typography>
-            <Stack spacing={2}>
+            <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} justifyContent="center">
               <Button
                 component={RouterLink}
                 to="/new-case"
                 variant="contained"
                 size="large"
                 startIcon={<AddIcon />}
-                fullWidth
+                sx={{ minWidth: '200px' }}
               >
                 Create New Business Case
               </Button>
@@ -165,7 +164,7 @@ const MainPage: React.FC = () => {
                 variant="outlined"
                 size="large"
                 startIcon={<DashboardIcon />}
-                fullWidth
+                sx={{ minWidth: '200px' }}
               >
                 View All Cases
               </Button>
@@ -173,45 +172,7 @@ const MainPage: React.FC = () => {
           </Paper>
         </Grid>
 
-        {/* Recent Activity / System Status */}
-        <Grid item xs={12} md={6}>
-          <Paper elevation={PAPER_ELEVATION.MAIN_CONTENT} sx={STANDARD_STYLES.mainContentPaper}>
-            <Typography variant="h5" component="h2" gutterBottom>
-              System Features
-            </Typography>
-            <List dense>
-              <ListItem>
-                <ListItemIcon>
-                  <CheckCircleIcon color="success" />
-                </ListItemIcon>
-                <ListItemText
-                  primary="Enhanced AI PRD Generation"
-                  secondary="8-section structured PRDs with healthcare context"
-                />
-              </ListItem>
-              <Divider variant="inset" component="li" />
-              <ListItem>
-                <ListItemIcon>
-                  <CheckCircleIcon color="success" />
-                </ListItemIcon>
-                <ListItemText
-                  primary="Collaborative Review Workflow"
-                  secondary="Edit, submit, and approve PRDs with full history tracking"
-                />
-              </ListItem>
-              <Divider variant="inset" component="li" />
-              <ListItem>
-                <ListItemIcon>
-                  <CheckCircleIcon color="success" />
-                </ListItemIcon>
-                <ListItemText
-                  primary="Healthcare-Specific Context"
-                  secondary="HIPAA compliance, clinical workflows, and regulatory considerations"
-                />
-              </ListItem>
-            </List>
-          </Paper>
-        </Grid>
+
       </Grid>
 
       {/* Recent Cases Preview */}
@@ -236,14 +197,7 @@ const MainPage: React.FC = () => {
                     <ListItemText
                       primary={businessCase.title}
                       secondary={
-                        <Box
-                          sx={{
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: 1,
-                            mt: 1,
-                          }}
-                        >
+                        <>
                           <Chip
                             label={businessCase.status.replace('_', ' ')}
                             size="small"
@@ -254,14 +208,15 @@ const MainPage: React.FC = () => {
                                 ? 'warning'
                                 : 'default'
                             }
+                            sx={{ mr: 1, mt: 0.5 }}
                           />
-                          <Typography variant="caption" color="text.secondary">
+                          <Typography variant="caption" color="text.secondary" component="span">
                             Updated:{' '}
                             {new Date(
                               businessCase.updated_at
                             ).toLocaleDateString()}
                           </Typography>
-                        </Box>
+                        </>
                       }
                     />
                   </ListItem>

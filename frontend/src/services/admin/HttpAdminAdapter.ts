@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 /**
  * HTTP implementation of AdminService interface
  * Handles authenticated requests to the backend admin endpoints
@@ -12,6 +13,7 @@ import {
   CreatePricingTemplateRequest,
   UpdatePricingTemplateRequest,
   User,
+  StageApproverRolesConfig,
 } from './AdminService';
 import { authService } from '../auth/authService';
 import { AppError, NetworkError } from '../../types/api';
@@ -33,16 +35,30 @@ export class HttpAdminAdapter implements AdminService {
    */
   private async getAuthHeaders(): Promise<Record<string, string>> {
     try {
-      const idToken = await authService.getIdToken();
+      // First try to get current token
+      let idToken = await authService.getIdToken();
+      
       if (!idToken) {
         const authError: AppError = {
           name: 'AuthError',
-          message: 'Authentication required',
+          message: 'Authentication required - please log in to access admin features',
           type: 'auth',
           code: 'auth/no-token'
         };
         throw authError;
       }
+
+      // For admin operations, ensure we have fresh token with latest claims
+      try {
+        idToken = await authService.refreshIdToken();
+        if (!idToken) {
+          throw new Error('Failed to refresh token');
+        }
+      } catch (refreshError) {
+        this.logger.warn('[HttpAdminAdapter] Token refresh failed, using existing token:', refreshError);
+        // Continue with existing token if refresh fails
+      }
+
       return {
         Authorization: `Bearer ${idToken}`,
         'Content-Type': 'application/json',
@@ -51,7 +67,7 @@ export class HttpAdminAdapter implements AdminService {
       this.logger.error('[HttpAdminAdapter] Error getting auth headers:', error);
       const authError: AppError = {
         name: 'AuthError',
-        message: 'Authentication failed',
+        message: 'Authentication failed - please refresh the page and try again',
         type: 'auth',
         code: 'auth/failed',
         details: error
@@ -116,6 +132,15 @@ export class HttpAdminAdapter implements AdminService {
             serverDetails: errorDetails
           }
         };
+
+        // Provide specific guidance for authentication errors
+        if (response.status === 401) {
+          error.message = 'Admin access denied. Please ensure you have admin privileges and refresh the page to update your permissions.';
+          error.type = 'auth';
+        } else if (response.status === 403) {
+          error.message = 'Insufficient permissions for this admin operation. Contact an administrator to request the required role.';
+          error.type = 'auth';
+        }
         
         throw error;
       }
@@ -386,6 +411,70 @@ export class HttpAdminAdapter implements AdminService {
       return config;
     } catch (error) {
      this.logger.error('[HttpAdminAdapter] Error setting final approver role:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Update a user's system role (admin only)
+   */
+  async updateUserSystemRole(userId: string, newRole: string): Promise<void> {
+    try {
+     this.logger.debug('[HttpAdminAdapter] Updating user system role:', { userId, newRole });
+      await this.fetchWithAuth<{ message: string; target_user_uid: string; new_role: string }>(
+        `${this.apiBaseUrl}/admin/users/${userId}/role`,
+        {
+          method: 'PUT',
+          body: JSON.stringify({ newSystemRole: newRole }),
+        }
+      );
+     this.logger.debug(
+        `[HttpAdminAdapter] Successfully updated user ${userId} role to: ${newRole}`
+      );
+    } catch (error) {
+     this.logger.error('[HttpAdminAdapter] Error updating user system role:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Get the stage-specific approver role settings
+   */
+  async getStageApproverRoleSettings(): Promise<StageApproverRolesConfig> {
+    try {
+     this.logger.debug('[HttpAdminAdapter] Fetching stage approver role settings...');
+      const config = await this.fetchWithAuth<StageApproverRolesConfig>(
+        `${this.apiBaseUrl}/admin/config/stage-approver-roles`
+      );
+     this.logger.debug(
+        `[HttpAdminAdapter] Successfully fetched stage approver roles:`, config
+      );
+      return config;
+    } catch (error) {
+     this.logger.error('[HttpAdminAdapter] Error fetching stage approver role settings:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Set the stage-specific approver role settings
+   */
+  async setStageApproverRoleSettings(settings: Record<string, string>): Promise<StageApproverRolesConfig> {
+    try {
+     this.logger.debug('[HttpAdminAdapter] Setting stage approver role settings:', settings);
+      const config = await this.fetchWithAuth<StageApproverRolesConfig>(
+        `${this.apiBaseUrl}/admin/config/stage-approver-roles`,
+        {
+          method: 'PUT',
+          body: JSON.stringify({ stageApproverRoles: settings }),
+        }
+      );
+     this.logger.debug(
+        `[HttpAdminAdapter] Successfully set stage approver roles:`, config
+      );
+      return config;
+    } catch (error) {
+     this.logger.error('[HttpAdminAdapter] Error setting stage approver role settings:', error);
       throw error;
     }
   }

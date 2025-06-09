@@ -35,6 +35,9 @@ markdown==3.7
 pandas==2.2.3
 numpy==2.2.0
 
+# JSON schema validation (for evaluation metrics)
+jsonschema==4.23.0
+
 # Development and testing
 pytest==8.3.4
 pytest-asyncio==0.24.0

@@ -11,6 +11,7 @@ from .export_routes import router as export_router
 from .final_approval_routes import router as final_approval_router
 from .financial_estimates_routes import router as financial_estimates_router
 from .system_design_routes import router as system_design_router
+from .effort_routes import router as effort_router
 
 # Create main cases router
 cases_router = APIRouter()
@@ -20,6 +21,7 @@ cases_router.include_router(list_retrieve_router, tags=["Business Cases - List/R
 cases_router.include_router(status_router, tags=["Business Cases - Status"])
 cases_router.include_router(prd_router, tags=["Business Cases - PRD"])
 cases_router.include_router(system_design_router, tags=["Business Cases - System Design"])
+cases_router.include_router(effort_router, tags=["Business Cases - Effort Estimates"])
 cases_router.include_router(financial_estimates_router, tags=["Business Cases - Financial Estimates"])
 cases_router.include_router(final_approval_router, tags=["Business Cases - Final Approval"])
 cases_router.include_router(export_router, tags=["Business Cases - Export"])

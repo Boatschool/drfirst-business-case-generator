@@ -10,7 +10,7 @@ import {
   Alert,
   Chip,
   Stack,
-  Divider,
+
   Table,
   TableBody,
   TableCell,
@@ -23,27 +23,23 @@ import {
   TextField,
 } from '@mui/material';
 import {
-  CheckCircle as CheckCircleIcon,
-  Cancel as RejectIcon,
+
   Share as ShareIcon,
-  TrendingUp as TrendingUpIcon,
+
   AttachMoney as MoneyIcon,
   Schedule as ScheduleIcon,
-  Assessment as AssessmentIcon,
+
 } from '@mui/icons-material';
 import { useAgentContext } from '../../hooks/useAgentContext';
-import { useAuth } from '../../hooks/useAuth';
+
 import { PAPER_ELEVATION, STANDARD_STYLES } from '../../styles/constants';
 
 const SummaryPage: React.FC = () => {
   const { 
-    currentCaseDetails, 
-    isLoading,
-    submitCaseForFinalApproval,
-    approveFinalCase,
+    currentCaseDetails,
     rejectFinalCase
   } = useAgentContext();
-  const { currentUser, systemRole } = useAuth();
+
 
   // State for final approval/rejection
   const [isRejectDialogOpen, setIsRejectDialogOpen] = useState(false);
@@ -59,31 +55,7 @@ const SummaryPage: React.FC = () => {
     );
   }
 
-  // Permission helpers
-  const canSubmitForFinalApproval = () => {
-    if (!currentUser) return false;
-    const isInitiator = currentCaseDetails.user_id === currentUser.uid;
-    return isInitiator && currentCaseDetails.status === 'FINANCIAL_MODEL_COMPLETE';
-  };
 
-  const canApproveFinalCase = () => {
-    if (!currentUser) return false;
-    const isFinalApprover = systemRole === 'FINAL_APPROVER' || systemRole === 'ADMIN';
-    return isFinalApprover && currentCaseDetails.status === 'PENDING_FINAL_APPROVAL';
-  };
-
-  // Get status color
-  const getStatusColor = (status: string) => {
-    const statusColors: Record<string, 'success' | 'warning' | 'info' | 'error' | 'default'> = {
-      'APPROVED': 'success',
-      'PENDING_FINAL_APPROVAL': 'warning',
-      'REJECTED': 'error',
-      'FINANCIAL_MODEL_COMPLETE': 'info',
-      'PRD_APPROVED': 'success',
-      'SYSTEM_DESIGN_APPROVED': 'success',
-    };
-    return statusColors[status] || 'default';
-  };
 
   // Format currency
   const formatCurrency = (amount: number) => {
@@ -95,34 +67,7 @@ const SummaryPage: React.FC = () => {
     }).format(amount);
   };
 
-  // Handle actions
-  const handleSubmitForFinalApproval = async () => {
-    if (!currentCaseDetails.case_id) return;
-    try {
-      const success = await submitCaseForFinalApproval(currentCaseDetails.case_id);
-      if (success) {
-        setActionSuccess('Case submitted for final approval successfully!');
-        setActionError(null);
-      }
-    } catch (err) {
-      setActionError('Failed to submit case for final approval.');
-      setActionSuccess(null);
-    }
-  };
 
-  const handleApproveFinalCase = async () => {
-    if (!currentCaseDetails.case_id) return;
-    try {
-      const success = await approveFinalCase(currentCaseDetails.case_id);
-      if (success) {
-        setActionSuccess('Business case approved successfully!');
-        setActionError(null);
-      }
-    } catch (err) {
-      setActionError('Failed to approve business case.');
-      setActionSuccess(null);
-    }
-  };
 
   const handleRejectFinalCase = async () => {
     if (!currentCaseDetails.case_id) return;

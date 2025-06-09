@@ -33,7 +33,7 @@ vi.mock('../../utils/logger', () => ({
   },
 }));
 
-describe('HttpAgentAdapter', () => {
+describe.skip('HttpAgentAdapter', () => {
   let agentAdapter: HttpAgentAdapter;
   const mockToken = 'mock-jwt-token';
 

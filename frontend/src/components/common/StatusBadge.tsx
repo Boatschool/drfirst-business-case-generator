@@ -63,6 +63,7 @@ interface StatusBadgeProps {
  * and converting to title case
  */
 const formatStatusText = (status: string): string => {
+  if (!status) return '';
   return status
     .replace(/_/g, ' ')
     .toLowerCase()

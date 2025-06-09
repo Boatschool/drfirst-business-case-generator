@@ -2,7 +2,7 @@
 Product Manager Agent for handling PRD generation and related tasks.
 """
 
-from typing import Dict, Any, List
+from typing import Dict, Any, List, Optional
 import uuid
 from vertexai.generative_models import GenerativeModel, Part, FinishReason
 import vertexai.preview.generative_models as generative_models
@@ -10,11 +10,13 @@ from pydantic import ValidationError
 
 from ..core.config import settings
 from ..services.prompt_service import PromptService
+from ..services.vertex_ai_service import VertexAIService
 from ..utils.web_utils import fetch_web_content
 from google.cloud import firestore
 from ..models.agent_models import DraftPrdInput, DraftPrdOutput, PrdDraft, AgentStatus
 import logging
 from datetime import datetime
+import time
 
 # Set up logging
 logger = logging.getLogger(__name__)
@@ -73,7 +75,7 @@ class ProductManagerAgent:
         self, text_content: str, link_name: str = "content"
     ) -> str:
         """
-        Generate a concise summary of text content using Vertex AI.
+        Generate a concise summary of text content using Vertex AI with robust retry logic.
 
         Args:
             text_content (str): The text content to summarize
@@ -91,11 +93,19 @@ class ProductManagerAgent:
             return ""
 
         try:
+            # Truncate content to avoid overly long prompts
+            truncated_content, was_truncated = VertexAIService.truncate_content(
+                text_content, 8000, "\n\n[Content truncated for summarization...]"
+            )
+            
+            if was_truncated:
+                logger.warning(f"[ProductManagerAgent] Content from {link_name} was truncated for summarization")
+
             # Create a focused prompt for summarization
-            summarization_prompt = """Please analyze the following text content and provide a concise summary focusing on information relevant to a software/technology project or business case:
+            summarization_prompt = f"""You are a Senior Product Manager analyzing content for business case development. Please analyze the following text content and provide a concise summary focusing on information relevant to a software/technology project or business case:
 
 Text Content:
-{text_content[:8000]}  # Limit content to avoid overly long prompts
+{truncated_content}
 
 Instructions:
 - Extract key points relevant to technology projects, product development, or business requirements
@@ -115,29 +125,26 @@ Summary:"""
                 "top_k": 20,
             }
 
-            safety_settings = {
-                generative_models.HarmCategory.HARM_CATEGORY_HATE_SPEECH: generative_models.HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE,
-                generative_models.HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT: generative_models.HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE,
-                generative_models.HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT: generative_models.HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE,
-                generative_models.HarmCategory.HARM_CATEGORY_HARASSMENT: generative_models.HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE,
-            }
-
             logger.info(
                 f"[ProductManagerAgent] Generating summary for content from: {link_name}"
             )
-            response = await self.model.generate_content_async(
-                [summarization_prompt],
+            
+            # Use centralized retry logic with timeout
+            summary = await VertexAIService.generate_with_retry(
+                model=self.model,
+                prompt=summarization_prompt,
                 generation_config=generation_config,
-                safety_settings=safety_settings,
-                stream=False,
+                model_name=self.model_name,
+                max_retries=2,
+                timeout_seconds=60,  # Shorter timeout for summaries
+                agent_name="ProductManagerAgent"
             )
 
-            if response.candidates and response.candidates[0].content.parts:
-                summary = response.candidates[0].content.parts[0].text.strip()
+            if summary:
                 logger.info(
                     f"[ProductManagerAgent] Successfully generated summary for {link_name}"
                 )
-                return summary
+                return summary.strip()
             else:
                 logger.warning(
                     f"[ProductManagerAgent] No summary generated for {link_name}"
@@ -153,14 +160,19 @@ Summary:"""
     async def draft_prd(
         self,
         input_data: 'DraftPrdInput',
+        case_id: Optional[str] = None,
     ) -> 'DraftPrdOutput':
         """
         Generates a comprehensive, structured PRD based on the provided problem statement and title using Vertex AI.
         Returns a Markdown-formatted PRD with clear sections.
         """
-        # Generate operation ID for tracking
-        operation_id = str(uuid.uuid4())
-        start_time = datetime.now()
+        import time
+        
+        # Import the agent logging utilities
+        from ..core.agent_logging import create_agent_logger
+        
+        # Create enhanced logger for this operation
+        agent_logger = create_agent_logger("ProductManagerAgent", case_id)
         
         try:
             # Validate input
@@ -170,7 +182,7 @@ Summary:"""
             return DraftPrdOutput(
                 status=AgentStatus.ERROR,
                 message=f"Input validation failed: {str(e)}",
-                operation_id=operation_id,
+                operation_id=str(uuid.uuid4()),
                 prd_draft=None
             )
         
@@ -179,100 +191,111 @@ Summary:"""
         problem_statement = input_data.problem_statement
         relevant_links = input_data.relevant_links
         
-        logger.info(f"[ProductManagerAgent] Received request to draft PRD for: {case_title}")
-        logger.info(f"[ProductManagerAgent] Problem Statement: {problem_statement}")
-
-        if not self.model:
-            return DraftPrdOutput(
-                status=AgentStatus.ERROR,
-                message="ProductManagerAgent not properly initialized with Vertex AI model.",
-                operation_id=operation_id,
-                prd_draft=None
-            )
-
-        # Process relevant links: fetch content and generate summaries
-        links_context = ""
-        if relevant_links:
-            logger.info(
-                f"[ProductManagerAgent] Processing {len(relevant_links)} relevant links for context..."
-            )
-            links_context += "\n\nAdditional Context from Relevant Links:\n"
-
-            for link_item in relevant_links:
-                link_name = link_item.get("name", "Unnamed Link")
-                link_url = link_item.get("url", "No URL provided")
-
-                if not link_url or link_url == "No URL provided":
-                    links_context += f"- **{link_name}**: No URL provided\n"
-                    continue
-
-                logger.info(
-                    f"[ProductManagerAgent] Fetching content from: {link_name} ({link_url})"
-                )
-
-                # Attempt to fetch and summarize content from the URL
-                try:
-                    web_result = await fetch_web_content(link_url)
-
-                    if web_result["success"] and web_result["content"]:
-                        # Generate summary of the fetched content
-                        summary = await self.summarize_content(
-                            web_result["content"], link_name
-                        )
-
-                        if summary and summary.strip():
-                            links_context += f"- **{link_name}** ({link_url}):\n"
-                            links_context += f"  Content Summary: {summary}\n\n"
-                            logger.info(
-                                f"[ProductManagerAgent] Successfully processed content from {link_name}"
-                            )
-                        else:
-                            links_context += f"- **{link_name}** ({link_url}): Content retrieved but no relevant summary generated\n\n"
-                            logger.info(
-                                f"[ProductManagerAgent] Content retrieved from {link_name} but summarization failed or not relevant"
-                            )
-                    else:
-                        error_msg = web_result.get("error", "Unknown error")
-                        links_context += f"- **{link_name}** ({link_url}): Unable to fetch content - {error_msg}\n\n"
-                        logger.info(
-                            f"[ProductManagerAgent] Failed to fetch content from {link_name}: {error_msg}"
-                        )
-
-                except Exception as e:
-                    error_msg = f"Unexpected error: {str(e)}"
-                    links_context += f"- **{link_name}** ({link_url}): {error_msg}\n\n"
-                    logger.info(
-                        f"[ProductManagerAgent] Unexpected error processing {link_name}: {str(e)}"
-                    )
-
-            if links_context.strip() == "Additional Context from Relevant Links:":
-                # No successful content was retrieved
-                links_context += (
-                    "No content could be retrieved from the provided links.\n"
-                )
-            else:
-                links_context += "Note: Consider the context and information from these links when generating the PRD sections.\n"
-
-        # Try to get configurable prompt from Firestore
-        prompt_variables = {
+        # Prepare input payload for logging
+        input_payload = {
             "case_title": case_title,
             "problem_statement": problem_statement,
-            "links_context": links_context,
+            "relevant_links": relevant_links,
+            "case_id": case_id
         }
+        
+        # Use context manager for comprehensive logging
+        start_time = time.time()
+        with agent_logger.log_method_execution('draft_prd', input_payload, case_id) as ctx:
+            trace_id = ctx['trace_id']
+            log_llm_call = ctx['log_llm']
 
-        configurable_prompt = await self.prompt_service.render_prompt(
-            "ProductManagerAgent", "prd_generation", prompt_variables
-        )
+            if not self.model:
+                return DraftPrdOutput(
+                    status=AgentStatus.ERROR,
+                    message="ProductManagerAgent not properly initialized with Vertex AI model.",
+                    operation_id=trace_id,
+                    prd_draft=None
+                )
 
-        if configurable_prompt:
-            prompt = configurable_prompt
-            logger.info("[ProductManagerAgent] Using configurable prompt from Firestore")
-        else:
-            logger.info(
-                "[ProductManagerAgent] No configurable prompt found, using fallback default prompt"
+            # Process relevant links: fetch content and generate summaries
+            links_context = ""
+            if relevant_links:
+                logger.info(
+                    f"[ProductManagerAgent] Processing {len(relevant_links)} relevant links for context..."
+                )
+                links_context += "\n\nAdditional Context from Relevant Links:\n"
+
+                for link_item in relevant_links:
+                    link_name = link_item.get("name", "Unnamed Link")
+                    link_url = link_item.get("url", "No URL provided")
+
+                    if not link_url or link_url == "No URL provided":
+                        links_context += f"- **{link_name}**: No URL provided\n"
+                        continue
+
+                    logger.info(
+                        f"[ProductManagerAgent] Fetching content from: {link_name} ({link_url})"
+                    )
+
+                    # Attempt to fetch and summarize content from the URL
+                    try:
+                        web_result = await fetch_web_content(link_url)
+
+                        if web_result["success"] and web_result["content"]:
+                            # Generate summary of the fetched content
+                            summary = await self.summarize_content(
+                                web_result["content"], link_name
+                            )
+
+                            if summary and summary.strip():
+                                links_context += f"- **{link_name}** ({link_url}):\n"
+                                links_context += f"  Content Summary: {summary}\n\n"
+                                logger.info(
+                                    f"[ProductManagerAgent] Successfully processed content from {link_name}"
+                                )
+                            else:
+                                links_context += f"- **{link_name}** ({link_url}): Content retrieved but no relevant summary generated\n\n"
+                                logger.info(
+                                    f"[ProductManagerAgent] Content retrieved from {link_name} but summarization failed or not relevant"
+                                )
+                        else:
+                            error_msg = web_result.get("error", "Unknown error")
+                            links_context += f"- **{link_name}** ({link_url}): Unable to fetch content - {error_msg}\n\n"
+                            logger.info(
+                                f"[ProductManagerAgent] Failed to fetch content from {link_name}: {error_msg}"
+                            )
+
+                    except Exception as e:
+                        error_msg = f"Unexpected error: {str(e)}"
+                        links_context += f"- **{link_name}** ({link_url}): {error_msg}\n\n"
+                        logger.info(
+                            f"[ProductManagerAgent] Unexpected error processing {link_name}: {str(e)}"
+                        )
+
+                if links_context.strip() == "Additional Context from Relevant Links:":
+                    # No successful content was retrieved
+                    links_context += (
+                        "No content could be retrieved from the provided links.\n"
+                    )
+                else:
+                    links_context += "Note: Consider the context and information from these links when generating the PRD sections.\n"
+
+            # Try to get configurable prompt from Firestore
+            prompt_variables = {
+                "case_title": case_title,
+                "problem_statement": problem_statement,
+                "links_context": links_context,
+            }
+
+            configurable_prompt = await self.prompt_service.render_prompt(
+                "ProductManagerAgent", "prd_generation", prompt_variables
             )
-            # Fallback to hardcoded prompt
-            prompt_template = """You are an experienced Product Manager at DrFirst, a healthcare technology company. You are tasked with creating a comprehensive Product Requirements Document (PRD) based on the information provided below.
+
+            if configurable_prompt:
+                prompt = configurable_prompt
+                logger.info("[ProductManagerAgent] Using configurable prompt from Firestore")
+            else:
+                logger.info(
+                    "[ProductManagerAgent] No configurable prompt found, using fallback default prompt"
+                )
+                # Fallback to hardcoded prompt
+                prompt_template = """You are an experienced Product Manager at DrFirst, a healthcare technology company. You are tasked with creating a comprehensive Product Requirements Document (PRD) based on the information provided below.
 
 **Business Case Information:**
 - **Title**: {case_title}
@@ -319,116 +342,105 @@ List 3-5 open questions that need to be resolved and potential risks that should
 
 Generate the PRD now:"""
 
-            # Format the prompt template with actual values
-            prompt = prompt_template.format(
-                case_title=case_title,
-                problem_statement=problem_statement,
-                links_context=links_context
-            )
-            logger.info(f"[ProductManagerAgent] Formatted prompt with case_title='{case_title}', problem_statement length={len(problem_statement)}")
-
-        generation_config = {
-            "max_output_tokens": settings.vertex_ai_max_tokens,
-            "temperature": settings.vertex_ai_temperature,
-            "top_p": settings.vertex_ai_top_p,
-            "top_k": settings.vertex_ai_top_k,
-        }
-
-        safety_settings = {
-            generative_models.HarmCategory.HARM_CATEGORY_HATE_SPEECH: generative_models.HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE,
-            generative_models.HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT: generative_models.HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE,
-            generative_models.HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT: generative_models.HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE,
-            generative_models.HarmCategory.HARM_CATEGORY_HARASSMENT: generative_models.HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE,
-        }
-
-        try:
-            logger.info(
-                f"[ProductManagerAgent] Sending enhanced prompt to Vertex AI model: {self.model_name}"
-            )
-            response = await self.model.generate_content_async(
-                [prompt],
-                generation_config=generation_config,
-                safety_settings=safety_settings,
-                stream=False,
-            )
-
-            if response.candidates and response.candidates[0].content.parts:
-                prd_draft_content = response.candidates[0].content.parts[0].text
-                logger.info(
-                    "[ProductManagerAgent] Successfully received structured PRD draft from Vertex AI."
+                # Format the prompt template with actual values
+                prompt = prompt_template.format(
+                    case_title=case_title,
+                    problem_statement=problem_statement,
+                    links_context=links_context
                 )
-                logger.info(
-                    f"[ProductManagerAgent] PRD draft length: {len(prd_draft_content)} characters"
-                )
+                logger.info(f"[ProductManagerAgent] Formatted prompt with case_title='{case_title}', problem_statement length={len(problem_statement)}")
 
-                # Calculate duration
-                duration_ms = int((datetime.now() - start_time).total_seconds() * 1000)
-                
-                # Create PRD draft object
-                prd_draft = PrdDraft(
-                    title=case_title,
-                    content_markdown=prd_draft_content,
-                    version="1.0.0_structured",
-                    generated_with=f"Vertex AI {self.model_name}",
-                    sections=[
-                        "Introduction / Problem Statement",
-                        "Goals / Objectives",
-                        "Target Audience / Users",
-                        "Proposed Solution / Scope",
-                        "Key Features / User Stories",
-                        "Success Metrics / KPIs",
-                        "Technical Considerations / Dependencies",
-                        "Open Questions / Risks",
-                    ],
-                    word_count=len(prd_draft_content.split())
+            generation_config = {
+                "max_output_tokens": settings.vertex_ai_max_tokens,
+                "temperature": settings.vertex_ai_temperature,
+                "top_p": settings.vertex_ai_top_p,
+                "top_k": settings.vertex_ai_top_k,
+            }
+
+            try:
+                logger.info(
+                    f"[ProductManagerAgent] Sending enhanced prompt to Vertex AI model: {self.model_name}"
                 )
                 
-                return DraftPrdOutput(
-                    status=AgentStatus.SUCCESS,
-                    message="Structured PRD draft generated successfully by Vertex AI.",
-                    operation_id=operation_id,
-                    duration_ms=duration_ms,
-                    prd_draft=prd_draft,
-                    new_status="PRD_DRAFTED"
+                # Use centralized retry logic with robust error handling
+                prd_draft_content = await VertexAIService.generate_with_retry(
+                    model=self.model,
+                    prompt=prompt,
+                    generation_config=generation_config,
+                    model_name=self.model_name,
+                    max_retries=3,  # More retries for critical PRD generation
+                    timeout_seconds=180,  # Longer timeout for PRD generation
+                    log_llm_call=log_llm_call,
+                    agent_name="ProductManagerAgent"
                 )
-            else:
-                finish_reason = (
-                    response.candidates[0].finish_reason
-                    if response.candidates
-                    else "Unknown"
-                )
-                safety_ratings = (
-                    response.candidates[0].safety_ratings
-                    if response.candidates
-                    else "N/A"
-                )
-                message = f"Vertex AI returned no content. Finish Reason: {finish_reason}. Safety Ratings: {safety_ratings}"
-                if response.prompt_feedback:
-                    message += (
-                        f" Prompt Feedback: {response.prompt_feedback.block_reason}"
+
+                if prd_draft_content:
+                    logger.info(
+                        "[ProductManagerAgent] Successfully received structured PRD draft from Vertex AI."
                     )
-                    if response.prompt_feedback.block_reason_message:
-                        message += f" ({response.prompt_feedback.block_reason_message})"
-                logger.info(f"[ProductManagerAgent] Error: {message}")
-                duration_ms = int((datetime.now() - start_time).total_seconds() * 1000)
+                    logger.info(
+                        f"[ProductManagerAgent] PRD draft length: {len(prd_draft_content)} characters"
+                    )
+                    
+                    # Create PRD draft object
+                    prd_draft = PrdDraft(
+                        title=case_title,
+                        content_markdown=prd_draft_content,
+                        version="1.0.0_structured_robust",
+                        generated_with=f"Vertex AI {self.model_name} (with retry logic)",
+                        sections=[
+                            "Introduction / Problem Statement",
+                            "Goals / Objectives",
+                            "Target Audience / Users",
+                            "Proposed Solution / Scope",
+                            "Key Features / User Stories",
+                            "Success Metrics / KPIs",
+                            "Technical Considerations / Dependencies",
+                            "Open Questions / Risks",
+                        ],
+                        word_count=len(prd_draft_content.split())
+                    )
+                    
+                    # Prepare output payload for logging
+                    output_payload = {
+                        "status": "SUCCESS",
+                        "prd_draft_length": len(prd_draft_content),
+                        "word_count": len(prd_draft_content.split()),
+                        "model_used": self.model_name
+                    }
+                    
+                    # Calculate total execution time 
+                    total_execution_time_ms = (time.time() - start_time) * 1000
+                    
+                    # Create successful output  
+                    return DraftPrdOutput(
+                        status=AgentStatus.SUCCESS,
+                        message="Structured PRD draft generated successfully with robust retry logic.",
+                        operation_id=trace_id,
+                        duration_ms=int(total_execution_time_ms),
+                        prd_draft=prd_draft,
+                        new_status="PRD_DRAFTED"
+                    )
+                else:
+                    message = "Failed to generate PRD content after all retry attempts"
+                    logger.error(f"[ProductManagerAgent] {message}")
+                    
+                    return DraftPrdOutput(
+                        status=AgentStatus.ERROR,
+                        message=message,
+                        operation_id=trace_id,
+                        prd_draft=None
+                    )
+
+            except Exception as e:
+                logger.error(f"[ProductManagerAgent] Error generating PRD with Vertex AI: {e}")
+                
                 return DraftPrdOutput(
                     status=AgentStatus.ERROR,
-                    message=message,
-                    operation_id=operation_id,
-                    duration_ms=duration_ms,
+                    message=f"An error occurred while generating the PRD with Vertex AI: {str(e)}",
+                    operation_id=trace_id,
                     prd_draft=None
                 )
-
-        except Exception as e:
-            logger.info(f"[ProductManagerAgent] Error generating PRD with Vertex AI: {e}")
-            duration_ms = int((datetime.now() - start_time).total_seconds() * 1000)
-            return DraftPrdOutput(
-                status=AgentStatus.ERROR,
-                message=f"An error occurred while generating the PRD with Vertex AI: {str(e)}",
-                operation_id=operation_id,
-                duration_ms=duration_ms,
-                prd_draft=None
-            )
 
     def get_status(self) -> Dict[str, str]:
         """Get the current status of the Product Manager agent."""

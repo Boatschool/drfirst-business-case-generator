@@ -29,7 +29,7 @@ export const WORKFLOW_STAGES: WorkflowStage[] = [
     id: 'prd_review',
     label: 'PRD Review & Approval',
     description: 'PRD review and approval process',
-    statuses: ['PRD_REVIEW', 'PRD_APPROVED', 'PRD_REJECTED'],
+    statuses: ['PRD_REVIEW', 'PRD_REJECTED'],
     routePath: '/prd-review',
   },
   {
@@ -91,6 +91,9 @@ export const WORKFLOW_STAGES: WorkflowStage[] = [
     statuses: [
       'FINANCIAL_MODEL_IN_PROGRESS',
       'FINANCIAL_MODEL_COMPLETE',
+      'FINANCIAL_MODEL_PENDING_REVIEW',
+      'FINANCIAL_MODEL_APPROVED',
+      'FINANCIAL_MODEL_REJECTED',
       'FINANCIAL_ANALYSIS'
     ],
     routePath: '/financial-model',
@@ -109,8 +112,105 @@ export const WORKFLOW_STAGES: WorkflowStage[] = [
   },
 ];
 
+// Define statuses that indicate a stage is complete and should trigger progression to the next stage
+const COMPLETION_STATUSES = [
+  'PRD_APPROVED',
+  'SYSTEM_DESIGN_APPROVED', 
+  'EFFORT_APPROVED',
+  'COSTING_APPROVED',
+  'VALUE_APPROVED',
+  'FINANCIAL_MODEL_COMPLETE',
+  'FINANCIAL_MODEL_APPROVED'
+];
+
+// Define statuses that indicate a stage is "submitted" and should show as completed from user's perspective
+const SUBMITTED_STATUSES = [
+  'PRD_REVIEW',
+  'SYSTEM_DESIGN_PENDING_REVIEW',
+  'EFFORT_PENDING_REVIEW',
+  'COSTING_PENDING_REVIEW',
+  'VALUE_PENDING_REVIEW',
+  'FINANCIAL_MODEL_PENDING_REVIEW'
+];
+
 // Utility function to get workflow stage state based on current status
 export const getWorkflowStageState = (currentStatus: string): WorkflowStageState => {
+  // Handle completion statuses that should progress to the next stage
+  if (COMPLETION_STATUSES.includes(currentStatus)) {
+    // Find which stage this completion status belongs to
+    const completedStageIndex = WORKFLOW_STAGES.findIndex(stage => {
+      // Check if this status logically belongs to this stage (by naming convention)
+      if (currentStatus === 'PRD_APPROVED') return stage.id === 'prd_review';
+      if (currentStatus === 'SYSTEM_DESIGN_APPROVED') return stage.id === 'system_design';
+      if (currentStatus === 'EFFORT_APPROVED') return stage.id === 'effort_estimation';
+      if (currentStatus === 'COSTING_APPROVED') return stage.id === 'cost_analysis';
+      if (currentStatus === 'VALUE_APPROVED') return stage.id === 'value_analysis';
+      if (currentStatus === 'FINANCIAL_MODEL_COMPLETE') return stage.id === 'financial_model';
+      if (currentStatus === 'FINANCIAL_MODEL_APPROVED') return stage.id === 'financial_model';
+      return false;
+    });
+
+    if (completedStageIndex !== -1) {
+      const completedStages = WORKFLOW_STAGES.slice(0, completedStageIndex + 1);
+      const nextStageIndex = completedStageIndex + 1;
+      const activeStage = nextStageIndex < WORKFLOW_STAGES.length ? WORKFLOW_STAGES[nextStageIndex] : null;
+      const availableStages = activeStage ? WORKFLOW_STAGES.slice(0, nextStageIndex + 1) : completedStages;
+
+      return {
+        activeStage,
+        completedStages,
+        availableStages,
+        allStages: WORKFLOW_STAGES,
+      };
+    }
+  }
+
+  // Handle submitted statuses that should show the stage as completed
+  if (SUBMITTED_STATUSES.includes(currentStatus)) {
+    // Find which stage this submitted status belongs to
+    const submittedStageIndex = WORKFLOW_STAGES.findIndex(stage => {
+      // Check if this status logically belongs to this stage (by naming convention)
+      if (currentStatus === 'PRD_REVIEW') return stage.id === 'intake'; // PRD creation is complete when in review
+      if (currentStatus === 'SYSTEM_DESIGN_PENDING_REVIEW') return stage.id === 'system_design';
+      if (currentStatus === 'EFFORT_PENDING_REVIEW') return stage.id === 'effort_estimation';
+      if (currentStatus === 'COSTING_PENDING_REVIEW') return stage.id === 'cost_analysis';
+      if (currentStatus === 'VALUE_PENDING_REVIEW') return stage.id === 'value_analysis';
+      if (currentStatus === 'FINANCIAL_MODEL_PENDING_REVIEW') return stage.id === 'financial_model';
+      return false;
+    });
+
+    if (submittedStageIndex !== -1) {
+      // For submitted statuses, show the submitted stage as completed but stay on the review stage
+      const completedStages = WORKFLOW_STAGES.slice(0, submittedStageIndex + 1);
+      let activeStage = null;
+      let availableStages = completedStages;
+
+      // Determine the active stage for submitted statuses
+      if (currentStatus === 'PRD_REVIEW') {
+        activeStage = WORKFLOW_STAGES.find(stage => stage.id === 'prd_review') || null;
+        if (activeStage) availableStages = [...completedStages, activeStage];
+      } else if (currentStatus === 'SYSTEM_DESIGN_PENDING_REVIEW') {
+        // For system design pending review, the system design stage is complete and we're in review
+        activeStage = WORKFLOW_STAGES.find(stage => stage.id === 'system_design') || null;
+      } else {
+        // For other pending review statuses, find the corresponding review stage
+        const reviewStageIndex = submittedStageIndex + 1;
+        if (reviewStageIndex < WORKFLOW_STAGES.length) {
+          activeStage = WORKFLOW_STAGES[reviewStageIndex];
+          availableStages = WORKFLOW_STAGES.slice(0, reviewStageIndex + 1);
+        }
+      }
+
+      return {
+        activeStage,
+        completedStages,
+        availableStages,
+        allStages: WORKFLOW_STAGES,
+      };
+    }
+  }
+
+  // Regular status matching for non-completion statuses
   const currentStage = WORKFLOW_STAGES.find(stage => 
     stage.statuses.includes(currentStatus)
   );

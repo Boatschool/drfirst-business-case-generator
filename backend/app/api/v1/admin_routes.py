@@ -13,6 +13,8 @@ from google.cloud import firestore
 from app.auth.firebase_auth import require_admin_role
 from app.core.config import settings
 from pydantic import BaseModel, Field
+from app.models.firestore_models import UserRole
+from app.services.user_service import user_service
 
 logger = logging.getLogger(__name__)
 
@@ -164,6 +166,35 @@ class UpdateFinalApproverRoleRequest(BaseModel):
         min_length=1,
         max_length=50,
         description="System role name to use for final approvals",
+    )
+
+
+class UpdateUserRoleRequest(BaseModel):
+    """Request model for updating a user's system role"""
+    
+    newSystemRole: str = Field(
+        ...,
+        description="New system role for the user",
+        pattern="^[A-Z_]+$"
+    )
+
+class StageApproverRolesConfig(BaseModel):
+    """Stage-specific approver roles configuration model"""
+    
+    stageApproverRoles: Dict[str, str] = Field(
+        ...,
+        description="Mapping of workflow stages to their designated approver roles"
+    )
+    updatedAt: Optional[str] = None
+    updatedBy: Optional[str] = None
+    description: Optional[str] = None
+
+class UpdateStageApproverRolesRequest(BaseModel):
+    """Request model for updating stage-specific approver roles"""
+    
+    stageApproverRoles: Dict[str, str] = Field(
+        ...,
+        description="New stage-to-role mappings"
     )
 
 
@@ -608,6 +639,17 @@ async def delete_pricing_template(
 
 
 # Replace the placeholder users endpoint with complete implementation
+def _convert_datetime_to_string(dt_value) -> Optional[str]:
+    """Convert Firestore datetime to ISO string, handling various input types"""
+    if dt_value is None:
+        return None
+    if isinstance(dt_value, str):
+        return dt_value
+    if hasattr(dt_value, 'isoformat'):
+        return dt_value.isoformat()
+    return str(dt_value)
+
+
 @router.get("/users", response_model=List[User], summary="List all users")
 async def list_users(current_user: dict = Depends(require_admin_role)):
     """Get a list of all users with their system roles (admin only)"""
@@ -621,32 +663,60 @@ async def list_users(current_user: dict = Depends(require_admin_role)):
         docs = await asyncio.to_thread(lambda: list(users_ref.stream()))
 
         users = []
+        skipped_users = 0
+        
         for doc in docs:
-            user_data = doc.to_dict()
-            # Add document ID as uid if not present
-            if "uid" not in user_data:
-                user_data["uid"] = doc.id
+            try:
+                user_data = doc.to_dict()
+                # Add document ID as uid if not present
+                if "uid" not in user_data:
+                    user_data["uid"] = doc.id
 
-            # Create User object with safe field access
-            user = User(
-                uid=user_data.get("uid", doc.id),
-                email=user_data.get("email", "N/A"),
-                display_name=user_data.get("display_name"),
-                systemRole=user_data.get("systemRole"),
-                is_active=user_data.get("is_active", True),
-                created_at=user_data.get("created_at"),
-                updated_at=user_data.get("updated_at"),
-                last_login=user_data.get("last_login"),
-            )
-            users.append(user)
+                # Clean and validate data before creating User object
+                uid = str(user_data.get("uid", doc.id))
+                email = str(user_data.get("email", "N/A"))
+                display_name = user_data.get("display_name")
+                if display_name is not None:
+                    display_name = str(display_name)
+                
+                systemRole = user_data.get("systemRole")
+                if systemRole is not None:
+                    systemRole = str(systemRole)
+                
+                is_active = user_data.get("is_active")
+                if is_active is None:
+                    is_active = True
+                else:
+                    is_active = bool(is_active)
+
+                # Create User object with safe field access and datetime conversion
+                user = User(
+                    uid=uid,
+                    email=email,
+                    display_name=display_name,
+                    systemRole=systemRole,
+                    is_active=is_active,
+                    created_at=_convert_datetime_to_string(user_data.get("created_at")),
+                    updated_at=_convert_datetime_to_string(user_data.get("updated_at")),
+                    last_login=_convert_datetime_to_string(user_data.get("last_login")),
+                )
+                users.append(user)
+                
+            except Exception as user_error:
+                logger.warning(f"[AdminAPI] Skipping invalid user {doc.id}: {user_error}")
+                skipped_users += 1
+                continue
 
         logger.info(
             f"[AdminAPI] Retrieved {len(users)} users for admin: {current_user.get('email', 'unknown')}"
         )
+        if skipped_users > 0:
+            logger.warning(f"[AdminAPI] Skipped {skipped_users} users due to validation errors")
+            
         return users
 
     except Exception as e:
-        logger.info(f"[AdminAPI] Error fetching users: {e}")
+        logger.error(f"[AdminAPI] Error fetching users: {e}")
         raise HTTPException(status_code=500, detail=f"Failed to fetch users: {str(e)}")
 
 
@@ -788,4 +858,193 @@ async def update_final_approver_role(
         raise HTTPException(
             status_code=500,
             detail=f"Failed to update final approver role configuration: {str(e)}",
+        )
+
+
+# User Role Management Endpoints
+
+@router.put(
+    "/users/{target_user_uid}/role",
+    response_model=Dict[str, Any],
+    summary="Update a user's system role",
+)
+async def update_user_system_role(
+    target_user_uid: str = Path(
+        ...,
+        description="UID of the user whose role should be updated"
+    ),
+    role_update: UpdateUserRoleRequest = ...,
+    current_user: dict = Depends(require_admin_role),
+):
+    """Update a user's system role in Firestore and sync to Firebase custom claims (admin only)"""
+    admin_email = current_user.get("email", "unknown")
+    
+    try:
+        new_role_str = role_update.newSystemRole.strip()
+        
+        # Validate role name against UserRole enum
+        try:
+            new_role = UserRole(new_role_str)
+        except ValueError:
+            valid_roles = [role.value for role in UserRole]
+            raise HTTPException(
+                status_code=400,
+                detail=f"Invalid role name '{new_role_str}'. Must be one of: {', '.join(valid_roles)}"
+            )
+        
+        # Update user role using UserService
+        success = await user_service.update_user_role(target_user_uid, new_role)
+        
+        if not success:
+            raise HTTPException(
+                status_code=500,
+                detail=f"Failed to update role for user {target_user_uid}"
+            )
+        
+        logger.info(
+            f"[AdminAPI] Updated user {target_user_uid} role to '{new_role_str}' by admin: {admin_email}"
+        )
+        
+        return {
+            "message": f"User role updated successfully to {new_role_str}",
+            "target_user_uid": target_user_uid,
+            "new_role": new_role_str,
+            "updated_by": admin_email,
+            "updated_at": datetime.now(timezone.utc).isoformat()
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"[AdminAPI] Error updating user role for {target_user_uid}: {e}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to update user role: {str(e)}"
+        )
+
+# Stage-Specific Approver Configuration Endpoints
+
+@router.get(
+    "/config/stage-approver-roles",
+    response_model=StageApproverRolesConfig,
+    summary="Get stage-specific approver role settings",
+)
+async def get_stage_approver_roles(current_user: dict = Depends(require_admin_role)):
+    """Get the currently configured stage-specific approver roles (admin only)"""
+    db = get_admin_db()
+    if not db:
+        raise HTTPException(status_code=500, detail="Database connection not available")
+
+    try:
+        # Fetch configuration from Firestore
+        config_ref = db.collection("systemConfiguration").document("approvalSettings")
+        doc = await asyncio.to_thread(config_ref.get)
+
+        if not doc.exists:
+            # Return default configuration if not found
+            default_stage_roles = {
+                "PRD": "PRODUCT_OWNER",
+                "SystemDesign": "DEVELOPER", 
+                "EffortEstimate": "DEVELOPER",
+                "CostEstimate": "FINANCE_APPROVER",
+                "ValueProjection": "SALES_MANAGER"
+            }
+            
+            logger.info(
+                "[AdminAPI] No stage approver configuration found, returning defaults"
+            )
+            return StageApproverRolesConfig(
+                stageApproverRoles=default_stage_roles,
+                description="Default stage approver roles (configuration not yet initialized)",
+            )
+
+        config_data = doc.to_dict()
+        stage_approver_roles = config_data.get("stageApproverRoles", {})
+
+        # Convert datetime to string if it exists
+        updated_at = config_data.get("updatedAt")
+        if updated_at and hasattr(updated_at, "isoformat"):
+            updated_at = updated_at.isoformat()
+        elif updated_at and not isinstance(updated_at, str):
+            updated_at = str(updated_at)
+
+        logger.info(
+            f"[AdminAPI] Retrieved stage approver roles configuration for admin: {current_user.get('email', 'unknown')}"
+        )
+
+        return StageApproverRolesConfig(
+            stageApproverRoles=stage_approver_roles,
+            updatedAt=updated_at,
+            updatedBy=config_data.get("updatedBy"),
+            description=config_data.get("description"),
+        )
+
+    except Exception as e:
+        logger.error(f"[AdminAPI] Error fetching stage approver roles configuration: {e}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to fetch stage approver roles configuration: {str(e)}",
+        )
+
+@router.put(
+    "/config/stage-approver-roles",
+    response_model=StageApproverRolesConfig,
+    summary="Update stage-specific approver role settings",
+)
+async def update_stage_approver_roles(
+    config_update: UpdateStageApproverRolesRequest,
+    current_user: dict = Depends(require_admin_role),
+):
+    """Update the stage-specific approver roles configuration (admin only)"""
+    db = get_admin_db()
+    if not db:
+        raise HTTPException(status_code=500, detail="Database connection not available")
+
+    try:
+        new_stage_roles = config_update.stageApproverRoles
+        
+        # Validate all role names against UserRole enum
+        valid_roles = [role.value for role in UserRole]
+        for stage, role_name in new_stage_roles.items():
+            if role_name not in valid_roles:
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"Invalid role name '{role_name}' for stage '{stage}'. Must be one of: {', '.join(valid_roles)}"
+                )
+
+        # Prepare update data
+        current_time = datetime.now(timezone.utc).isoformat()
+        update_data = {
+            "stageApproverRoles": new_stage_roles,
+            "updatedAt": current_time,
+            "updatedBy": current_user.get("email", "unknown"),
+            "description": "Configuration for which systemRole can approve each specific workflow stage",
+        }
+
+        # Update or create configuration document
+        config_ref = db.collection("systemConfiguration").document("approvalSettings")
+        await asyncio.to_thread(config_ref.set, update_data, merge=True)
+
+        # Clear cache to ensure immediate effect
+        from app.utils.approval_permissions import clear_stage_approver_roles_cache
+        clear_stage_approver_roles_cache()
+
+        logger.info(
+            f"[AdminAPI] Updated stage approver roles by admin: {current_user.get('email', 'unknown')}"
+        )
+
+        return StageApproverRolesConfig(
+            stageApproverRoles=new_stage_roles,
+            updatedAt=current_time,
+            updatedBy=current_user.get("email", "unknown"),
+            description=update_data["description"],
+        )
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"[AdminAPI] Error updating stage approver roles configuration: {e}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to update stage approver roles configuration: {str(e)}",
         )

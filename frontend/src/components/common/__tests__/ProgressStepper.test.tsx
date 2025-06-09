@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import React from 'react';
 import { render, screen } from '@testing-library/react';
 import { describe, it, expect, vi } from 'vitest';
@@ -41,8 +42,8 @@ describe('ProgressStepper', () => {
       <ProgressStepper currentCaseStatus="PRD_DRAFTING" />
     );
     
-    // Check for the main stage labels
-    expect(screen.getByText('Intake & PRD Creation')).toBeInTheDocument();
+    // Check for the main stage labels (using getAllByText since they appear multiple times)
+    expect(screen.getAllByText('Intake & PRD Creation')).toHaveLength(2); // In stepper and current stage
     expect(screen.getByText('PRD Review & Approval')).toBeInTheDocument();
     expect(screen.getByText('System Design')).toBeInTheDocument();
     expect(screen.getByText('Final Review & Approval')).toBeInTheDocument();
@@ -54,7 +55,7 @@ describe('ProgressStepper', () => {
     );
     
     expect(screen.getByText('Current Stage:')).toBeInTheDocument();
-    expect(screen.getByText('Intake & PRD Creation')).toBeInTheDocument();
+    expect(screen.getAllByText('Intake & PRD Creation')).toHaveLength(2); // In stepper and current stage
     expect(screen.getByText('Status:')).toBeInTheDocument();
     expect(screen.getByText('PRD DRAFTING')).toBeInTheDocument();
   });
@@ -64,7 +65,7 @@ describe('ProgressStepper', () => {
       <ProgressStepper currentCaseStatus="APPROVED" />
     );
     
-    expect(screen.getByText('Final Review & Approval')).toBeInTheDocument();
+    expect(screen.getAllByText('Final Review & Approval')).toHaveLength(2); // In stepper and current stage
     expect(screen.getByText('APPROVED')).toBeInTheDocument();
   });
 

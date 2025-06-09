@@ -10,6 +10,7 @@ from app.core.dependencies import get_db
 from app.core.database import DatabaseClient
 from app.core.constants import BusinessRules, Collections
 from app.core.logging_config import log_agent_operation, log_error_with_context, log_performance_metric
+from app.core.agent_logging import create_agent_logger
 
 # Set up logging
 logger = logging.getLogger(__name__)
@@ -32,8 +33,29 @@ class CostAnalystAgent:
         logger.info("CostAnalystAgent: Initialized successfully.")
         self.status = "available"
 
+    async def estimate_costs(
+        self, effort_breakdown: Dict[str, Any], case_title: str, case_id: Optional[str] = None
+    ) -> Dict[str, Any]:
+        """
+        Public interface for cost estimation that matches function calling expectations.
+        Delegates to calculate_cost method with enhanced logging.
+
+        Args:
+            effort_breakdown (Dict[str, Any]): The effort breakdown from PlannerAgent
+            case_title (str): Title of the business case
+            case_id (str, optional): Business case ID for logging
+
+        Returns:
+            Dict[str, Any]: Response containing status and cost estimate
+        """
+        return await self.calculate_cost(
+            effort_breakdown=effort_breakdown,
+            case_title=case_title,
+            case_id=case_id
+        )
+
     async def calculate_cost(
-        self, effort_breakdown: Dict[str, Any], case_title: str
+        self, effort_breakdown: Dict[str, Any], case_title: str, case_id: Optional[str] = None
     ) -> Dict[str, Any]:
         """
         Calculates cost estimates based on effort breakdown and rate cards.
@@ -41,58 +63,80 @@ class CostAnalystAgent:
         Args:
             effort_breakdown (Dict[str, Any]): The effort breakdown from PlannerAgent
             case_title (str): Title of the business case
+            case_id (str, optional): Business case ID for logging
 
         Returns:
             Dict[str, Any]: Response containing status and cost estimate
         """
-        agent_logger = log_agent_operation(
-            logger, "CostAnalystAgent", case_title, "calculate_cost"
-        )
-        agent_logger.info(
-            "Received cost calculation request",
-            extra={
-                'roles_count': len(effort_breakdown.get('roles', [])),
-                'total_hours': sum(role.get('hours', 0) for role in effort_breakdown.get('roles', []))
-            }
-        )
-
-        if not self.db:
-            agent_logger.warning("Firestore client not available, using default rates")
-            return await self._calculate_with_default_rates(
-                effort_breakdown, case_title
+        # Create agent logger
+        agent_logger = create_agent_logger("CostAnalystAgent", case_id)
+        
+        # Prepare input payload for logging
+        input_payload = {
+            "case_title": case_title,
+            "roles_count": len(effort_breakdown.get('roles', [])),
+            "total_hours": sum(role.get('hours', 0) for role in effort_breakdown.get('roles', [])),
+            "has_effort_breakdown": bool(effort_breakdown),
+            "effort_breakdown_keys": list(effort_breakdown.keys()) if effort_breakdown else []
+        }
+        
+        # Use logging context manager
+        with agent_logger.log_method_execution(
+            method_name="calculate_cost",
+            input_payload=input_payload
+        ) as log_context:
+            
+            agent_logger = log_agent_operation(
+                logger, "CostAnalystAgent", case_title, "calculate_cost"
             )
-
-        try:
-            # Attempt to fetch rate card from Firestore
-            rate_card = await self._fetch_rate_card()
-
-            if rate_card:
-                return await self._calculate_with_rate_card(
-                    effort_breakdown, rate_card, case_title
-                )
-            else:
-                logger.info(
-                    "[CostAnalystAgent] No rate card found, using default rates"
-                )
-                return await self._calculate_with_default_rates(
-                    effort_breakdown, case_title
-                )
-
-        except Exception as e:
-            log_error_with_context(
-                agent_logger,
-                "Cost calculation failed",
-                e,
-                {
-                    'effort_breakdown': str(effort_breakdown),
-                    'case_title': case_title
+            agent_logger.info(
+                "Received cost calculation request",
+                extra={
+                    'roles_count': len(effort_breakdown.get('roles', [])),
+                    'total_hours': sum(role.get('hours', 0) for role in effort_breakdown.get('roles', []))
                 }
             )
-            return {
-                "status": "error", 
-                "message": f"Error calculating cost: {str(e)}", 
-                "cost_estimate": None
-            }
+
+            if not self.db:
+                agent_logger.warning("Firestore client not available, using default rates")
+                result = await self._calculate_with_default_rates(
+                    effort_breakdown, case_title
+                )
+                return result
+
+            try:
+                # Attempt to fetch rate card from Firestore
+                rate_card = await self._fetch_rate_card()
+
+                if rate_card:
+                    result = await self._calculate_with_rate_card(
+                        effort_breakdown, rate_card, case_title
+                    )
+                    return result
+                else:
+                    logger.info(
+                        "[CostAnalystAgent] No rate card found, using default rates"
+                    )
+                    result = await self._calculate_with_default_rates(
+                        effort_breakdown, case_title
+                    )
+                    return result
+
+            except Exception as e:
+                log_error_with_context(
+                    agent_logger,
+                    "Cost calculation failed",
+                    e,
+                    {
+                        'effort_breakdown': str(effort_breakdown),
+                        'case_title': case_title
+                    }
+                )
+                return {
+                    "status": "error", 
+                    "message": f"Error calculating cost: {str(e)}", 
+                    "cost_estimate": None
+                }
 
     async def _fetch_rate_card(self) -> Dict[str, Any]:
         """

@@ -180,7 +180,7 @@ describe('ErrorDisplay Component', () => {
 
       it('should accept custom context', () => {
         render(<LoadingErrorDisplay error="Error" context="custom_context" onRetry={mockOnRetry} />);
-        expect(screen.getByText('Error')).toBeInTheDocument();
+        expect(screen.getAllByText('Error')).toHaveLength(2); // Title and message both say "Error"
       });
     });
 

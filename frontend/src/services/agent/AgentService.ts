@@ -560,6 +560,39 @@ export interface AgentService extends EnhancedAgentMethods {
   ): Promise<{ message: string; new_status: string; case_id: string }>;
 
   // ============================
+  // FINANCIAL MODEL APPROVAL METHODS
+  // ============================
+
+  /**
+   * Submits the Financial Model for review, updating the case status to FINANCIAL_MODEL_PENDING_REVIEW.
+   * @param caseId - The ID of the business case to submit for review.
+   * @returns A promise that resolves with a confirmation message and the new status.
+   */
+  submitFinancialModelForReview(
+    caseId: string
+  ): Promise<{ message: string; new_status: string; case_id: string }>;
+
+  /**
+   * Approves the Financial Model for a business case.
+   * @param caseId - The ID of the business case to approve.
+   * @returns A promise that resolves with a confirmation message and the new status.
+   */
+  approveFinancialModel(
+    caseId: string
+  ): Promise<{ message: string; new_status: string; case_id: string }>;
+
+  /**
+   * Rejects the Financial Model for a business case with an optional reason.
+   * @param caseId - The ID of the business case to reject.
+   * @param reason - Optional rejection reason.
+   * @returns A promise that resolves with a confirmation message and the new status.
+   */
+  rejectFinancialModel(
+    caseId: string,
+    reason?: string
+  ): Promise<{ message: string; new_status: string; case_id: string }>;
+
+  // ============================
   // FINAL BUSINESS CASE APPROVAL METHODS
   // ============================
 

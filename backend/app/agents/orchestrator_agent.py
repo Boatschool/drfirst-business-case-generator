@@ -88,6 +88,9 @@ class BusinessCaseStatus(Enum):
     VALUE_REJECTED = "VALUE_REJECTED"
     FINANCIAL_MODEL_IN_PROGRESS = "FINANCIAL_MODEL_IN_PROGRESS"
     FINANCIAL_MODEL_COMPLETE = "FINANCIAL_MODEL_COMPLETE"
+    FINANCIAL_MODEL_PENDING_REVIEW = "FINANCIAL_MODEL_PENDING_REVIEW"
+    FINANCIAL_MODEL_APPROVED = "FINANCIAL_MODEL_APPROVED"
+    FINANCIAL_MODEL_REJECTED = "FINANCIAL_MODEL_REJECTED"
     FINANCIAL_ANALYSIS = "FINANCIAL_ANALYSIS"
     FINAL_REVIEW = "FINAL_REVIEW"
     PENDING_FINAL_APPROVAL = "PENDING_FINAL_APPROVAL"
@@ -929,7 +932,7 @@ class OrchestratorAgent:
             orchestrator_logger.info(f"Handling PRD approval for case {case_id}")
             
             # Get the business case
-            case_doc_ref = self.db.collection("businessCases").document(case_id)
+            case_doc_ref = self.db.collection(Collections.BUSINESS_CASES).document(case_id)
             doc_snapshot = await asyncio.to_thread(case_doc_ref.get)
             
             if not doc_snapshot.exists:
@@ -988,25 +991,44 @@ class OrchestratorAgent:
             # Generate system design using ArchitectAgent
             orchestrator_logger.info(f"Invoking ArchitectAgent.generate_system_design() for case {case_id}")
             
-            system_design_response = await self.architect_agent.generate_system_design(
-                prd_content=prd_draft.get("content_markdown"),
+            # Import the GenerateSystemDesignInput model
+            from app.models.agent_models import GenerateSystemDesignInput
+            
+            # Create proper input object for ArchitectAgent
+            design_input = GenerateSystemDesignInput(
+                prd_content=prd_draft.get("content_markdown", ""),
                 case_title=case_data.get("title", "Unknown"),
-                problem_statement=case_data.get("problem_statement", ""),
+                case_id=case_id
+            )
+            
+            system_design_response = await self.architect_agent.generate_system_design(
+                input_data=design_input,
+                case_id=case_id
             )
             
             # Enhanced Logging: Agent Invocation Results
-            orchestrator_logger.info(f"ArchitectAgent response for case {case_id}: {system_design_response.get('status')}")
+            orchestrator_logger.info(f"ArchitectAgent response for case {case_id}: {system_design_response.status}")
             
             updated_at_time = datetime.now(timezone.utc)
             
-            if system_design_response.get("status") == "success" and system_design_response.get("system_design"):
+            # Import AgentStatus for comparison
+            from app.models.agent_models import AgentStatus
+            
+            if system_design_response.status == AgentStatus.SUCCESS and system_design_response.system_design_draft:
                 # System design generation successful
-                system_design = system_design_response["system_design"]
+                system_design_draft = system_design_response.system_design_draft
                 
-                # Add metadata to system design
-                system_design["generated_by"] = "ArchitectAgent"
-                system_design["version"] = "v1"
-                system_design["generated_timestamp"] = updated_at_time.isoformat()
+                # Convert SystemDesignDraft to dictionary for Firestore storage
+                system_design = {
+                    "content_markdown": system_design_draft.content_markdown,
+                    "generated_by": system_design_draft.generated_by,
+                    "version": system_design_draft.version,
+                    "generated_at": system_design_draft.generated_at,
+                    "prd_analysis": system_design_draft.prd_analysis.model_dump() if system_design_draft.prd_analysis else None,
+                    "generation_metadata": system_design_draft.generation_metadata
+                }
+                
+                # Metadata already included in system_design from SystemDesignDraft conversion
                 
                 # Update case with system design and change status to SYSTEM_DESIGN_DRAFTED
                 final_status = BusinessCaseStatus.SYSTEM_DESIGN_DRAFTED.value
@@ -1046,7 +1068,7 @@ class OrchestratorAgent:
                 }
             else:
                 # System design generation failed
-                error_message = system_design_response.get("message", "Failed to generate system design")
+                error_message = system_design_response.message or "Failed to generate system design"
                 log_error_with_context(
                     orchestrator_logger, 
                     f"ArchitectAgent failed for case {case_id}", 
@@ -1113,7 +1135,7 @@ class OrchestratorAgent:
             orchestrator_logger.info(f"Handling system design approval for case {case_id}")
             
             # Get the business case
-            case_doc_ref = self.db.collection("businessCases").document(case_id)
+            case_doc_ref = self.db.collection(Collections.BUSINESS_CASES).document(case_id)
             doc_snapshot = await asyncio.to_thread(case_doc_ref.get)
             
             if not doc_snapshot.exists:
@@ -1219,11 +1241,34 @@ class OrchestratorAgent:
                 await asyncio.to_thread(case_doc_ref.update, update_data)
                 orchestrator_logger.info(f"Effort estimation completed successfully for case {case_id}")
                 
+                # Immediately transition to EFFORT_PENDING_REVIEW for HITL review
+                review_status = BusinessCaseStatus.EFFORT_PENDING_REVIEW.value
+                review_time = datetime.now(timezone.utc)
+                
+                # Enhanced Logging: Status Transition to Review
+                orchestrator_logger.info(f"Status transition: {final_status} -> {review_status} for case {case_id}")
+                
+                review_update_data = {
+                    "status": review_status,
+                    "updated_at": review_time,
+                    "history": get_array_union([
+                        {
+                            "timestamp": review_time.isoformat(),
+                            "source": "ORCHESTRATOR_AGENT",
+                            "type": "STATUS_UPDATE",
+                            "content": f"Status updated to {review_status}. Effort estimate complete. Ready for review.",
+                        }
+                    ]),
+                }
+                
+                await asyncio.to_thread(case_doc_ref.update, review_update_data)
+                orchestrator_logger.info(f"Effort estimate ready for review for case {case_id}")
+                
                 return {
                     "status": "success",
-                    "message": "Effort estimation generated successfully",
+                    "message": "Effort estimation generated successfully and ready for review",
                     "case_id": case_id,
-                    "new_status": final_status,
+                    "new_status": review_status,
                 }
             else:
                 # Effort estimation failed
@@ -1272,6 +1317,207 @@ class OrchestratorAgent:
                 "message": f"Error handling system design approval: {str(e)}",
             }
 
+    async def handle_effort_approval(self, case_id: str) -> Dict[str, Any]:
+        """
+        Handle Effort Estimate approval by triggering Cost Analysis generation.
+        
+        Args:
+            case_id (str): The business case ID
+            
+        Returns:
+            Dict[str, Any]: Result of the cost analysis generation trigger
+        """
+        try:
+            orchestrator_logger = log_agent_operation(
+                self.logger, "OrchestratorAgent", case_id, "handle_effort_approval"
+            )
+            orchestrator_logger.info(f"Handling effort approval for case {case_id}")
+            
+            # Get the business case
+            case_doc_ref = self.db.collection(Collections.BUSINESS_CASES).document(case_id)
+            doc_snapshot = await asyncio.to_thread(case_doc_ref.get)
+            
+            if not doc_snapshot.exists:
+                return {
+                    "status": "error",
+                    "message": f"Business case {case_id} not found",
+                }
+            
+            case_data = doc_snapshot.to_dict()
+            
+            # Verify effort estimate is approved
+            current_status = case_data.get("status")
+            expected_status = BusinessCaseStatus.EFFORT_APPROVED.value
+            
+            # Enhanced Logging: Status Transition Validation
+            orchestrator_logger.info(f"Status check for case {case_id}: current is {current_status}, expecting {expected_status}")
+            
+            if current_status != expected_status:
+                return {
+                    "status": "error",
+                    "message": f"Case status is {current_status}, expected {expected_status}",
+                }
+            
+            # Check if effort estimate exists
+            effort_estimate = case_data.get("effort_estimate_v1")
+            if not effort_estimate:
+                return {
+                    "status": "error",
+                    "message": "Effort estimate not found",
+                }
+            
+            # Trigger Cost Analysis generation
+            orchestrator_logger.info(f"Triggering cost analysis for case {case_id}")
+            
+            # Update status to COSTING_IN_PROGRESS
+            current_time = datetime.now(timezone.utc)
+            new_status = BusinessCaseStatus.COSTING_IN_PROGRESS.value
+            
+            # Enhanced Logging: Status Transition
+            orchestrator_logger.info(f"Status transition: {current_status} -> {new_status} for case {case_id}")
+            
+            update_data = {
+                "status": new_status,
+                "updated_at": current_time,
+                "history": get_array_union([
+                    {
+                        "timestamp": current_time.isoformat(),
+                        "source": "ORCHESTRATOR_AGENT", 
+                        "type": "STATUS_UPDATE",
+                        "content": f"Status updated to {new_status}. CostAnalystAgent initiated for cost estimation.",
+                    }
+                ]),
+            }
+            await asyncio.to_thread(case_doc_ref.update, update_data)
+            
+            # Generate cost estimation using CostAnalystAgent
+            orchestrator_logger.info(f"Invoking CostAnalystAgent.calculate_cost() for case {case_id}")
+            
+            cost_response = await self.cost_analyst_agent.calculate_cost(
+                effort_breakdown=effort_estimate,
+                case_title=case_data.get("title", "Unknown"),
+                case_id=case_id,
+            )
+            
+            # Enhanced Logging: Agent Invocation Results
+            orchestrator_logger.info(f"CostAnalystAgent response for case {case_id}: {cost_response.get('status')}")
+            
+            updated_at_time = datetime.now(timezone.utc)
+            
+            if cost_response.get("status") == "success" and cost_response.get("cost_estimate"):
+                # Cost analysis successful
+                cost_estimate = cost_response["cost_estimate"]
+                
+                # Add metadata to cost estimate
+                cost_estimate["generated_by"] = "CostAnalystAgent"
+                cost_estimate["version"] = "v1"
+                cost_estimate["generated_timestamp"] = updated_at_time.isoformat()
+                
+                # Update case with cost estimate and change status to COSTING_COMPLETE
+                final_status = BusinessCaseStatus.COSTING_COMPLETE.value
+                
+                # Enhanced Logging: Status Transition
+                orchestrator_logger.info(f"Status transition: {new_status} -> {final_status} for case {case_id}")
+                
+                update_data = {
+                    "cost_estimate_v1": cost_estimate,
+                    "status": final_status,
+                    "updated_at": updated_at_time,
+                    "history": get_array_union([
+                        {
+                            "timestamp": updated_at_time.isoformat(),
+                            "source": "COST_ANALYST_AGENT",
+                            "type": "COST_ESTIMATE",
+                            "content": f"Cost estimate generated for {case_data.get('title', 'Unknown')}",
+                        },
+                        {
+                            "timestamp": updated_at_time.isoformat(),
+                            "source": "ORCHESTRATOR_AGENT",
+                            "type": "STATUS_UPDATE", 
+                            "content": f"Status updated to {final_status}. Cost estimation completed.",
+                        }
+                    ]),
+                }
+                
+                await asyncio.to_thread(case_doc_ref.update, update_data)
+                orchestrator_logger.info(f"Cost estimation completed successfully for case {case_id}")
+                
+                # Immediately transition to COSTING_PENDING_REVIEW for HITL review
+                review_status = BusinessCaseStatus.COSTING_PENDING_REVIEW.value
+                review_time = datetime.now(timezone.utc)
+                
+                # Enhanced Logging: Status Transition to Review
+                orchestrator_logger.info(f"Status transition: {final_status} -> {review_status} for case {case_id}")
+                
+                review_update_data = {
+                    "status": review_status,
+                    "updated_at": review_time,
+                    "history": get_array_union([
+                        {
+                            "timestamp": review_time.isoformat(),
+                            "source": "ORCHESTRATOR_AGENT",
+                            "type": "STATUS_UPDATE",
+                            "content": f"Status updated to {review_status}. Cost estimate complete. Ready for review.",
+                        }
+                    ]),
+                }
+                
+                await asyncio.to_thread(case_doc_ref.update, review_update_data)
+                orchestrator_logger.info(f"Cost estimate ready for review for case {case_id}")
+                
+                return {
+                    "status": "success",
+                    "message": "Cost estimation completed successfully and ready for review",
+                    "case_id": case_id,
+                    "new_status": review_status,
+                }
+            else:
+                # Cost analysis failed
+                error_message = cost_response.get("message", "Failed to generate cost estimate")
+                orchestrator_logger.warning(f"Cost analysis failed for case {case_id}: {error_message}")
+                
+                # Revert to EFFORT_APPROVED state
+                revert_status = BusinessCaseStatus.EFFORT_APPROVED.value
+                
+                # Enhanced Logging: Status Transition (revert)
+                orchestrator_logger.info(f"Status transition (revert): {new_status} -> {revert_status} for case {case_id}")
+                
+                revert_update_data = {
+                    "status": revert_status,
+                    "updated_at": updated_at_time,
+                    "history": get_array_union([
+                        {
+                            "timestamp": updated_at_time.isoformat(),
+                            "source": "ORCHESTRATOR_AGENT",
+                            "type": "ERROR",
+                            "content": f"Cost estimation failed: {error_message}. Status reverted to {revert_status}.",
+                        }
+                    ]),
+                }
+                
+                await asyncio.to_thread(case_doc_ref.update, revert_update_data)
+                
+                return {
+                    "status": "error",
+                    "message": f"Failed to generate cost estimate: {error_message}",
+                    "case_id": case_id,
+                }
+                
+        except Exception as e:
+            orchestrator_logger = log_agent_operation(
+                self.logger, "OrchestratorAgent", case_id, "handle_effort_approval"
+            )
+            log_error_with_context(
+                orchestrator_logger, 
+                f"Error handling effort approval for case {case_id}", 
+                e,
+                {'case_id': case_id}
+            )
+            return {
+                "status": "error",
+                "message": f"Error handling effort approval: {str(e)}",
+            }
+
     async def check_and_trigger_financial_model(self, case_id: str) -> Dict[str, Any]:
         """
         Check if both cost estimate and value projection are approved, and if so,
@@ -1288,7 +1534,7 @@ class OrchestratorAgent:
 
         try:
             # Get the latest case data
-            case_doc_ref = self.db.collection("businessCases").document(case_id)
+            case_doc_ref = self.db.collection(Collections.BUSINESS_CASES).document(case_id)
             doc_snapshot = await asyncio.to_thread(case_doc_ref.get)
 
             if not doc_snapshot.exists:
@@ -1322,7 +1568,7 @@ class OrchestratorAgent:
             # Check if both are approved
             if current_status == BusinessCaseStatus.COSTING_APPROVED.value:
                 # Cost was just approved, check if value is also approved
-                case_doc_ref_refresh = self.db.collection("businessCases").document(
+                case_doc_ref_refresh = self.db.collection(Collections.BUSINESS_CASES).document(
                     case_id
                 )
                 doc_snapshot_refresh = await asyncio.to_thread(case_doc_ref_refresh.get)
@@ -1357,7 +1603,7 @@ class OrchestratorAgent:
 
             elif current_status == BusinessCaseStatus.VALUE_APPROVED.value:
                 # Value was just approved, check if cost is also approved
-                case_doc_ref_refresh = self.db.collection("businessCases").document(
+                case_doc_ref_refresh = self.db.collection(Collections.BUSINESS_CASES).document(
                     case_id
                 )
                 doc_snapshot_refresh = await asyncio.to_thread(case_doc_ref_refresh.get)
@@ -1405,9 +1651,9 @@ class OrchestratorAgent:
             print(f"[OrchestratorAgent] {error_msg}")
             return {"status": "error", "message": error_msg}
 
-    async def handle_cost_completion(self, case_id: str) -> Dict[str, Any]:
+    async def handle_cost_approval(self, case_id: str) -> Dict[str, Any]:
         """
-        Handle cost analysis completion by triggering value analysis generation.
+        Handle cost estimate approval by triggering value analysis generation.
         
         Args:
             case_id (str): The business case ID
@@ -1417,9 +1663,9 @@ class OrchestratorAgent:
         """
         try:
             orchestrator_logger = log_agent_operation(
-                self.logger, "OrchestratorAgent", case_id, "handle_cost_completion"
+                self.logger, "OrchestratorAgent", case_id, "handle_cost_approval"
             )
-            orchestrator_logger.info(f"Handling cost completion for case {case_id}")
+            orchestrator_logger.info(f"Handling cost approval for case {case_id}")
             
             # Get the business case
             case_doc_ref = self.db.collection(Collections.BUSINESS_CASES).document(case_id)
@@ -1433,7 +1679,7 @@ class OrchestratorAgent:
             
             case_data = doc_snapshot.to_dict()
             
-            # Verify cost estimation is approved
+            # Verify cost estimate is approved
             if case_data.get("status") != BusinessCaseStatus.COSTING_APPROVED.value:
                 return {
                     "status": "error",
@@ -1468,7 +1714,7 @@ class OrchestratorAgent:
             
             # Generate value analysis using SalesValueAnalystAgent  
             orchestrator_logger.info("[SalesValueAnalystAgent] Initiating value projection generation...")
-            value_response = await self.sales_value_analyst_agent.analyze_value(
+            value_response = await self.sales_value_analyst_agent.project_value(
                 prd_content=prd_draft.get("content_markdown"),
                 case_title=case_data.get("title", "Unknown")
             )
@@ -1506,13 +1752,28 @@ class OrchestratorAgent:
                     ]),
                 })
                 
-                orchestrator_logger.info(f"Value analysis generation completed successfully for case {case_id}")
+                # Immediately transition to VALUE_PENDING_REVIEW for HITL review
+                review_time = datetime.now(timezone.utc)
+                case_doc_ref.update({
+                    "status": BusinessCaseStatus.VALUE_PENDING_REVIEW.value,
+                    "updated_at": review_time,
+                    "history": get_array_union([
+                        {
+                            "timestamp": review_time.isoformat(),
+                            "source": "ORCHESTRATOR_AGENT",
+                            "type": "STATUS_UPDATE",
+                            "content": "Value projection ready for review.",
+                        }
+                    ]),
+                })
+                
+                orchestrator_logger.info(f"Value projection generated and ready for review for case {case_id}")
                 
                 return {
                     "status": "success",
-                    "message": "Value analysis generated successfully",
+                    "message": "Value projection generated and ready for review.",
                     "case_id": case_id,
-                    "new_status": BusinessCaseStatus.VALUE_ANALYSIS_COMPLETE.value,
+                    "new_status": BusinessCaseStatus.VALUE_PENDING_REVIEW.value,
                 }
             else:
                 # Value analysis generation failed
@@ -1546,17 +1807,17 @@ class OrchestratorAgent:
                 
         except Exception as e:
             orchestrator_logger = log_agent_operation(
-                self.logger, "OrchestratorAgent", case_id, "handle_cost_completion"
+                self.logger, "OrchestratorAgent", case_id, "handle_cost_approval"
             )
             log_error_with_context(
                 orchestrator_logger, 
-                f"Error handling cost completion for case {case_id}", 
+                f"Error handling cost approval for case {case_id}", 
                 e,
                 {'case_id': case_id}
             )
             return {
                 "status": "error",
-                "message": f"Error handling cost completion: {str(e)}",
+                "message": f"Error handling cost approval: {str(e)}",
             }
 
     async def _generate_financial_model(
@@ -1707,3 +1968,99 @@ class OrchestratorAgent:
             )
             print(f"[OrchestratorAgent] {error_msg}")
             return {"status": "error", "message": error_msg}
+
+    async def handle_value_approval(self, case_id: str) -> Dict[str, Any]:
+        """
+        Handle value projection approval by checking if cost estimate is also approved,
+        and if so, trigger financial model generation.
+        
+        Args:
+            case_id (str): The business case ID
+            
+        Returns:
+            Dict[str, Any]: Result of the value approval handling
+        """
+        try:
+            orchestrator_logger = log_agent_operation(
+                self.logger, "OrchestratorAgent", case_id, "handle_value_approval"
+            )
+            orchestrator_logger.info(f"Handling value projection approval for case {case_id}")
+            
+            # Get the business case
+            case_doc_ref = self.db.collection(Collections.BUSINESS_CASES).document(case_id)
+            doc_snapshot = await asyncio.to_thread(case_doc_ref.get)
+            
+            if not doc_snapshot.exists:
+                return {
+                    "status": "error",
+                    "message": f"Business case {case_id} not found",
+                }
+            
+            case_data = doc_snapshot.to_dict()
+            
+            # Verify value projection is approved
+            if case_data.get("status") != BusinessCaseStatus.VALUE_APPROVED.value:
+                return {
+                    "status": "error",
+                    "message": f"Case status is {case_data.get('status')}, expected VALUE_APPROVED",
+                }
+            
+            # Verify both cost and value data exist (robust check instead of history sniffing)
+            # Since the workflow is sequential, if we're at VALUE_APPROVED with both data pieces,
+            # cost must have been approved previously
+            cost_estimate = case_data.get("cost_estimate_v1")
+            value_projection = case_data.get("value_projection_v1")
+            case_title = case_data.get("title", "Unknown")
+            
+            if not cost_estimate:
+                orchestrator_logger.info(f"Value projection approved for case {case_id}, but cost estimate data not found")
+                return {
+                    "status": "success",
+                    "message": "Value projection approved. Awaiting cost estimate data.",
+                }
+            
+            if not value_projection:
+                return {
+                    "status": "error",
+                    "message": "Value projection data missing despite VALUE_APPROVED status",
+                }
+            
+            orchestrator_logger.info(f"Both cost and value approved for case {case_id}, triggering financial model generation")
+            
+            # Trigger financial model generation
+            financial_result = await self._generate_financial_model(
+                case_id=case_id,
+                case_doc_ref=case_doc_ref,
+                cost_estimate=cost_estimate,
+                value_projection=value_projection,
+                case_title=case_title
+            )
+            
+            if financial_result.get("status") == "success":
+                orchestrator_logger.info(f"Financial model generated successfully for case {case_id}")
+                return {
+                    "status": "success",
+                    "message": "Financial model generated and ready for final review.",
+                    "new_status": BusinessCaseStatus.FINANCIAL_MODEL_COMPLETE.value,
+                }
+            else:
+                orchestrator_logger.error(f"Financial model generation failed for case {case_id}: {financial_result.get('message')}")
+                return {
+                    "status": "error",
+                    "message": f"Failed to generate financial model: {financial_result.get('message')}",
+                }
+                
+        except Exception as e:
+            orchestrator_logger = log_agent_operation(
+                self.logger, "OrchestratorAgent", case_id, "handle_value_approval"
+            )
+            log_error_with_context(
+                orchestrator_logger, 
+                f"Error handling value approval for case {case_id}", 
+                e,
+                {'case_id': case_id}
+            )
+            return {
+                "status": "error",
+                "message": f"Error handling value approval: {str(e)}",
+            }

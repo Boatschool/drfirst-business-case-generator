@@ -2,8 +2,9 @@
 Financial Model Agent for consolidating cost estimates and value projections.
 """
 
-from typing import Dict, Any
+from typing import Dict, Any, Optional
 import logging
+from app.core.agent_logging import create_agent_logger
 
 # Set up logging
 logger = logging.getLogger(__name__)
@@ -25,11 +26,39 @@ class FinancialModelAgent:
         logger.info("FinancialModelAgent: Initialized successfully.")
         self.status = "available"
 
+    async def generate_financial_model(
+        self,
+        cost_estimate: Dict[str, Any],
+        value_projection: Dict[str, Any],
+        case_title: str,
+        case_id: Optional[str] = None,
+    ) -> Dict[str, Any]:
+        """
+        Public interface for financial model generation that matches function calling expectations.
+        Delegates to generate_financial_summary method with enhanced logging.
+
+        Args:
+            cost_estimate (Dict[str, Any]): The approved cost estimate data
+            value_projection (Dict[str, Any]): The approved value projection data
+            case_title (str): Title of the business case
+            case_id (str, optional): Business case ID for logging
+
+        Returns:
+            Dict[str, Any]: Response containing status and financial summary
+        """
+        return await self.generate_financial_summary(
+            cost_estimate=cost_estimate,
+            value_projection=value_projection,
+            case_title=case_title,
+            case_id=case_id
+        )
+
     async def generate_financial_summary(
         self,
         cost_estimate: Dict[str, Any],
         value_projection: Dict[str, Any],
         case_title: str,
+        case_id: Optional[str] = None,
     ) -> Dict[str, Any]:
         """
         Generates a comprehensive financial summary by consolidating cost estimates and value projections.
@@ -38,61 +67,92 @@ class FinancialModelAgent:
             cost_estimate (Dict[str, Any]): The approved cost estimate data
             value_projection (Dict[str, Any]): The approved value projection data
             case_title (str): Title of the business case
+            case_id (str, optional): Business case ID for logging
 
         Returns:
             Dict[str, Any]: Response containing status and financial summary
         """
-        logger.info(f"[FinancialModelAgent] Generating financial summary for: {case_title}")
+        # Create agent logger
+        agent_logger = create_agent_logger("FinancialModelAgent", case_id)
+        
+        # Prepare input payload for logging
+        input_payload = {
+            "case_title": case_title,
+            "has_cost_estimate": bool(cost_estimate),
+            "has_value_projection": bool(value_projection),
+            "cost_estimate_keys": list(cost_estimate.keys()) if cost_estimate else [],
+            "value_projection_keys": list(value_projection.keys()) if value_projection else [],
+            "estimated_cost": cost_estimate.get("estimated_cost") if cost_estimate else None,
+            "scenarios_count": len(value_projection.get("scenarios", [])) if value_projection else 0
+        }
+        
+        # Use logging context manager
+        with agent_logger.log_method_execution(
+            method_name="generate_financial_summary",
+            input_payload=input_payload
+        ) as log_context:
+            
+            logger.info(f"[FinancialModelAgent] Generating financial summary for: {case_title}")
 
-        try:
-            # Extract key figures from cost estimate
-            total_cost = self._extract_total_cost(cost_estimate)
-            cost_currency = cost_estimate.get("currency", "USD")
+            try:
+                # Extract key figures from cost estimate
+                total_cost = self._extract_total_cost(cost_estimate)
+                cost_currency = cost_estimate.get("currency", "USD")
 
-            # Extract key figures from value projection
-            value_scenarios = self._extract_value_scenarios(value_projection)
-            value_currency = value_projection.get("currency", "USD")
+                # Extract key figures from value projection
+                value_scenarios = self._extract_value_scenarios(value_projection)
+                value_currency = value_projection.get("currency", "USD")
 
-            # Validate currency consistency
-            if cost_currency != value_currency:
-                logger.warning(
-                    f"[FinancialModelAgent] Currency mismatch: Cost ({cost_currency}) vs Value ({value_currency})"
+                # Validate currency consistency
+                if cost_currency != value_currency:
+                    logger.warning(
+                        f"[FinancialModelAgent] Currency mismatch: Cost ({cost_currency}) vs Value ({value_currency})"
+                    )
+                    # For V1, we'll continue with a warning but use the cost currency as primary
+
+                primary_currency = cost_currency
+
+                # Calculate basic financial metrics
+                financial_metrics = self._calculate_financial_metrics(
+                    total_cost, value_scenarios, primary_currency
                 )
-                # For V1, we'll continue with a warning but use the cost currency as primary
 
-            primary_currency = cost_currency
+                # Construct the financial summary
+                summary_data = {
+                    "total_estimated_cost": total_cost,
+                    "currency": primary_currency,
+                    "value_scenarios": value_scenarios,
+                    "financial_metrics": financial_metrics,
+                    "cost_breakdown_source": cost_estimate.get(
+                        "rate_card_used", "Default rates"
+                    ),
+                    "value_methodology": value_projection.get(
+                        "methodology", "Standard projection"
+                    ),
+                    "notes": "Initial financial summary based on approved estimates.",
+                    "generated_timestamp": None,  # Will be set by orchestrator
+                }
 
-            # Calculate basic financial metrics
-            financial_metrics = self._calculate_financial_metrics(
-                total_cost, value_scenarios, primary_currency
-            )
+                logger.info(
+                    f"[FinancialModelAgent] Successfully generated financial summary for {case_title}"
+                )
+                
+                # Prepare output payload
+                output_payload = {
+                    "status": "success", 
+                    "financial_summary": summary_data,
+                    "total_cost": total_cost,
+                    "currency": primary_currency,
+                    "scenarios_processed": len(value_scenarios),
+                    "metrics_calculated": len(financial_metrics)
+                }
+                
+                return output_payload
 
-            # Construct the financial summary
-            summary_data = {
-                "total_estimated_cost": total_cost,
-                "currency": primary_currency,
-                "value_scenarios": value_scenarios,
-                "financial_metrics": financial_metrics,
-                "cost_breakdown_source": cost_estimate.get(
-                    "rate_card_used", "Default rates"
-                ),
-                "value_methodology": value_projection.get(
-                    "methodology", "Standard projection"
-                ),
-                "notes": "Initial financial summary based on approved estimates.",
-                "generated_timestamp": None,  # Will be set by orchestrator
-            }
-
-            logger.info(
-                f"[FinancialModelAgent] Successfully generated financial summary for {case_title}"
-            )
-            return {"status": "success", "financial_summary": summary_data}
-
-        except Exception as e:
-            error_msg = f"Error generating financial summary: {str(e)}"
-            logger.error(f"[FinancialModelAgent] {error_msg} for case {case_title}")
-            logger.info(f"[FinancialModelAgent] {error_msg}")
-            return {"status": "error", "message": error_msg, "financial_summary": None}
+            except Exception as e:
+                error_msg = f"Error generating financial summary: {str(e)}"
+                logger.error(f"[FinancialModelAgent] {error_msg} for case {case_title}")
+                return {"status": "error", "message": error_msg, "financial_summary": None}
 
     def _extract_total_cost(self, cost_estimate: Dict[str, Any]) -> float:
         """

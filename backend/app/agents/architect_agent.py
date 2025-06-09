@@ -10,6 +10,7 @@ import vertexai.preview.generative_models as generative_models
 from pydantic import ValidationError
 
 from ..core.config import settings
+from ..services.vertex_ai_service import VertexAIService
 from ..models.agent_models import (
     GenerateSystemDesignInput,
     GenerateSystemDesignOutput,
@@ -90,7 +91,7 @@ class ArchitectAgent:
             self.status = "error"
 
     @timeout_handler(120)  # 2 minute timeout for PRD analysis
-    async def analyze_prd_content(self, prd_content: str) -> Dict[str, Any]:
+    async def analyze_prd_content(self, prd_content: str, log_llm_call=None, trace_id=None) -> Dict[str, Any]:
         """
         Analyze PRD content to extract key architectural requirements.
 
@@ -105,10 +106,12 @@ class ArchitectAgent:
         if not self.model:
             return {"error": "Model not available"}
 
-        # Truncate oversized PRDs
-        if len(prd_content) > self.max_prd_length:
-            logger.warning(f"[ArchitectAgent] PRD too large ({len(prd_content)} chars), truncating to {self.max_prd_length}")
-            prd_content = prd_content[:self.max_prd_length] + "\n\n[Content truncated for processing...]"
+        # Use centralized content truncation
+        prd_content, was_truncated = VertexAIService.truncate_content(
+            prd_content, self.max_prd_length
+        )
+        if was_truncated:
+            logger.warning(f"[ArchitectAgent] PRD content was truncated to {self.max_prd_length} characters")
 
         try:
             analysis_prompt = """Analyze the following PRD content and extract key architectural information:
@@ -138,39 +141,92 @@ Please provide a structured analysis in JSON format with the following sections:
 
 Focus on extracting concrete, actionable architectural information that will guide system design decisions.""".format(prd_content=prd_content)
 
-            response = await self.model.generate_content_async(
-                [analysis_prompt],
-                generation_config={
-                    "max_output_tokens": 2048,
-                    "temperature": 0.2,
-                    "top_p": 0.8,
-                },
-                stream=False,
+            generation_config = {
+                "max_output_tokens": 2048,
+                "temperature": 0.2,
+                "top_p": 0.8,
+            }
+            
+            # Use centralized retry logic for robust LLM call
+            analysis_text = await VertexAIService.generate_with_retry(
+                model=self.model,
+                prompt=analysis_prompt,
+                generation_config=generation_config,
+                model_name=self.model_name,
+                max_retries=self.max_retries,
+                timeout_seconds=self.prd_analysis_timeout,
+                log_llm_call=log_llm_call,
+                agent_name="ArchitectAgent"
             )
 
-            if response.candidates and response.candidates[0].content.parts:
-                analysis_text = response.candidates[0].content.parts[0].text.strip()
-
-                # Try to extract JSON from the response
-                try:
-                    # Find JSON block in the response
-                    json_match = re.search(r"\{.*\}", analysis_text, re.DOTALL)
-                    if json_match:
-                        analysis_data = json.loads(json_match.group())
-                        logger.info("[ArchitectAgent] PRD analysis completed successfully")
-                        return analysis_data
-                    else:
-                        # Fallback to basic analysis
-                        return self._fallback_prd_analysis(prd_content)
-                except json.JSONDecodeError:
-                    logger.warning("[ArchitectAgent] Could not parse PRD analysis JSON, using fallback")
+            if analysis_text:
+                # Use centralized JSON extraction
+                analysis_data = VertexAIService.extract_json_from_text(analysis_text)
+                
+                if analysis_data:
+                    # Sanitize data to match PrdAnalysis model expectations
+                    sanitized_data = self._sanitize_prd_analysis(analysis_data)
+                    logger.info("[ArchitectAgent] PRD analysis completed successfully with robust parsing")
+                    return sanitized_data
+                else:
+                    logger.warning("[ArchitectAgent] Could not extract JSON from PRD analysis, using fallback")
                     return self._fallback_prd_analysis(prd_content)
             else:
+                logger.warning("[ArchitectAgent] No response from PRD analysis after retries, using fallback")
                 return self._fallback_prd_analysis(prd_content)
 
         except Exception as e:
             logger.error(f"[ArchitectAgent] Error in PRD analysis: {str(e)}")
+            
+            # Log LLM interaction error if logging function provided
+            if log_llm_call:
+                log_llm_call(
+                    model_name=self.model_name,
+                    prompt=analysis_prompt,
+                    parameters=generation_config,
+                    error=str(e)
+                )
+            
             return self._fallback_prd_analysis(prd_content)
+
+    def _sanitize_prd_analysis(self, analysis_data: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Sanitize PRD analysis data to match PrdAnalysis model expectations.
+        Converts complex objects to strings where needed.
+        """
+        def _convert_to_string_list(data_list: List) -> List[str]:
+            """Convert a list of mixed types to a list of strings."""
+            result = []
+            for item in data_list:
+                if isinstance(item, dict):
+                    # Extract meaningful text from dict
+                    if 'endpoint' in item and 'description' in item:
+                        result.append(f"{item['endpoint']}: {item['description']}")
+                    elif 'name' in item:
+                        result.append(str(item['name']))
+                    else:
+                        # Convert dict to a meaningful string
+                        result.append(str(item))
+                elif isinstance(item, str):
+                    result.append(item)
+                else:
+                    result.append(str(item))
+            return result
+
+        # Make a copy to avoid modifying the original
+        sanitized = analysis_data.copy()
+        
+        # Ensure all list fields are strings
+        list_fields = [
+            'key_features', 'user_roles', 'data_entities', 'external_integrations',
+            'functional_requirements', 'non_functional_requirements', 'api_needs', 'data_storage_needs'
+        ]
+        
+        for field in list_fields:
+            if field in sanitized and isinstance(sanitized[field], list):
+                sanitized[field] = _convert_to_string_list(sanitized[field])
+        
+        return sanitized
 
     def _fallback_prd_analysis(self, prd_content: str) -> Dict[str, Any]:
         """
@@ -206,56 +262,10 @@ Focus on extracting concrete, actionable architectural information that will gui
             "data_storage_needs": ["Database storage required"],
         }
 
-    async def _generate_with_retry(self, prompt: str, config: dict, attempt: int = 1) -> Optional[str]:
-        """
-        Generate content with retry logic and timeout protection.
-        """
-        try:
-            logger.info(f"[ArchitectAgent] Generation attempt {attempt}/{self.max_retries + 1}")
-            
-            # Apply timeout to the actual Vertex AI call
-            response = await asyncio.wait_for(
-                self.model.generate_content_async(
-                    [prompt],
-                    generation_config=config,
-                    safety_settings={
-                        generative_models.HarmCategory.HARM_CATEGORY_HATE_SPEECH: generative_models.HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE,
-                        generative_models.HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT: generative_models.HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE,
-                        generative_models.HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT: generative_models.HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE,
-                        generative_models.HarmCategory.HARM_CATEGORY_HARASSMENT: generative_models.HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE,
-                    },
-                    stream=False,
-                ),
-                timeout=self.system_design_timeout
-            )
 
-            if response.candidates and response.candidates[0].content.parts:
-                content = response.candidates[0].content.parts[0].text.strip()
-                logger.info(f"[ArchitectAgent] Successfully generated content ({len(content)} characters)")
-                return content
-            else:
-                logger.warning(f"[ArchitectAgent] No content generated on attempt {attempt}")
-                if attempt <= self.max_retries:
-                    await asyncio.sleep(2 ** attempt)  # Exponential backoff
-                    return await self._generate_with_retry(prompt, config, attempt + 1)
-                return None
-
-        except asyncio.TimeoutError:
-            logger.error(f"[ArchitectAgent] Vertex AI call timed out on attempt {attempt}")
-            if attempt <= self.max_retries:
-                await asyncio.sleep(2 ** attempt)
-                return await self._generate_with_retry(prompt, config, attempt + 1)
-            raise TimeoutError(f"System design generation timed out after {self.max_retries + 1} attempts")
-        
-        except Exception as e:
-            logger.error(f"[ArchitectAgent] Error on attempt {attempt}: {str(e)}")
-            if attempt <= self.max_retries:
-                await asyncio.sleep(2 ** attempt)
-                return await self._generate_with_retry(prompt, config, attempt + 1)
-            raise e
 
     async def generate_system_design(
-        self, input_data: GenerateSystemDesignInput
+        self, input_data: GenerateSystemDesignInput, case_id: Optional[str] = None
     ) -> GenerateSystemDesignOutput:
         """
         Generates an enhanced system design proposal based on PRD analysis.
@@ -263,13 +273,18 @@ Focus on extracting concrete, actionable architectural information that will gui
 
         Args:
             input_data: GenerateSystemDesignInput with PRD content and case details
+            case_id: Optional case ID for tracking
 
         Returns:
             GenerateSystemDesignOutput: Response containing status and enhanced system design content
         """
-        # Generate operation ID for tracking
-        operation_id = str(uuid.uuid4())
-        start_time = datetime.now()
+        import time
+        
+        # Import the agent logging utilities
+        from ..core.agent_logging import create_agent_logger
+        
+        # Create enhanced logger for this operation
+        agent_logger = create_agent_logger("ArchitectAgent", case_id)
         
         try:
             # Validate input
@@ -279,7 +294,7 @@ Focus on extracting concrete, actionable architectural information that will gui
             return GenerateSystemDesignOutput(
                 status=AgentStatus.ERROR,
                 message=f"Input validation failed: {str(e)}",
-                operation_id=operation_id,
+                operation_id=str(uuid.uuid4()),
                 system_design_draft=None
             )
         
@@ -287,29 +302,38 @@ Focus on extracting concrete, actionable architectural information that will gui
         prd_content = input_data.prd_content
         case_title = input_data.case_title
         
-        logger.info(f"[ArchitectAgent] Starting system design generation for: {case_title}")
+        # Prepare input payload for logging
+        input_payload = {
+            "case_title": case_title,
+            "prd_content_length": len(prd_content),
+            "case_id": case_id,
+            "max_prd_length": self.max_prd_length
+        }
+        
+        # Use context manager for comprehensive logging
+        start_time = time.time()
+        with agent_logger.log_method_execution('generate_system_design', input_payload, case_id) as ctx:
+            trace_id = ctx['trace_id']
+            log_llm_call = ctx['log_llm']
 
-        if not self.model:
-            return GenerateSystemDesignOutput(
-                status=AgentStatus.ERROR,
-                message="ArchitectAgent not properly initialized with Vertex AI model.",
-                operation_id=operation_id,
-                system_design_draft=None
-            )
+            if not self.model:
+                return GenerateSystemDesignOutput(
+                    status=AgentStatus.ERROR,
+                    message="ArchitectAgent not properly initialized with Vertex AI model.",
+                    operation_id=trace_id,
+                    system_design_draft=None
+                )
 
-        try:
             # Step 1: Analyze PRD with timeout protection
             logger.info("[ArchitectAgent] Step 1/2: Analyzing PRD content...")
-            prd_analysis = await self.analyze_prd_content(prd_content)
+            prd_analysis = await self.analyze_prd_content(prd_content, log_llm_call, trace_id)
             
             if "error" in prd_analysis:
                 logger.error(f"[ArchitectAgent] PRD analysis failed: {prd_analysis['error']}")
-                duration_ms = int((datetime.now() - start_time).total_seconds() * 1000)
                 return GenerateSystemDesignOutput(
                     status=AgentStatus.ERROR,
                     message=f"PRD analysis failed: {prd_analysis['error']}",
-                    operation_id=operation_id,
-                    duration_ms=duration_ms,
+                    operation_id=trace_id,
                     system_design_draft=None
                 )
 
@@ -326,14 +350,21 @@ Focus on extracting concrete, actionable architectural information that will gui
                 "top_k": 40,
             }
 
-            # Generate with retry and timeout protection
-            system_design_content = await self._generate_with_retry(
-                system_design_prompt, generation_config
+            # Generate with centralized retry and timeout protection
+            system_design_content = await VertexAIService.generate_with_retry(
+                model=self.model,
+                prompt=system_design_prompt,
+                generation_config=generation_config,
+                model_name=self.model_name,
+                max_retries=self.max_retries,
+                timeout_seconds=self.system_design_timeout,
+                log_llm_call=log_llm_call,
+                agent_name="ArchitectAgent"
             )
 
             if system_design_content:
                 # Calculate duration
-                duration_ms = int((datetime.now() - start_time).total_seconds() * 1000)
+                duration_ms = int((time.time() - start_time) * 1000)
                 
                 # Create PrdAnalysis object
                 prd_analysis_obj = PrdAnalysis(**prd_analysis)
@@ -341,8 +372,8 @@ Focus on extracting concrete, actionable architectural information that will gui
                 # Create SystemDesignDraft object
                 system_design_draft = SystemDesignDraft(
                     content_markdown=system_design_content,
-                    generated_by="ArchitectAgent (Enhanced with Timeout Protection)",
-                    version="v2.1",
+                    generated_by="ArchitectAgent (Enhanced with Robust Retry Logic)",
+                    version="v2.2",
                     generated_at=datetime.now().isoformat(),
                     prd_analysis=prd_analysis_obj,
                     generation_metadata={
@@ -359,47 +390,44 @@ Focus on extracting concrete, actionable architectural information that will gui
                 logger.info(f"[ArchitectAgent] Successfully generated system design for {case_title}")
                 logger.info(f"[ArchitectAgent] Generated content length: {len(system_design_content)} characters")
 
+                # Calculate total execution time and log method completion
+                total_execution_time_ms = (time.time() - start_time) * 1000
+                
+                # Prepare output payload for logging
+                output_payload = {
+                    "status": "SUCCESS",
+                    "system_design_length": len(system_design_content),
+                    "model_used": self.model_name,
+                    "prd_analysis_status": "success"
+                }
+                
+                # Log successful method completion
+                agent_logger.log_method_end(
+                    trace_id=trace_id,
+                    method_name='generate_system_design',
+                    output_payload=output_payload,
+                    execution_time_ms=total_execution_time_ms,
+                    status="SUCCESS"
+                )
+                
                 return GenerateSystemDesignOutput(
                     status=AgentStatus.SUCCESS,
                     message="Enhanced system design generated successfully with timeout protection",
-                    operation_id=operation_id,
-                    duration_ms=duration_ms,
+                    operation_id=trace_id,
+                    duration_ms=int(total_execution_time_ms),
                     system_design_draft=system_design_draft,
                     new_status="SYSTEM_DESIGN_DRAFTED"
                 )
             else:
                 logger.error(f"[ArchitectAgent] Failed to generate system design content for {case_title}")
-                duration_ms = int((datetime.now() - start_time).total_seconds() * 1000)
                 return GenerateSystemDesignOutput(
                     status=AgentStatus.ERROR,
                     message="No system design content generated after retries",
-                    operation_id=operation_id,
-                    duration_ms=duration_ms,
+                    operation_id=trace_id,
                     system_design_draft=None
                 )
 
-        except TimeoutError as e:
-            error_msg = f"System design generation timed out: {str(e)}"
-            logger.error(f"[ArchitectAgent] {error_msg} for case {case_title}")
-            duration_ms = int((datetime.now() - start_time).total_seconds() * 1000)
-            return GenerateSystemDesignOutput(
-                status=AgentStatus.TIMEOUT,
-                message=error_msg,
-                operation_id=operation_id,
-                duration_ms=duration_ms,
-                system_design_draft=None
-            )
-        except Exception as e:
-            error_msg = f"Error generating enhanced system design: {str(e)}"
-            logger.error(f"[ArchitectAgent] {error_msg} for case {case_title}")
-            duration_ms = int((datetime.now() - start_time).total_seconds() * 1000)
-            return GenerateSystemDesignOutput(
-                status=AgentStatus.ERROR,
-                message=error_msg,
-                operation_id=operation_id,
-                duration_ms=duration_ms,
-                system_design_draft=None
-            )
+            # Note: Exception handling will be managed by the context manager
 
     def _create_enhanced_design_prompt(
         self, prd_content: str, case_title: str, analysis: Dict[str, Any]

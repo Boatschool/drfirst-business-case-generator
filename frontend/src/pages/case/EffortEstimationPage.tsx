@@ -30,12 +30,14 @@ import {
 } from '@mui/icons-material';
 import { useAgentContext } from '../../hooks/useAgentContext';
 import { useAuth } from '../../hooks/useAuth';
+import { useStageApproverConfig } from '../../hooks/useStageApproverConfig';
 import { STANDARD_STYLES, PAPER_ELEVATION } from '../../styles/constants';
 import { toAppError } from '../../types/api';
 
 const EffortEstimationPage: React.FC = () => {
   const { currentCaseDetails, isLoading, caseDetailsError } = useAgentContext();
   const { currentUser, systemRole } = useAuth();
+  const { canApproveStage } = useStageApproverConfig();
   const {
     approveEffortEstimate,
     rejectEffortEstimate,
@@ -90,9 +92,9 @@ const EffortEstimationPage: React.FC = () => {
   const canApproveRejectEffortEstimate = () => {
     if (!currentCaseDetails || !currentUser) return false;
     const isInitiator = currentCaseDetails.user_id === currentUser.uid;
-    const isProjectManager = systemRole === 'PROJECT_MANAGER';
+    const isApprover = canApproveStage('EffortEstimate', systemRole);
     return (
-      (isInitiator || isProjectManager) &&
+      (isInitiator || isApprover) &&
       currentCaseDetails.status === 'EFFORT_PENDING_REVIEW'
     );
   };

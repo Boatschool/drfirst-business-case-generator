@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 /**
  * Logger utility for frontend development and debugging
  * Respects VITE_ENABLE_DEBUG_LOGGING environment variable

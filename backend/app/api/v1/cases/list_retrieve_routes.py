@@ -303,15 +303,36 @@ async def get_case_details(
             # Add other statuses as needed for sharing
         ]
 
+        # Check if user can approve for the current stage
+        user_role = current_user.get("systemRole") or current_user.get("custom_claims", {}).get("systemRole", "")
+        can_approve_stage = False
+        
+        # Stage-specific approval permissions (matching Firestore rules)
+        if case_status_str == "PRD_REVIEW" and user_role == "PRODUCT_OWNER":
+            can_approve_stage = True
+        elif case_status_str in ["SYSTEM_DESIGN_PENDING_REVIEW", "SYSTEM_DESIGN_DRAFTED"] and user_role in ["DEVELOPER", "TECHNICAL_ARCHITECT"]:
+            can_approve_stage = True
+        elif case_status_str == "EFFORT_PENDING_REVIEW" and user_role in ["DEVELOPER", "TECHNICAL_ARCHITECT"]:
+            can_approve_stage = True
+        elif case_status_str == "COSTING_PENDING_REVIEW" and user_role == "FINANCE_APPROVER":
+            can_approve_stage = True
+        elif case_status_str == "VALUE_PENDING_REVIEW" and user_role == "SALES_MANAGER":
+            can_approve_stage = True
+        elif case_status_str == "PENDING_FINAL_APPROVAL" and user_role == "FINAL_APPROVER":
+            can_approve_stage = True
+
         # Allow access if:
         # 1. User is the case owner/initiator, OR
-        # 2. Case is in a shareable status (for authenticated DrFirst users)
+        # 2. Case is in a shareable status (for authenticated DrFirst users), OR
+        # 3. User has approval permissions for the current stage, OR
+        # 4. User is an admin
         is_owner = case_owner_id == user_id
         is_shareable = case_status_str in shareable_statuses
+        is_admin = user_role == "ADMIN"
         
-        logger.info(f"📋 [CASE-DETAILS] 🔐 Authorization: is_owner={is_owner}, is_shareable={is_shareable}")
+        logger.info(f"📋 [CASE-DETAILS] 🔐 Authorization: is_owner={is_owner}, is_shareable={is_shareable}, can_approve_stage={can_approve_stage}, is_admin={is_admin}, user_role={user_role}")
         
-        if not is_owner and not is_shareable:
+        if not (is_owner or is_shareable or can_approve_stage or is_admin):
             logger.warning(f"📋 [CASE-DETAILS] ❌ User unauthorized to view business case: {case_id}")
             request_logger.warning(
                 "User unauthorized to view business case",

@@ -30,12 +30,14 @@ import {
 } from '@mui/icons-material';
 import { useAgentContext } from '../../hooks/useAgentContext';
 import { useAuth } from '../../hooks/useAuth';
+import { useStageApproverConfig } from '../../hooks/useStageApproverConfig';
 import { STANDARD_STYLES, PAPER_ELEVATION } from '../../styles/constants';
 import { toAppError } from '../../types/api';
 
 const CostAnalysisPage: React.FC = () => {
   const { currentCaseDetails, isLoading, caseDetailsError } = useAgentContext();
   const { currentUser, systemRole } = useAuth();
+  const { canApproveStage } = useStageApproverConfig();
   const {
     approveCostEstimate,
     rejectCostEstimate,
@@ -90,9 +92,9 @@ const CostAnalysisPage: React.FC = () => {
   const canApproveRejectCostEstimate = () => {
     if (!currentCaseDetails || !currentUser) return false;
     const isInitiator = currentCaseDetails.user_id === currentUser.uid;
-    const isFinanceManager = systemRole === 'FINANCE_MANAGER';
+    const isApprover = canApproveStage('CostEstimate', systemRole);
     return (
-      (isInitiator || isFinanceManager) &&
+      (isInitiator || isApprover) &&
       currentCaseDetails.status === 'COSTING_PENDING_REVIEW'
     );
   };

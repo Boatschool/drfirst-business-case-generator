@@ -31,7 +31,7 @@ import {
   Assessment as AssessmentIcon,
 } from '@mui/icons-material';
 import { BusinessCaseDetails } from '../../services/agent/AgentService';
-import { STANDARD_STYLES } from '../../styles/constants';
+
 
 interface ValueAnalysisSectionProps {
   currentCaseDetails: BusinessCaseDetails;
@@ -57,12 +57,10 @@ export const ValueAnalysisSection: React.FC<ValueAnalysisSectionProps> = ({
     return `$${value.toLocaleString()}`;
   };
 
-  const canSubmitValueProjection = () => {
-    return status === 'VALUE_ANALYSIS_COMPLETE' && value_projection_v1;
-  };
+
 
   const canApproveRejectValueProjection = () => {
-    return status === 'VALUE_ANALYSIS_COMPLETE' && value_projection_v1;
+    return status === 'VALUE_PENDING_REVIEW' && value_projection_v1;
   };
 
   const handleApproveValueProjection = async () => {
@@ -70,22 +68,16 @@ export const ValueAnalysisSection: React.FC<ValueAnalysisSectionProps> = ({
     setApiError(null);
 
     try {
-      const response = await fetch(`/api/v1/cases/${currentCaseDetails.case_id}/value-projection/approve`, {
-        method: 'POST',
-        credentials: 'include',
-      });
-
-      if (response.ok) {
-        const result = await response.json();
-        // Refresh the page to show updated status
-        window.location.reload();
-      } else {
-        const errorData = await response.json();
-        setApiError(errorData.detail || 'Failed to approve value projection');
-      }
+      // Use the HttpAgentAdapter directly which includes proper authentication headers
+      const { HttpAgentAdapter } = await import('../../services/agent/HttpAgentAdapter');
+      const agentService = new HttpAgentAdapter();
+      await agentService.approveValueProjection(currentCaseDetails.case_id);
+      
+      // Refresh the page to show updated status
+      window.location.reload();
     } catch (error) {
       console.error('Error approving value projection:', error);
-      setApiError('Network error occurred while approving value projection');
+      setApiError('Failed to approve value projection. Please ensure you are logged in.');
     } finally {
       setIsApproving(false);
     }
@@ -96,30 +88,21 @@ export const ValueAnalysisSection: React.FC<ValueAnalysisSectionProps> = ({
     setApiError(null);
 
     try {
-      const response = await fetch(`/api/v1/cases/${currentCaseDetails.case_id}/value-projection/reject`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        credentials: 'include',
-        body: JSON.stringify({
-          reason: rejectionReason || undefined,
-        }),
-      });
-
-      if (response.ok) {
-        const result = await response.json();
-        setIsRejectDialogOpen(false);
-        setRejectionReason('');
-        // Refresh the page to show updated status
-        window.location.reload();
-      } else {
-        const errorData = await response.json();
-        setApiError(errorData.detail || 'Failed to reject value projection');
-      }
+      // Use the HttpAgentAdapter directly which includes proper authentication headers
+      const { HttpAgentAdapter } = await import('../../services/agent/HttpAgentAdapter');
+      const agentService = new HttpAgentAdapter();
+      await agentService.rejectValueProjection(
+        currentCaseDetails.case_id,
+        rejectionReason || undefined
+      );
+      
+      setIsRejectDialogOpen(false);
+      setRejectionReason('');
+      // Refresh the page to show updated status
+      window.location.reload();
     } catch (error) {
       console.error('Error rejecting value projection:', error);
-      setApiError('Network error occurred while rejecting value projection');
+      setApiError('Failed to reject value projection. Please ensure you are logged in.');
     } finally {
       setIsRejecting(false);
     }
@@ -130,7 +113,9 @@ export const ValueAnalysisSection: React.FC<ValueAnalysisSectionProps> = ({
       case 'VALUE_ANALYSIS_IN_PROGRESS':
         return <Chip label="In Progress" color="warning" size="small" />;
       case 'VALUE_ANALYSIS_COMPLETE':
-        return <Chip label="Complete - Pending Review" color="info" size="small" />;
+        return <Chip label="Complete" color="info" size="small" />;
+      case 'VALUE_PENDING_REVIEW':
+        return <Chip label="Pending Review" color="warning" size="small" />;
       case 'VALUE_APPROVED':
         return <Chip label="Approved" color="success" size="small" />;
       case 'VALUE_REJECTED':

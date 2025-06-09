@@ -245,13 +245,17 @@ async def approve_system_design(
     if not user_id:
         raise HTTPException(status_code=401, detail="User ID not found in token.")
 
-    # Role check: only DEVELOPER can approve
-    user_role = current_user.get("custom_claims", {}).get("role")
-    if user_role != "DEVELOPER":
+    # Get business case first to check ownership and permissions
+    business_case = await firestore_service.get_business_case(case_id)
+    
+    if not business_case:
         raise HTTPException(
-            status_code=403,
-            detail="You do not have permission to approve system designs. DEVELOPER role required.",
+            status_code=404, detail=f"Business case {case_id} not found."
         )
+
+    # Use centralized approval permission logic with admin override
+    from app.utils.approval_permissions import check_approval_permissions
+    await check_approval_permissions(current_user, business_case.user_id, "SystemDesign")
 
     try:
         # Use FirestoreService to get the business case
@@ -375,23 +379,19 @@ async def reject_system_design(
     if not user_id:
         raise HTTPException(status_code=401, detail="User ID not found in token.")
 
-    # Role check: only DEVELOPER can reject
-    user_role = current_user.get("custom_claims", {}).get("role")
-    if user_role != "DEVELOPER":
+    # Get business case first to check permissions
+    business_case = await firestore_service.get_business_case(case_id)
+    
+    if not business_case:
         raise HTTPException(
-            status_code=403,
-            detail="You do not have permission to reject system designs. DEVELOPER role required.",
+            status_code=404, detail=f"Business case {case_id} not found."
         )
 
-    try:
-        # Use FirestoreService to get the business case
-        business_case = await firestore_service.get_business_case(case_id)
-        
-        if not business_case:
-            raise HTTPException(
-                status_code=404, detail=f"Business case {case_id} not found."
-            )
+    # Use centralized rejection permission logic
+    from app.utils.approval_permissions import check_rejection_permissions
+    check_rejection_permissions(current_user, business_case.user_id, "system design")
 
+    try:
         # Status check: ensure case is in SYSTEM_DESIGN_PENDING_REVIEW status
         current_status_str = str(business_case.status)
         if hasattr(business_case.status, "value"):

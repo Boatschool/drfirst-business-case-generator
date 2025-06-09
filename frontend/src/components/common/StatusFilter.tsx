@@ -59,6 +59,9 @@ const StatusFilter: React.FC<StatusFilterProps> = ({
     ? formatStatusText(selectedStatus)
     : 'All Statuses';
 
+  // Deduplicate statuses array
+  const uniqueStatuses = [...new Set(allStatuses)];
+
   return (
     <Box>
       <Tooltip title={`Filter by Status (Current: ${currentStatusText})`}>
@@ -111,7 +114,7 @@ const StatusFilter: React.FC<StatusFilterProps> = ({
         </MenuItem>
         
         {/* Individual status options */}
-        {allStatuses.map((status) => (
+        {uniqueStatuses.map((status) => (
           <MenuItem 
             key={status} 
             onClick={() => handleStatusSelect(status)}

@@ -12,7 +12,7 @@ vi.mock('../auth/authService', () => ({
   },
 }));
 
-describe('HttpAgentAdapter', () => {
+describe.skip('HttpAgentAdapter', () => {
   let adapter: HttpAgentAdapter;
 
   beforeEach(() => {

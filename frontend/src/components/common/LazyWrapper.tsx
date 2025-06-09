@@ -10,12 +10,15 @@ interface LazyWrapperProps {
  * Higher-order component for lazy loading
  * Provides a consistent loading state across the app
  */
+// eslint-disable-next-line react-refresh/only-export-components
 export const withLazyLoading = (
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   importFunc: () => Promise<{ default: ComponentType<any> }>,
   options: LazyWrapperProps = {}
 ) => {
   const LazyComponent = lazy(importFunc);
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const WrappedComponent: React.FC<any> = (props) => {
     const { fallback, height = '200px' } = options;
 
@@ -139,7 +142,7 @@ export const IntersectionLazy: React.FC<IntersectionLazyProps> = ({
   );
 
   return (
-    <div ref={setElement as any} style={{ minHeight: typeof height === 'number' ? `${height}px` : height }}>
+    <div ref={setElement as React.Ref<HTMLDivElement>} style={{ minHeight: typeof height === 'number' ? `${height}px` : height }}>
       {isVisible ? (
         <Suspense fallback={fallback || defaultFallback}>
           {children}

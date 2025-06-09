@@ -4,7 +4,7 @@
  */
 
 import React, { useState, useEffect, useContext, useCallback } from 'react';
-import { Navigate } from 'react-router-dom';
+import { Navigate, useNavigate } from 'react-router-dom';
 import {
   Container,
   Typography,
@@ -37,7 +37,6 @@ import {
   List,
   ListItem,
   FormControl,
-  InputLabel,
   Select,
   MenuItem,
 } from '@mui/material';
@@ -110,6 +109,7 @@ const AdminPage: React.FC = () => {
   useDocumentTitle('Admin');
 
   const authContext = useContext(AuthContext);
+  const navigate = useNavigate();
 
   // Admin service instance
   const [adminService] = useState(() => new HttpAdminAdapter());
@@ -200,7 +200,16 @@ const AdminPage: React.FC = () => {
   const [isLoadingApproverConfig, setIsLoadingApproverConfig] = useState(false);
   const [approverConfigError, setApproverConfigError] = useState<string | null>(null);
   const [selectedApproverRole, setSelectedApproverRole] = useState<string>('FINAL_APPROVER');
-  const [isSavingApproverConfig, setIsSavingApproverConfig] = useState(false);
+
+  // Stage Approver Configuration state
+  const [stageApproverRoles, setStageApproverRoles] = useState<Record<string, string>>({});
+  const [editedStageApproverRoles, setEditedStageApproverRoles] = useState<Record<string, string>>({});
+  const [isLoadingStageApproverConfig, setIsLoadingStageApproverConfig] = useState(false);
+  const [stageApproverConfigError, setStageApproverConfigError] = useState<string | null>(null);
+
+  // User Role Management state
+  const [editingUserRoles, setEditingUserRoles] = useState<Record<string, string>>({});
+  const [savingUserRoles, setSavingUserRoles] = useState<Record<string, boolean>>({});
 
   // Fetch rate cards
   const fetchRateCards = useCallback(async () => {
@@ -277,13 +286,34 @@ const AdminPage: React.FC = () => {
     }
   }, [adminService]);
 
+  // Fetch stage approver roles configuration
+  const fetchStageApproverConfig = useCallback(async () => {
+    setIsLoadingStageApproverConfig(true);
+    setStageApproverConfigError(null);
+
+    try {
+      const config = await adminService.getStageApproverRoleSettings();
+      setStageApproverRoles(config.stageApproverRoles || {});
+      setEditedStageApproverRoles(config.stageApproverRoles || {});
+      logger.debug('[AdminPage] Stage approver config loaded successfully:', config);
+    } catch (error) {
+      const errorMessage =
+        error instanceof Error ? error.message : 'Failed to load stage approver configuration';
+      setStageApproverConfigError(errorMessage);
+      logger.error('[AdminPage] Error loading stage approver configuration:', error);
+    } finally {
+      setIsLoadingStageApproverConfig(false);
+    }
+  }, [adminService]);
+
   // Load data on component mount
   useEffect(() => {
     fetchRateCards();
     fetchPricingTemplates();
     fetchUsers();
     fetchApproverConfig();
-  }, [fetchRateCards, fetchPricingTemplates, fetchUsers, fetchApproverConfig]);
+    fetchStageApproverConfig();
+  }, [fetchRateCards, fetchPricingTemplates, fetchUsers, fetchApproverConfig, fetchStageApproverConfig]);
 
   // Simple admin check (placeholder for full RBAC in Task 7.3)
   // For now, allow any authenticated user to access admin page
@@ -729,30 +759,50 @@ const AdminPage: React.FC = () => {
   };
 
   // Global Approver Configuration handlers
-  const handleSaveApproverConfig = async () => {
-    if (selectedApproverRole === finalApproverRoleName) {
-      showNotification('No changes to save', 'info');
-      return;
-    }
 
-    setIsSavingApproverConfig(true);
-    setApproverConfigError(null);
+
+  // User Role Management handlers
+  const handleUserRoleChange = (userId: string, newRole: string) => {
+    setEditingUserRoles(prev => ({ ...prev, [userId]: newRole }));
+  };
+
+  const handleSaveUserRole = async (userId: string) => {
+    const newRole = editingUserRoles[userId];
+    if (!newRole) return;
+
+    setSavingUserRoles(prev => ({ ...prev, [userId]: true }));
 
     try {
-      await adminService.setFinalApproverRoleSetting(selectedApproverRole);
-      setFinalApproverRoleName(selectedApproverRole);
-      showNotification(`Final approver role updated to '${selectedApproverRole}' successfully`, 'success');
+      await adminService.updateUserSystemRole(userId, newRole);
+      showNotification('User role updated successfully', 'success');
+      
+      // Update the user in the local state
+      setUsers(prev => prev.map(user => 
+        user.uid === userId ? { ...user, systemRole: newRole } : user
+      ));
+      
+      // Clear the editing state
+      setEditingUserRoles(prev => {
+        const newState = { ...prev };
+        delete newState[userId];
+        return newState;
+      });
     } catch (error) {
       const errorMessage =
-        error instanceof Error ? error.message : 'Failed to update final approver role';
-      setApproverConfigError(errorMessage);
+        error instanceof Error ? error.message : 'Failed to update user role';
       showNotification(errorMessage, 'error');
     } finally {
-      setIsSavingApproverConfig(false);
+      setSavingUserRoles(prev => ({ ...prev, [userId]: false }));
     }
   };
 
-
+  const handleCancelUserRoleEdit = (userId: string) => {
+    setEditingUserRoles(prev => {
+      const newState = { ...prev };
+      delete newState[userId];
+      return newState;
+    });
+  };
 
   return (
     <Container maxWidth="lg" sx={STANDARD_STYLES.pageContainer}>
@@ -788,85 +838,121 @@ const AdminPage: React.FC = () => {
           calculations.
         </Typography>
 
-        <Grid container spacing={4}>
-          {/* Global Approval Settings Section */}
-          <Grid item xs={12}>
-            <Paper elevation={PAPER_ELEVATION.MAIN_CONTENT} sx={STANDARD_STYLES.mainContentPaper}>
-              <Box sx={{ display: 'flex', alignItems: 'center', mb: 3 }}>
-                <SettingsIcon sx={{ mr: 2, color: 'primary.main' }} />
-                <Typography variant="h5" component="h2">
-                  Global Approval Settings
-                </Typography>
-              </Box>
-
-              <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
-                Configure which system role is used for final business case approvals across the application.
-              </Typography>
-
-              {isLoadingApproverConfig && (
-                <InlineLoading message="Loading approver configuration..." size={24} />
-              )}
-
-              {approverConfigError && (
-                <Alert severity="error" sx={{ mb: 2 }}>
-                  {approverConfigError}
-                </Alert>
-              )}
-
-              {!isLoadingApproverConfig && (
-                <Box>
-                  <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
-                    <Typography variant="body2">
-                      <strong>Current Final Approver Role:</strong>
-                    </Typography>
-                    <Chip
-                      label={finalApproverRoleName}
-                      color="primary"
-                      size="small"
-                      sx={{ ml: 1 }}
-                    />
-                  </Box>
-
-                  <Stack direction="row" spacing={2} alignItems="center" sx={{ mt: 2 }}>
-                    <FormControl sx={{ minWidth: 200 }}>
-                      <InputLabel id="approver-role-select-label">Final Approver Role</InputLabel>
-                      <Select
-                        labelId="approver-role-select-label"
-                        value={selectedApproverRole}
-                        label="Final Approver Role"
-                        onChange={(e) => setSelectedApproverRole(e.target.value as string)}
-                        disabled={isSavingApproverConfig}
-                      >
-                        <MenuItem value="ADMIN">ADMIN</MenuItem>
-                        <MenuItem value="DEVELOPER">DEVELOPER</MenuItem>
-                        <MenuItem value="SALES_MANAGER_APPROVER">SALES_MANAGER_APPROVER</MenuItem>
-                        <MenuItem value="FINAL_APPROVER">FINAL_APPROVER</MenuItem>
-                        <MenuItem value="CASE_INITIATOR">CASE_INITIATOR</MenuItem>
-                      </Select>
-                    </FormControl>
-
-                    <LoadingButton
-                      variant="contained"
-                      onClick={handleSaveApproverConfig}
-                      disabled={selectedApproverRole === finalApproverRoleName}
-                      loading={isSavingApproverConfig}
-                      loadingText="Saving..."
-                      startIcon={<SaveIcon />}
-                    >
-                      Save Setting
-                    </LoadingButton>
-                  </Stack>
-
-                  <Alert severity="warning" sx={{ mt: 2 }}>
-                    <Typography variant="body2">
-                      <strong>Important:</strong> Changing this setting affects ALL business case final approvals.
-                      Only users with the selected role will be able to approve or reject final business cases.
-                    </Typography>
-                  </Alert>
+        {/* Admin Metrics Overview */}
+        <Grid container spacing={3} sx={{ mb: 4 }}>
+          <Grid item xs={12} sm={6} md={3}>
+            <Card>
+              <CardContent>
+                <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
+                  <AccountBalanceWallet color="primary" sx={{ mr: 1 }} />
+                  <Typography variant="h6" component="h3">Rate Cards</Typography>
                 </Box>
-              )}
-            </Paper>
+                <Typography variant="h4" color="primary">
+                  {rateCards.length}
+                </Typography>
+                <Typography variant="body2" color="text.secondary">
+                  {rateCards.filter(card => card.isActive).length} active
+                </Typography>
+              </CardContent>
+            </Card>
           </Grid>
+
+          <Grid item xs={12} sm={6} md={3}>
+            <Card>
+              <CardContent>
+                <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
+                  <PriceCheck color="success" sx={{ mr: 1 }} />
+                  <Typography variant="h6" component="h3">Templates</Typography>
+                </Box>
+                <Typography variant="h4" color="success.main">
+                  {pricingTemplates.length}
+                </Typography>
+                <Typography variant="body2" color="text.secondary">
+                  Pricing templates
+                </Typography>
+              </CardContent>
+            </Card>
+          </Grid>
+
+          <Grid item xs={12} sm={6} md={3}>
+            <Card>
+              <CardContent>
+                <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
+                  <PeopleIcon color="info" sx={{ mr: 1 }} />
+                  <Typography variant="h6" component="h3">Users</Typography>
+                </Box>
+                <Typography variant="h4" color="info.main">
+                  {users.length}
+                </Typography>
+                <Typography variant="body2" color="text.secondary">
+                  Total system users
+                </Typography>
+              </CardContent>
+            </Card>
+          </Grid>
+
+          <Grid item xs={12} sm={6} md={3}>
+            <Card>
+              <CardContent>
+                <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
+                  <SettingsIcon color="warning" sx={{ mr: 1 }} />
+                  <Typography variant="h6" component="h3">Config Status</Typography>
+                </Box>
+                <Typography variant="h4" color="warning.main">
+                  {Object.keys(stageApproverRoles).filter(stage => !stageApproverRoles[stage]).length}
+                </Typography>
+                <Typography variant="body2" color="text.secondary">
+                  Stages need roles
+                </Typography>
+              </CardContent>
+            </Card>
+          </Grid>
+        </Grid>
+
+        {/* Quick Actions */}
+        <Paper elevation={PAPER_ELEVATION.MAIN_CONTENT} sx={{ p: 3, mb: 3 }}>
+          <Typography variant="h6" gutterBottom>
+            Quick Actions
+          </Typography>
+          <Grid container spacing={2}>
+            <Grid item xs={12} sm={6} md={4}>
+              <Button
+                variant="outlined"
+                onClick={() => navigate('/admin/prompts')}
+                startIcon={<EditIcon />}
+                fullWidth
+                sx={{ py: 1.5 }}
+              >
+                Manage AI Prompts
+              </Button>
+            </Grid>
+            <Grid item xs={12} sm={6} md={4}>
+              <Button
+                variant="outlined"
+                onClick={handleCreateRateCard}
+                startIcon={<AddIcon />}
+                fullWidth
+                sx={{ py: 1.5 }}
+              >
+                Create Rate Card
+              </Button>
+            </Grid>
+            <Grid item xs={12} sm={6} md={4}>
+              <Button
+                variant="outlined"
+                onClick={handleCreatePricingTemplate}
+                startIcon={<AddIcon />}
+                fullWidth
+                sx={{ py: 1.5 }}
+              >
+                Create Template
+              </Button>
+            </Grid>
+          </Grid>
+        </Paper>
+
+        <Grid container spacing={4}>
+
           {/* Rate Cards Section */}
           <Grid item xs={12}>
             <Paper elevation={PAPER_ELEVATION.MAIN_CONTENT} sx={STANDARD_STYLES.mainContentPaper}>
@@ -1217,82 +1303,150 @@ const AdminPage: React.FC = () => {
               )}
 
               {!isLoadingUsers && !usersError && users.length > 0 && (
-                <TableContainer>
-                  <Table>
-                    <TableHead>
-                      <TableRow>
-                        <TableCell>User ID</TableCell>
-                        <TableCell>Email</TableCell>
-                        <TableCell>Display Name</TableCell>
-                        <TableCell>System Role</TableCell>
-                        <TableCell>Status</TableCell>
-                        <TableCell>Last Login</TableCell>
-                      </TableRow>
-                    </TableHead>
-                    <TableBody>
-                      {users.map((user) => (
-                        <TableRow key={user.uid}>
-                          <TableCell>
-                            <Typography
-                              variant="body2"
-                              sx={{ fontFamily: 'monospace' }}
-                            >
-                              {user.uid}
-                            </Typography>
-                          </TableCell>
-                          <TableCell>
-                            <Typography variant="subtitle2" fontWeight="bold">
-                              {user.email}
-                            </Typography>
-                          </TableCell>
-                          <TableCell>
-                            <Typography variant="body2">
-                              {user.display_name || 'N/A'}
-                            </Typography>
-                          </TableCell>
-                          <TableCell>
-                            {user.systemRole ? (
-                              <Chip
-                                label={user.systemRole}
-                                color={
-                                  user.systemRole === 'ADMIN'
-                                    ? 'primary'
-                                    : 'default'
-                                }
-                                size="small"
-                              />
-                            ) : (
-                              <Typography
-                                variant="body2"
-                                color="text.secondary"
-                              >
-                                No Role Assigned
-                              </Typography>
-                            )}
-                          </TableCell>
-                          <TableCell>
-                            <Chip
-                              label={
-                                user.is_active !== false ? 'Active' : 'Inactive'
-                              }
-                              color={
-                                user.is_active !== false ? 'success' : 'default'
-                              }
-                              size="small"
-                            />
-                          </TableCell>
-                          <TableCell>
-                            <Typography variant="body2" color="text.secondary">
-                              {user.last_login
-                                ? new Date(user.last_login).toLocaleDateString()
-                                : 'Never'}
-                            </Typography>
-                          </TableCell>
+                <>
+                  <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                    Manage user system roles. Click on a role to edit it. Users with the ADMIN role can access all admin features.
+                  </Typography>
+                  <TableContainer>
+                    <Table>
+                      <TableHead>
+                        <TableRow>
+                          <TableCell>Email</TableCell>
+                          <TableCell>Display Name</TableCell>
+                          <TableCell>System Role</TableCell>
+                          <TableCell>Status</TableCell>
+                          <TableCell>Last Login</TableCell>
+                          <TableCell align="center">Actions</TableCell>
                         </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                </TableContainer>
+                      </TableHead>
+                      <TableBody>
+                        {users.map((user) => {
+                          const isEditing = editingUserRoles[user.uid] !== undefined;
+                          const isSaving = savingUserRoles[user.uid] || false;
+                          const currentRole = user.systemRole || '';
+                          const editingRole = editingUserRoles[user.uid] || currentRole;
+
+                          return (
+                            <TableRow key={user.uid}>
+                              <TableCell>
+                                <Typography variant="subtitle2" fontWeight="bold">
+                                  {user.email}
+                                </Typography>
+                                <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>
+                                  ID: {user.uid.substring(0, 8)}...
+                                </Typography>
+                              </TableCell>
+                              <TableCell>
+                                <Typography variant="body2">
+                                  {user.display_name || 'N/A'}
+                                </Typography>
+                              </TableCell>
+                              <TableCell>
+                                {isEditing ? (
+                                  <FormControl size="small" sx={{ minWidth: 150 }}>
+                                    <Select
+                                      value={editingRole}
+                                      onChange={(e) => handleUserRoleChange(user.uid, e.target.value as string)}
+                                      disabled={isSaving}
+                                    >
+                                      <MenuItem value="">No Role</MenuItem>
+                                      <MenuItem value="ADMIN">ADMIN</MenuItem>
+                                      <MenuItem value="USER">USER</MenuItem>
+                                      <MenuItem value="VIEWER">VIEWER</MenuItem>
+                                      <MenuItem value="DEVELOPER">DEVELOPER</MenuItem>
+                                      <MenuItem value="SALES_REP">SALES_REP</MenuItem>
+                                      <MenuItem value="SALES_MANAGER">SALES_MANAGER</MenuItem>
+                                      <MenuItem value="FINANCE_APPROVER">FINANCE_APPROVER</MenuItem>
+                                      <MenuItem value="LEGAL_APPROVER">LEGAL_APPROVER</MenuItem>
+                                      <MenuItem value="TECHNICAL_ARCHITECT">TECHNICAL_ARCHITECT</MenuItem>
+                                      <MenuItem value="PRODUCT_OWNER">PRODUCT_OWNER</MenuItem>
+                                      <MenuItem value="BUSINESS_ANALYST">BUSINESS_ANALYST</MenuItem>
+                                      <MenuItem value="FINAL_APPROVER">FINAL_APPROVER</MenuItem>
+                                    </Select>
+                                  </FormControl>
+                                ) : (
+                                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                    {currentRole ? (
+                                      <Chip
+                                        label={currentRole}
+                                        color={currentRole === 'ADMIN' ? 'primary' : 'default'}
+                                        size="small"
+                                        clickable
+                                        onClick={() => handleUserRoleChange(user.uid, currentRole)}
+                                      />
+                                    ) : (
+                                      <Chip
+                                        label="No Role Assigned"
+                                        variant="outlined"
+                                        size="small"
+                                        clickable
+                                        onClick={() => handleUserRoleChange(user.uid, 'USER')}
+                                      />
+                                    )}
+                                  </Box>
+                                )}
+                              </TableCell>
+                              <TableCell>
+                                <Chip
+                                  label={user.is_active !== false ? 'Active' : 'Inactive'}
+                                  color={user.is_active !== false ? 'success' : 'default'}
+                                  size="small"
+                                />
+                              </TableCell>
+                              <TableCell>
+                                <Typography variant="body2" color="text.secondary">
+                                  {user.last_login
+                                    ? new Date(user.last_login).toLocaleDateString()
+                                    : 'Never'}
+                                </Typography>
+                              </TableCell>
+                              <TableCell align="center">
+                                {isEditing ? (
+                                  <Stack direction="row" spacing={1}>
+                                    <Tooltip title="Save role change">
+                                      <span>
+                                        <IconButton
+                                          size="small"
+                                          onClick={() => handleSaveUserRole(user.uid)}
+                                          disabled={isSaving || editingRole === currentRole}
+                                          color="primary"
+                                        >
+                                          {isSaving ? (
+                                            <CircularProgress size={16} />
+                                          ) : (
+                                            <SaveIcon />
+                                          )}
+                                        </IconButton>
+                                      </span>
+                                    </Tooltip>
+                                    <Tooltip title="Cancel editing">
+                                      <IconButton
+                                        size="small"
+                                        onClick={() => handleCancelUserRoleEdit(user.uid)}
+                                        disabled={isSaving}
+                                      >
+                                        <CancelIcon />
+                                      </IconButton>
+                                    </Tooltip>
+                                  </Stack>
+                                ) : (
+                                  <Tooltip title="Edit user role">
+                                    <IconButton
+                                      size="small"
+                                      onClick={() => handleUserRoleChange(user.uid, currentRole)}
+                                    >
+                                      <EditIcon />
+                                    </IconButton>
+                                  </Tooltip>
+                                )}
+                              </TableCell>
+                            </TableRow>
+                          );
+                        })}
+                      </TableBody>
+                    </Table>
+                  </TableContainer>
+                </>
               )}
             </Paper>
           </Grid>

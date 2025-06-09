@@ -1,0 +1,22 @@
+eval_run_id,inputId,agentName,status_of_agent_run,agent_error_message,execution_time_ms,live_agent_output_generated,overall_automated_eval_passed,processed_at,calculation_correctness,json_output_validity,key_figures_presence,markdown_validity,metadata_presence,scenario_presence,structural_completeness
+c906acf2-7503-48a0-914d-86a0bb6922a8,prd_simple_001,ProductManagerAgent,SUCCESS,,14124,True,False,2025-06-08T15:24:41.658208+00:00,,,,True,,,False
+c906acf2-7503-48a0-914d-86a0bb6922a8,prd_complex_002,ProductManagerAgent,SUCCESS,,15685,True,False,2025-06-08T15:24:57.785818+00:00,,,,True,,,False
+c906acf2-7503-48a0-914d-86a0bb6922a8,prd_minimal_003,ProductManagerAgent,SUCCESS,,14043,True,False,2025-06-08T15:25:12.124103+00:00,,,,True,,,False
+c906acf2-7503-48a0-914d-86a0bb6922a8,prd_integration_004,ProductManagerAgent,SUCCESS,,16015,True,False,2025-06-08T15:25:28.240066+00:00,,,,True,,,False
+c906acf2-7503-48a0-914d-86a0bb6922a8,prd_analytics_005,ProductManagerAgent,SUCCESS,,15561,True,False,2025-06-08T15:25:43.890554+00:00,,,,True,,,False
+c906acf2-7503-48a0-914d-86a0bb6922a8,arch_mobile_001,ArchitectAgent,ERROR,Error invoking ArchitectAgent: unsupported operand type(s) for -: 'datetime.datetime' and 'float',30166,False,False,2025-06-08T15:26:14.124342+00:00,,,,,,,
+c906acf2-7503-48a0-914d-86a0bb6922a8,arch_integration_002,ArchitectAgent,ERROR,Error invoking ArchitectAgent: unsupported operand type(s) for -: 'datetime.datetime' and 'float',33448,False,False,2025-06-08T15:26:47.671385+00:00,,,,,,,
+c906acf2-7503-48a0-914d-86a0bb6922a8,arch_analytics_003,ArchitectAgent,ERROR,Error invoking ArchitectAgent: unsupported operand type(s) for -: 'datetime.datetime' and 'float',31751,False,False,2025-06-08T15:27:19.526950+00:00,,,,,,,
+c906acf2-7503-48a0-914d-86a0bb6922a8,plan_mobile_001,PlannerAgent,SUCCESS,,1,True,False,2025-06-08T15:27:19.620141+00:00,,False,,,,,
+c906acf2-7503-48a0-914d-86a0bb6922a8,plan_integration_002,PlannerAgent,SUCCESS,,1,True,False,2025-06-08T15:27:19.805044+00:00,,False,,,,,
+c906acf2-7503-48a0-914d-86a0bb6922a8,plan_simple_003,PlannerAgent,SUCCESS,,0,True,False,2025-06-08T15:27:19.904156+00:00,,False,,,,,
+c906acf2-7503-48a0-914d-86a0bb6922a8,cost_fixed_001,CostAnalystAgent,SUCCESS,,466,True,False,2025-06-08T15:27:20.513030+00:00,,,,,False,,
+c906acf2-7503-48a0-914d-86a0bb6922a8,cost_high_complexity_002,CostAnalystAgent,SUCCESS,,82,True,False,2025-06-08T15:27:20.684970+00:00,,,,,False,,
+c906acf2-7503-48a0-914d-86a0bb6922a8,cost_minimal_003,CostAnalystAgent,SUCCESS,,292,True,False,2025-06-08T15:27:21.100919+00:00,,,,,False,,
+c906acf2-7503-48a0-914d-86a0bb6922a8,value_mobile_001,SalesValueAnalystAgent,SUCCESS,,429,True,False,2025-06-08T15:27:21.628749+00:00,,False,,,,True,
+c906acf2-7503-48a0-914d-86a0bb6922a8,value_integration_002,SalesValueAnalystAgent,SUCCESS,,98,True,False,2025-06-08T15:27:21.808751+00:00,,False,,,,True,
+c906acf2-7503-48a0-914d-86a0bb6922a8,value_analytics_003,SalesValueAnalystAgent,SUCCESS,,103,True,False,2025-06-08T15:27:22.016537+00:00,,False,,,,True,
+c906acf2-7503-48a0-914d-86a0bb6922a8,financial_fixed_001,FinancialModelAgent,SUCCESS,,0,True,False,2025-06-08T15:27:22.094758+00:00,,,False,,,,
+c906acf2-7503-48a0-914d-86a0bb6922a8,financial_large_project_002,FinancialModelAgent,SUCCESS,,0,True,False,2025-06-08T15:27:22.209978+00:00,,,False,,,,
+c906acf2-7503-48a0-914d-86a0bb6922a8,financial_negative_roi_003,FinancialModelAgent,SUCCESS,,0,True,False,2025-06-08T15:27:22.295468+00:00,,,False,,,,
+c906acf2-7503-48a0-914d-86a0bb6922a8,financial_currency_mismatch_004,FinancialModelAgent,SUCCESS,,0,True,False,2025-06-08T15:27:22.378158+00:00,,,False,,,,

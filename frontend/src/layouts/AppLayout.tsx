@@ -177,6 +177,19 @@ const AppLayout: React.FC = () => {
                 </Button>
               )}
               
+              {/* Conditional Evaluation Link - Only show for admin users */}
+              {authContext.isAdmin && (
+                <Button 
+                  color="inherit" 
+                  component={RouterLink} 
+                  to="/evaluations"
+                  sx={getNavButtonStyle('/evaluations')}
+                  aria-current={isActivePath('/evaluations') ? 'page' : undefined}
+                >
+                  Evaluations
+                </Button>
+              )}
+              
               {/* User Profile and Sign Out */}
               <Button 
                 color="inherit" 

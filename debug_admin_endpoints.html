@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Debug Admin Endpoints</title>
+    <script type="module">
+        import { initializeApp } from 'https://www.gstatic.com/firebasejs/9.22.0/firebase-app.js';
+        import { getAuth, onAuthStateChanged, getIdToken } from 'https://www.gstatic.com/firebasejs/9.22.0/firebase-auth.js';
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyAQfv1FfaCJp1cWfOYKxMqCJ-b4xpbDFkg",
+            authDomain: "drfirst-business-case-gen.firebaseapp.com",
+            projectId: "drfirst-business-case-gen",
+            storageBucket: "drfirst-business-case-gen.firebasestorage.app",
+            messagingSenderId: "782346002710",
+            appId: "1:782346002710:web:e1dd3c5bb44a5b2e88bc9a"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+
+        window.testEndpoints = async function() {
+            const resultsDiv = document.getElementById('results');
+            
+            try {
+                const user = auth.currentUser;
+                if (!user) {
+                    resultsDiv.innerHTML = '<div style="color: red;">No user signed in. Please sign in to the main app first.</div>';
+                    return;
+                }
+
+                const idToken = await getIdToken(user);
+                
+                resultsDiv.innerHTML = '<div>Testing endpoints...</div>';
+                
+                const endpoints = [
+                    '/api/v1/admin/users',
+                    '/api/v1/admin/config/stage-approver-roles',
+                    '/api/v1/admin/config/final-approver-role',
+                    '/api/v1/admin/rate-cards',
+                    '/api/v1/admin/pricing-templates'
+                ];
+                
+                const baseUrl = 'https://drfirst-backend-staging-782346002710.us-central1.run.app';
+                const results = [];
+                
+                for (const endpoint of endpoints) {
+                    try {
+                        const response = await fetch(`${baseUrl}${endpoint}`, {
+                            method: 'GET',
+                            headers: {
+                                'Authorization': `Bearer ${idToken}`,
+                                'Content-Type': 'application/json'
+                            }
+                        });
+                        
+                        const status = response.status;
+                        let body = '';
+                        
+                        try {
+                            body = await response.text();
+                            if (body.length > 200) {
+                                body = body.substring(0, 200) + '...';
+                            }
+                        } catch (e) {
+                            body = 'Could not read response body';
+                        }
+                        
+                        results.push({
+                            endpoint,
+                            status,
+                            body,
+                            success: status < 400
+                        });
+                        
+                    } catch (error) {
+                        results.push({
+                            endpoint,
+                            status: 'ERROR',
+                            body: error.message,
+                            success: false
+                        });
+                    }
+                }
+                
+                // Display results
+                let html = '<h3>Endpoint Test Results:</h3>';
+                for (const result of results) {
+                    const color = result.success ? 'green' : 'red';
+                    html += `
+                        <div style="margin: 10px 0; padding: 10px; border: 1px solid ${color};">
+                            <strong style="color: ${color};">${result.endpoint}</strong><br>
+                            <strong>Status:</strong> ${result.status}<br>
+                            <strong>Response:</strong> <pre style="font-size: 12px;">${result.body}</pre>
+                        </div>
+                    `;
+                }
+                
+                resultsDiv.innerHTML = html;
+                
+            } catch (error) {
+                resultsDiv.innerHTML = `<div style="color: red;">Error: ${error.message}</div>`;
+                console.error('Test error:', error);
+            }
+        };
+
+        // Auto-check auth state on page load
+        onAuthStateChanged(auth, (user) => {
+            const statusDiv = document.getElementById('authStatus');
+            if (user) {
+                statusDiv.innerHTML = `<div style="color: green;">✅ Signed in as: ${user.email}</div>`;
+                document.getElementById('testButton').disabled = false;
+            } else {
+                statusDiv.innerHTML = '<div style="color: red;">❌ Not signed in. Please sign in to the main app first.</div>';
+                document.getElementById('testButton').disabled = true;
+            }
+        });
+    </script>
+</head>
+<body>
+    <h1>Debug Admin Endpoints</h1>
+    
+    <div id="authStatus">Checking authentication...</div>
+    
+    <button id="testButton" onclick="testEndpoints()" disabled>Test Admin Endpoints</button>
+    
+    <div id="results"></div>
+</body>
+</html> 

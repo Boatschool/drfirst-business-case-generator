@@ -18,6 +18,8 @@ from app.models.firestore_models import User, BusinessCase, Job, JobStatus, User
 # Import BusinessCaseData from orchestrator_agent  
 from app.agents.orchestrator_agent import BusinessCaseData
 
+import traceback
+
 
 # Legacy exception classes for backward compatibility
 class FirestoreServiceError(ServiceError):
@@ -36,14 +38,22 @@ class FirestoreService:
 
     def __init__(self, db: Optional[DatabaseClient] = None):
         self.logger = logging.getLogger(__name__)
-        self._db = db if db is not None else get_db()
+        self._db_instance = db
+        self._db_initialized = False
         
         # Collection names from settings
         self.users_collection = settings.firestore_collection_users
         self.business_cases_collection = settings.firestore_collection_business_cases
         self.jobs_collection = settings.firestore_collection_jobs
-        
-        self.logger.info("FirestoreService initialized successfully")
+    
+    @property
+    def _db(self):
+        """Lazy initialization of database client"""
+        if not self._db_initialized:
+            self._db_instance = self._db_instance if self._db_instance is not None else get_db()
+            self._db_initialized = True
+            self.logger.info("FirestoreService initialized successfully")
+        return self._db_instance
 
     # User operations
     async def create_user(self, user: User) -> bool:
@@ -280,42 +290,62 @@ class FirestoreService:
     async def get_business_case(self, case_id: str) -> Optional[BusinessCaseData]:
         """Get business case by ID - Returns BusinessCaseData model used by orchestrator agent"""
         try:
-            self.logger.debug(f"Retrieving business case: {case_id}")
+            self.logger.info(f"🔍 [FIRESTORE] Getting business case: {case_id}")
             
             case_ref = self._db.collection(self.business_cases_collection).document(case_id)
+            self.logger.debug(f"🔍 [FIRESTORE] Created document reference for: {case_id}")
+            
             doc = await asyncio.to_thread(case_ref.get)
+            self.logger.debug(f"🔍 [FIRESTORE] Retrieved document from Firestore, exists: {doc.exists}")
             
             if not doc.exists:
-                self.logger.debug(f"Business case {case_id} not found")
+                self.logger.warning(f"🔍 [FIRESTORE] ❌ Business case {case_id} not found in Firestore")
                 return None
                 
             case_data = doc.to_dict()
+            self.logger.info(f"🔍 [FIRESTORE] ✅ Retrieved case data for {case_id}")
+            self.logger.debug(f"🔍 [FIRESTORE] 🔍 Case data keys: {list(case_data.keys()) if case_data else 'None'}")
             
             # Convert ISO strings back to datetime objects if needed
             if 'created_at' in case_data and isinstance(case_data['created_at'], str):
-                case_data['created_at'] = datetime.fromisoformat(case_data['created_at'])
+                try:
+                    case_data['created_at'] = datetime.fromisoformat(case_data['created_at'])
+                    self.logger.debug(f"🔍 [FIRESTORE] ✅ Converted created_at from ISO string")
+                except Exception as date_error:
+                    self.logger.warning(f"🔍 [FIRESTORE] ⚠️ Failed to parse created_at: {date_error}")
+                    
             if 'updated_at' in case_data and isinstance(case_data['updated_at'], str):
-                case_data['updated_at'] = datetime.fromisoformat(case_data['updated_at'])
+                try:
+                    case_data['updated_at'] = datetime.fromisoformat(case_data['updated_at'])
+                    self.logger.debug(f"🔍 [FIRESTORE] ✅ Converted updated_at from ISO string")
+                except Exception as date_error:
+                    self.logger.warning(f"🔍 [FIRESTORE] ⚠️ Failed to parse updated_at: {date_error}")
                 
             # Ensure case_id is set correctly
             case_data['case_id'] = case_id
+            self.logger.debug(f"🔍 [FIRESTORE] ✅ Set case_id field to: {case_id}")
             
             # Try to parse as BusinessCaseData (new format used by orchestrator)
             try:
+                self.logger.debug(f"🔍 [FIRESTORE] 🏗️ Attempting to parse as BusinessCaseData")
                 business_case = BusinessCaseData(**case_data)
-                self.logger.debug(f"Business case {case_id} retrieved successfully as BusinessCaseData")
+                self.logger.info(f"🔍 [FIRESTORE] ✅ Successfully parsed {case_id} as BusinessCaseData")
+                self.logger.debug(f"🔍 [FIRESTORE] 📊 Parsed case: user_id={business_case.user_id}, status={business_case.status}, title={business_case.title}")
                 return business_case
             except Exception as parse_error:
-                self.logger.warning(f"Failed to parse as BusinessCaseData: {parse_error}")
-                # Log the actual data structure for debugging
-                self.logger.debug(f"Case data structure: {list(case_data.keys())}")
+                self.logger.error(f"🔍 [FIRESTORE] ❌ Failed to parse case {case_id} as BusinessCaseData: {parse_error}")
+                self.logger.error(f"🔍 [FIRESTORE] 🔍 Case data structure: {list(case_data.keys())}")
+                self.logger.error(f"🔍 [FIRESTORE] 📊 Case data sample: {dict(list(case_data.items())[:5])}")  # First 5 items
+                self.logger.error(f"🔍 [FIRESTORE] 📊 Full traceback: {traceback.format_exc()}")
                 raise FirestoreServiceError(f"Failed to parse business case data: {str(parse_error)}")
             
         except FirestoreServiceError:
+            self.logger.error(f"🔍 [FIRESTORE] ❌ FirestoreServiceError for case {case_id}, re-raising")
             # Re-raise our custom errors
             raise
         except Exception as e:
-            self.logger.error(f"Error retrieving business case {case_id}: {str(e)}")
+            self.logger.error(f"🔍 [FIRESTORE] ❌ Unexpected error retrieving case {case_id}: {str(e)}")
+            self.logger.error(f"🔍 [FIRESTORE] 📊 Full traceback: {traceback.format_exc()}")
             raise FirestoreServiceError(f"Failed to retrieve business case: {str(e)}")
 
     async def update_business_case(self, case_id: str, updates: Dict[str, Any]) -> bool:
@@ -352,41 +382,73 @@ class FirestoreService:
     async def list_business_cases_for_user(self, user_id: str, status_filter: Optional[str] = None) -> List[BusinessCaseData]:
         """List business cases for a specific user, optionally filtered by status"""
         try:
-            self.logger.debug(f"Retrieving business cases for user {user_id}")
+            self.logger.info(f"📋 [FIRESTORE] Listing business cases for user: {user_id}")
+            if status_filter:
+                self.logger.info(f"📋 [FIRESTORE] Filtering by status: {status_filter}")
             
             cases_ref = self._db.collection(self.business_cases_collection)
+            self.logger.debug(f"📋 [FIRESTORE] Created collection reference: {self.business_cases_collection}")
+            
             # Query by user_id field (used by BusinessCaseData) instead of request_data.requester_uid
             query = cases_ref.where("user_id", "==", user_id)
+            self.logger.debug(f"📋 [FIRESTORE] Added user_id filter: {user_id}")
             
             if status_filter:
                 query = query.where("status", "==", status_filter)
+                self.logger.debug(f"📋 [FIRESTORE] Added status filter: {status_filter}")
             
+            self.logger.debug(f"📋 [FIRESTORE] Executing Firestore query...")
             docs = await asyncio.to_thread(query.stream)
+            self.logger.info(f"📋 [FIRESTORE] ✅ Query executed successfully")
             
             cases = []
+            doc_count = 0
             for doc in docs:
+                doc_count += 1
+                self.logger.debug(f"📋 [FIRESTORE] Processing document {doc_count}: {doc.id}")
+                
                 if doc.exists:
-                    case_data = doc.to_dict()
-                    case_data['case_id'] = doc.id  # Ensure case_id is set
-                    
-                    # Convert ISO strings back to datetime objects if needed
-                    if 'created_at' in case_data and isinstance(case_data['created_at'], str):
-                        case_data['created_at'] = datetime.fromisoformat(case_data['created_at'])
-                    if 'updated_at' in case_data and isinstance(case_data['updated_at'], str):
-                        case_data['updated_at'] = datetime.fromisoformat(case_data['updated_at'])
-                    
-                    # Try to parse as BusinessCaseData
                     try:
-                        cases.append(BusinessCaseData(**case_data))
-                    except Exception as parse_error:
-                        self.logger.warning(f"Failed to parse case {doc.id} as BusinessCaseData: {parse_error}")
-                        continue  # Skip cases that can't be parsed
+                        case_data = doc.to_dict()
+                        case_data['case_id'] = doc.id  # Ensure case_id is set
+                        self.logger.debug(f"📋 [FIRESTORE] ✅ Retrieved data for case: {doc.id}")
+                        
+                        # Convert ISO strings back to datetime objects if needed
+                        if 'created_at' in case_data and isinstance(case_data['created_at'], str):
+                            try:
+                                case_data['created_at'] = datetime.fromisoformat(case_data['created_at'])
+                            except Exception as date_error:
+                                self.logger.warning(f"📋 [FIRESTORE] ⚠️ Failed to parse created_at for {doc.id}: {date_error}")
+                                
+                        if 'updated_at' in case_data and isinstance(case_data['updated_at'], str):
+                            try:
+                                case_data['updated_at'] = datetime.fromisoformat(case_data['updated_at'])
+                            except Exception as date_error:
+                                self.logger.warning(f"📋 [FIRESTORE] ⚠️ Failed to parse updated_at for {doc.id}: {date_error}")
+                        
+                        # Try to parse as BusinessCaseData
+                        try:
+                            parsed_case = BusinessCaseData(**case_data)
+                            cases.append(parsed_case)
+                            self.logger.debug(f"📋 [FIRESTORE] ✅ Successfully parsed case: {doc.id}")
+                        except Exception as parse_error:
+                            self.logger.error(f"📋 [FIRESTORE] ❌ Failed to parse case {doc.id} as BusinessCaseData: {parse_error}")
+                            self.logger.error(f"📋 [FIRESTORE] 🔍 Case data keys: {list(case_data.keys())}")
+                            self.logger.error(f"📋 [FIRESTORE] 📊 Full traceback: {traceback.format_exc()}")
+                            continue  # Skip cases that can't be parsed
+                    except Exception as doc_error:
+                        self.logger.error(f"📋 [FIRESTORE] ❌ Error processing document {doc.id}: {doc_error}")
+                        self.logger.error(f"📋 [FIRESTORE] 📊 Full traceback: {traceback.format_exc()}")
+                        continue  # Skip problematic documents
+                else:
+                    self.logger.warning(f"📋 [FIRESTORE] ⚠️ Document {doc.id} exists in query but doc.exists is False")
             
-            self.logger.debug(f"Retrieved {len(cases)} business cases for user {user_id}")
+            self.logger.info(f"📋 [FIRESTORE] ✅ Successfully retrieved {len(cases)} business cases for user {user_id} (processed {doc_count} documents)")
             return cases
             
         except Exception as e:
-            self.logger.error(f"Error listing business cases for user {user_id}: {str(e)}")
+            self.logger.error(f"📋 [FIRESTORE] ❌ Error listing business cases for user {user_id}: {str(e)}")
+            self.logger.error(f"📋 [FIRESTORE] 📊 Full traceback: {traceback.format_exc()}")
             raise FirestoreServiceError(f"Failed to list business cases for user: {str(e)}")
 
     async def get_business_cases_by_status(self, status: str) -> List[BusinessCase]:

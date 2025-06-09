@@ -6,6 +6,8 @@ import {
   Typography,
   Button,
   ButtonProps,
+  Card,
+  CardContent,
 } from '@mui/material';
 
 // Page-level loading indicator with optional message and skeleton support
@@ -49,7 +51,7 @@ export const PageLoading: React.FC<PageLoadingProps> = ({
         py: 4,
       }}
     >
-      <CircularProgress size={40} />
+      <CircularProgress size={40} aria-label={message} />
       <Typography
         variant="body1"
         color="text.secondary"
@@ -106,7 +108,7 @@ export const InlineLoading: React.FC<InlineLoadingProps> = ({
       py: 2,
     }}
   >
-    <CircularProgress size={size} />
+    <CircularProgress size={size} aria-label={message} />
     <Typography variant="body2" color="text.secondary">
       {message}
     </Typography>
@@ -143,7 +145,7 @@ export const LoadingOverlay: React.FC<LoadingOverlayProps> = ({
           zIndex: 1000,
         }}
       >
-        <CircularProgress />
+        <CircularProgress aria-label={message} />
         <Typography
           variant="body2"
           color="text.secondary"
@@ -166,10 +168,11 @@ export const ListSkeleton: React.FC<ListSkeletonProps> = ({
   rows = 5,
   showAvatar = false,
 }) => (
-  <Box sx={{ width: '100%' }}>
+  <Box sx={{ width: '100%' }} role="list">
     {Array.from({ length: rows }).map((_, index) => (
       <Box
         key={index}
+        role="listitem"
         sx={{
           display: 'flex',
           alignItems: 'center',
@@ -206,45 +209,32 @@ export const TableSkeleton: React.FC<TableSkeletonProps> = ({
   rows = 5,
   columns = 4,
 }) => (
-  <Box sx={{ width: '100%' }}>
-    {/* Table header */}
-    <Box
-      sx={{
-        display: 'flex',
-        p: 2,
-        bgcolor: '#f5f5f5',
-        borderBottom: '1px solid #e0e0e0',
-      }}
-    >
-      {Array.from({ length: columns }).map((_, index) => (
-        <Box key={index} sx={{ flex: 1, mr: index < columns - 1 ? 2 : 0 }}>
-          <Skeleton variant="text" width="60%" height={20} />
-        </Box>
-      ))}
-    </Box>
-    
-    {/* Table rows */}
-    {Array.from({ length: rows }).map((_, rowIndex) => (
-      <Box
-        key={rowIndex}
-        sx={{
-          display: 'flex',
-          p: 2,
-          borderBottom: '1px solid #e0e0e0',
-        }}
-      >
-        {Array.from({ length: columns }).map((_, colIndex) => (
-          <Box key={colIndex} sx={{ flex: 1, mr: colIndex < columns - 1 ? 2 : 0 }}>
-            <Skeleton
-              variant="text"
-              width={colIndex === columns - 1 ? '40%' : '80%'}
-              height={16}
-            />
-          </Box>
+  <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+    <thead>
+      <tr>
+        {Array.from({ length: columns }).map((_, index) => (
+          <th key={index} style={{ padding: '16px', textAlign: 'left', backgroundColor: '#f5f5f5', borderBottom: '1px solid #e0e0e0' }}>
+            <Skeleton variant="text" width="60%" height={20} />
+          </th>
         ))}
-      </Box>
-    ))}
-  </Box>
+      </tr>
+    </thead>
+    <tbody>
+      {Array.from({ length: rows }).map((_, rowIndex) => (
+        <tr key={rowIndex}>
+          {Array.from({ length: columns }).map((_, colIndex) => (
+            <td key={colIndex} style={{ padding: '16px', borderBottom: '1px solid #e0e0e0' }}>
+              <Skeleton
+                variant="text"
+                width={colIndex === columns - 1 ? '40%' : '80%'}
+                height={16}
+              />
+            </td>
+          ))}
+        </tr>
+      ))}
+    </tbody>
+  </table>
 );
 
 // Card skeleton for dashboard cards
@@ -253,17 +243,19 @@ interface CardSkeletonProps {
 }
 
 export const CardSkeleton: React.FC<CardSkeletonProps> = ({ rows = 3 }) => (
-  <Box sx={{ p: 2 }}>
-    <Skeleton variant="text" width="70%" height={32} sx={{ mb: 2 }} />
-    {Array.from({ length: rows }).map((_, index) => (
-      <Skeleton
-        key={index}
-        variant="text"
-        width={`${Math.random() * 30 + 60}%`}
-        height={20}
-        sx={{ mb: 1 }}
-      />
-    ))}
-    <Skeleton variant="rectangular" height={100} sx={{ mt: 2 }} />
-  </Box>
+  <Card>
+    <CardContent>
+      <Skeleton variant="text" width="70%" height={32} sx={{ mb: 2 }} />
+      {Array.from({ length: rows }).map((_, index) => (
+        <Skeleton
+          key={index}
+          variant="text"
+          width={`${Math.random() * 30 + 60}%`}
+          height={20}
+          sx={{ mb: 1 }}
+        />
+      ))}
+      <Skeleton variant="rectangular" height={100} sx={{ mt: 2 }} />
+    </CardContent>
+  </Card>
 ); 

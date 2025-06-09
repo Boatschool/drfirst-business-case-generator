@@ -18,12 +18,19 @@ import { ProfilePage } from './pages/ProfilePage';
 
 import ReadOnlyCaseViewPage from './pages/ReadOnlyCaseViewPage';
 import AdminPage from './pages/AdminPage';
+import PromptManagementPage from './pages/admin/PromptManagementPage';
+import HumanEvaluationPage from './pages/HumanEvaluationPage';
 import ErrorDemoPage from './pages/ErrorDemoPage';
 import AppLayout from './layouts/AppLayout';
 import CaseLayout from './layouts/CaseLayout';
 import SummaryPage from './pages/case/SummaryPage';
 import PRDPage from './pages/case/PRDPage';
+import PRDReviewPage from './pages/case/PRDReviewPage';
 import SystemDesignPage from './pages/case/SystemDesignPage';
+import EffortEstimationPage from './pages/case/EffortEstimationPage';
+import CostAnalysisPage from './pages/case/CostAnalysisPage';
+import ValueAnalysisPage from './pages/case/ValueAnalysisPage';
+import FinancialModelPage from './pages/case/FinancialModelPage';
 import FinancialPage from './pages/case/FinancialPage';
 import ErrorBoundary from './components/common/ErrorBoundary';
 import {
@@ -244,7 +251,12 @@ function App() {
                     <Route index element={<SummaryPage />} />
                     <Route path="summary" element={<SummaryPage />} />
                     <Route path="prd" element={<PRDPage />} />
+                    <Route path="prd-review" element={<PRDReviewPage />} />
                     <Route path="design" element={<SystemDesignPage />} />
+                    <Route path="effort-estimation" element={<EffortEstimationPage />} />
+                    <Route path="cost-analysis" element={<CostAnalysisPage />} />
+                    <Route path="value-analysis" element={<ValueAnalysisPage />} />
+                    <Route path="financial-model" element={<FinancialModelPage />} />
                     <Route path="financials" element={<FinancialPage />} />
                   </Route>
                   
@@ -255,7 +267,10 @@ function App() {
                   />
                   <Route path="/admin" element={<AdminProtectedRoute />}>
                     <Route index element={<AdminPage />} />
-                    <Route path=":adminAction" element={<AdminPage />} />
+                    <Route path="prompts" element={<PromptManagementPage />} />
+                  </Route>
+                  <Route path="/evaluations" element={<AdminProtectedRoute />}>
+                    <Route index element={<HumanEvaluationPage />} />
                   </Route>
                   {/* Add other protected routes here */}
                 </Route>

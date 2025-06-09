@@ -8,11 +8,13 @@ import asyncio
 import logging
 import json
 import re
-import vertexai
+import time
 from vertexai.generative_models import GenerativeModel
 import vertexai.preview.generative_models as generative_models
 from google.cloud import firestore
 from app.core.config import settings
+from app.core.agent_logging import create_agent_logger
+from app.services.vertex_ai_service import VertexAIService
 
 # Set up logging
 logger = logging.getLogger(__name__)
@@ -37,16 +39,23 @@ class SalesValueAnalystAgent:
         self.location = settings.vertex_ai_location
         self.model_name = settings.vertex_ai_model_name or "gemini-2.0-flash-lite"
 
-        # Initialize Vertex AI for intelligent value projection
+        # Initialize Vertex AI for intelligent value projection using centralized service
         try:
-            vertexai.init(project=self.project_id, location=self.location)
-            self.model = GenerativeModel(self.model_name)
-            logger.info(
-                f"SalesValueAnalystAgent: Vertex AI initialized successfully with model {self.model_name}."
-            )
-            self.vertex_ai_available = True
+            from app.services.vertex_ai_service import vertex_ai_service
+            vertex_ai_service.initialize()
+            
+            if vertex_ai_service.is_initialized:
+                self.model = GenerativeModel(self.model_name)
+                logger.info(
+                    f"SalesValueAnalystAgent: Vertex AI initialized successfully with model {self.model_name}."
+                )
+                self.vertex_ai_available = True
+            else:
+                logger.error("SalesValueAnalystAgent: VertexAI service not initialized")
+                self.model = None
+                self.vertex_ai_available = False
         except Exception as e:
-            logger.info(f"SalesValueAnalystAgent: Failed to initialize Vertex AI: {e}")
+            logger.info(f"SalesValueAnalystAgent: Failed to initialize with VertexAI service: {e}")
             self.model = None
             self.vertex_ai_available = False
 
@@ -61,7 +70,30 @@ class SalesValueAnalystAgent:
         logger.info("SalesValueAnalystAgent: Initialized successfully.")
         self.status = "available"
 
-    async def project_value(self, prd_content: str, case_title: str) -> Dict[str, Any]:
+    async def analyze_value(
+        self, prd_content: str, case_title: str, case_id: Optional[str] = None
+    ) -> Dict[str, Any]:
+        """
+        Public interface for value analysis that matches function calling expectations.
+        Delegates to project_value method with enhanced logging.
+
+        Args:
+            prd_content (str): The PRD content to analyze
+            case_title (str): Title of the business case
+            case_id (str, optional): Business case ID for logging
+
+        Returns:
+            Dict[str, Any]: Response containing status and value projection
+        """
+        return await self.project_value(
+            prd_content=prd_content,
+            case_title=case_title,
+            case_id=case_id
+        )
+
+    async def project_value(
+        self, prd_content: str, case_title: str, case_id: Optional[str] = None
+    ) -> Dict[str, Any]:
         """
         Projects value/revenue scenarios based on PRD content and case details.
         Enhanced with AI-powered analysis using pricing templates.
@@ -69,41 +101,62 @@ class SalesValueAnalystAgent:
         Args:
             prd_content (str): The PRD content to analyze
             case_title (str): Title of the business case
+            case_id (str, optional): Business case ID for logging
 
         Returns:
             Dict[str, Any]: Response containing status and value projection
         """
-        logger.info(
-            f"[SalesValueAnalystAgent] Received request to project value for: {case_title}"
-        )
-
-        if not self.db:
-            logger.warning(
-                "[SalesValueAnalystAgent] Firestore client not available, using default scenarios"
+        # Create agent logger
+        agent_logger = create_agent_logger("SalesValueAnalystAgent", case_id)
+        
+        # Prepare input payload for logging
+        input_payload = {
+            "case_title": case_title,
+            "prd_content_length": len(prd_content) if prd_content else 0,
+            "has_prd_content": bool(prd_content),
+            "vertex_ai_available": self.vertex_ai_available,
+            "firestore_available": bool(self.db)
+        }
+        
+        # Use logging context manager
+        with agent_logger.log_method_execution(
+            method_name="project_value",
+            input_payload=input_payload
+        ) as log_context:
+            
+            logger.info(
+                f"[SalesValueAnalystAgent] Received request to project value for: {case_title}"
             )
-            return await self._project_with_default_scenarios(prd_content, case_title)
 
-        try:
-            # Attempt to fetch pricing template from Firestore
-            pricing_template = await self._fetch_pricing_template()
+            if not self.db:
+                logger.warning(
+                    "[SalesValueAnalystAgent] Firestore client not available, using default scenarios"
+                )
+                result = await self._project_with_default_scenarios(prd_content, case_title)
+                return result
 
-            if pricing_template:
-                return await self._project_with_template(
-                    prd_content, pricing_template, case_title
-                )
-            else:
-                logger.info(
-                    "[SalesValueAnalystAgent] No pricing template found, using default scenarios"
-                )
-                return await self._project_with_default_scenarios(
-                    prd_content, case_title
-                )
+            try:
+                # Attempt to fetch pricing template from Firestore
+                pricing_template = await self._fetch_pricing_template()
 
-        except Exception as e:
-            error_msg = f"Error projecting value: {str(e)}"
-            logger.error(f"[SalesValueAnalystAgent] {error_msg} for case {case_title}")
-            logger.info(f"[SalesValueAnalystAgent] {error_msg}")
-            return {"status": "error", "message": error_msg, "value_projection": None}
+                if pricing_template:
+                    result = await self._project_with_template(
+                        prd_content, pricing_template, case_title, log_context
+                    )
+                    return result
+                else:
+                    logger.info(
+                        "[SalesValueAnalystAgent] No pricing template found, using default scenarios"
+                    )
+                    result = await self._project_with_default_scenarios(
+                        prd_content, case_title
+                    )
+                    return result
+
+            except Exception as e:
+                error_msg = f"Error projecting value: {str(e)}"
+                logger.error(f"[SalesValueAnalystAgent] {error_msg} for case {case_title}")
+                return {"status": "error", "message": error_msg, "value_projection": None}
 
     async def _fetch_pricing_template(self) -> Optional[Dict[str, Any]]:
         """
@@ -183,7 +236,7 @@ class SalesValueAnalystAgent:
             return None
 
     async def _project_with_template(
-        self, prd_content: str, template: Dict[str, Any], case_title: str
+        self, prd_content: str, template: Dict[str, Any], case_title: str, log_context
     ) -> Dict[str, Any]:
         """
         Projects value using a Firestore pricing template.
@@ -193,6 +246,7 @@ class SalesValueAnalystAgent:
             prd_content (str): The PRD content
             template (Dict[str, Any]): Pricing template data from Firestore
             case_title (str): Title of the business case
+            log_context: Logging context manager from parent method
 
         Returns:
             Dict[str, Any]: Value projection response
@@ -208,7 +262,7 @@ class SalesValueAnalystAgent:
                     "[SalesValueAnalystAgent] Attempting AI-powered value projection"
                 )
                 ai_result = await self._project_with_ai_template(
-                    prd_content, template, case_title
+                    prd_content, template, case_title, log_context.log_llm
                 )
                 if ai_result and ai_result.get("status") == "success":
                     logger.info(
@@ -230,7 +284,7 @@ class SalesValueAnalystAgent:
         )
 
     async def _project_with_ai_template(
-        self, prd_content: str, template: Dict[str, Any], case_title: str
+        self, prd_content: str, template: Dict[str, Any], case_title: str, log_llm: bool
     ) -> Dict[str, Any]:
         """
         Uses Vertex AI to generate intelligent value projections based on template guidance.
@@ -239,6 +293,7 @@ class SalesValueAnalystAgent:
             prd_content (str): The PRD content
             template (Dict[str, Any]): Pricing template data
             case_title (str): Title of the business case
+            log_llm (bool): Whether to log LLM calls
 
         Returns:
             Dict[str, Any]: AI-generated value projection response
@@ -252,7 +307,7 @@ class SalesValueAnalystAgent:
             template_metadata = template.get("metadata", {})
 
             # Construct AI prompt for value projection
-            prompt = """You are an experienced Sales/Value Analyst at DrFirst, a healthcare technology company. You are tasked with projecting realistic business value and revenue scenarios for a technology business case.
+            prompt = f"""You are an experienced Sales/Value Analyst at DrFirst, a leading healthcare technology company. Your expertise lies in projecting realistic business value and revenue scenarios for healthcare technology solutions.
 
 **Business Case Information:**
 - **Title**: {case_title}
@@ -267,17 +322,19 @@ class SalesValueAnalystAgent:
 **Template-Specific Guidance:**
 {self._format_template_guidance(template_guidance, template_structure)}
 
-**Instructions:**
-Based on the PRD content and template guidance, generate realistic value projections for this healthcare technology business case. Consider factors such as:
-- Operational efficiency gains
-- Revenue generation potential  
-- Cost savings and productivity improvements
-- Market adoption rates in healthcare
-- Implementation timeline and scaling factors
-- Risk factors and market uncertainties
+**Your Task:**
+Analyze the PRD content and template guidance to generate realistic value projections for this healthcare technology business case. Consider these critical factors:
+
+1. **Operational Efficiency**: Time savings, workflow improvements, automation benefits
+2. **Revenue Generation**: New revenue streams, market expansion opportunities
+3. **Cost Reduction**: Operational cost savings, productivity improvements, resource optimization
+4. **Healthcare Market Dynamics**: Adoption rates, regulatory compliance benefits, patient outcomes
+5. **Implementation Factors**: Timeline, scaling potential, integration complexity
+6. **Risk Assessment**: Market uncertainties, competitive landscape, regulatory changes
 
 **Output Requirements:**
-Provide your response as a valid JSON object with this exact structure:
+Respond ONLY with a valid JSON object in this exact format (no additional text, markdown, or explanations):
+
 {{
   "scenarios": [
     {{"case": "Low", "value": <number>, "description": "<detailed rationale>"}},
@@ -290,16 +347,17 @@ Provide your response as a valid JSON object with this exact structure:
   "notes": "<additional insights and considerations>"
 }}
 
-**Important Guidelines:**
-- Values should be in USD and realistic for healthcare technology projects
-- Descriptions should be specific and justify the value estimates
-- Consider the healthcare industry context and regulatory requirements
-- Ensure Low < Base < High scenario values with meaningful differences
-- Base your estimates on the PRD content and business case scope
+**Critical Guidelines:**
+- All values must be in USD and realistic for healthcare technology projects
+- Ensure Low < Base < High scenario values with meaningful 20-50% differences
+- Descriptions must be specific and justify the value estimates with concrete reasoning
+- Consider healthcare industry context, regulatory requirements, and compliance benefits
+- Base estimates on actual PRD content and realistic business case scope
+- Include specific healthcare value drivers (patient outcomes, compliance, efficiency)
 
-Generate the value projection now:"""
+**Important**: Respond with valid JSON only. No markdown formatting or additional text."""
 
-            # Generate AI response
+            # Generate AI response with robust retry logic
             generation_config = {
                 "max_output_tokens": settings.vertex_ai_max_tokens,
                 "temperature": 0.4,  # More conservative for financial projections
@@ -307,28 +365,26 @@ Generate the value projection now:"""
                 "top_k": 20,
             }
 
-            safety_settings = {
-                generative_models.HarmCategory.HARM_CATEGORY_HATE_SPEECH: generative_models.HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE,
-                generative_models.HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT: generative_models.HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE,
-                generative_models.HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT: generative_models.HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE,
-                generative_models.HarmCategory.HARM_CATEGORY_HARASSMENT: generative_models.HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE,
-            }
-
             logger.info("[SalesValueAnalystAgent] Sending prompt to Vertex AI")
-            response = await self.model.generate_content_async(
-                [prompt],
+            
+            # Use centralized retry logic for robust LLM call
+            ai_response_text = await VertexAIService.generate_with_retry(
+                model=self.model,
+                prompt=prompt,
                 generation_config=generation_config,
-                safety_settings=safety_settings,
-                stream=False,
+                model_name=self.model_name,
+                max_retries=3,  # More retries for financial projections
+                timeout_seconds=150,  # Longer timeout for complex financial analysis
+                log_llm_call=log_llm if log_llm else None,
+                agent_name="SalesValueAnalystAgent"
             )
 
-            if response.candidates and response.candidates[0].content.parts:
-                ai_response_text = response.candidates[0].content.parts[0].text.strip()
+            if ai_response_text:
                 logger.info(
                     f"[SalesValueAnalystAgent] Received AI response ({len(ai_response_text)} characters)"
                 )
 
-                # Parse AI response into structured format
+                # Parse AI response into structured format using centralized JSON extraction
                 value_data = await self._parse_ai_response(ai_response_text, template)
 
                 if value_data:
@@ -337,17 +393,26 @@ Generate the value projection now:"""
                     )
                     return {
                         "status": "success",
-                        "message": "AI-powered value projection completed successfully using pricing template",
+                        "message": "AI-powered value projection completed successfully using pricing template with robust retry logic",
                         "value_projection": value_data,
                     }
                 else:
                     logger.warning(
-                        "[SalesValueAnalystAgent] Failed to parse AI response"
+                        "[SalesValueAnalystAgent] Failed to parse AI response, attempting manual extraction"
                     )
-                    return {"status": "error", "message": "Failed to parse AI response"}
+                    # Try manual extraction as fallback
+                    manual_data = self._manual_extract_scenarios(ai_response_text, template)
+                    if manual_data:
+                        logger.info("[SalesValueAnalystAgent] Manual extraction successful")
+                        return {
+                            "status": "success", 
+                            "message": "Value projection completed with manual parsing fallback",
+                            "value_projection": manual_data
+                        }
+                    return {"status": "error", "message": "Failed to parse AI response with both methods"}
             else:
-                logger.warning("[SalesValueAnalystAgent] No content in AI response")
-                return {"status": "error", "message": "No content generated by AI"}
+                logger.warning("[SalesValueAnalystAgent] No content in AI response after all retries")
+                return {"status": "error", "message": "No content generated by AI after retries"}
 
         except Exception as e:
             logger.error(f"[SalesValueAnalystAgent] Error in AI generation: {str(e)}")
@@ -445,51 +510,39 @@ Generate the value projection now:"""
             Dict[str, Any]: Structured value projection data or None if parsing fails
         """
         try:
-            # Try to extract JSON from the response
-            json_match = re.search(r"\{.*\}", ai_text, re.DOTALL)
-            if json_match:
-                json_text = json_match.group()
-                parsed_data = json.loads(json_text)
+            # Use centralized JSON extraction with robust error handling
+            parsed_data = VertexAIService.extract_json_from_text(ai_text, log_raw_text=True)
+            
+            if parsed_data and "scenarios" in parsed_data and isinstance(parsed_data["scenarios"], list):
+                # Enhance with template information
+                parsed_data["template_used"] = template.get("name", "AI-Enhanced Template")
+                parsed_data["currency"] = "USD"
 
-                # Validate required structure
-                if "scenarios" in parsed_data and isinstance(
-                    parsed_data["scenarios"], list
-                ):
-                    # Enhance with template information
-                    parsed_data["template_used"] = template.get(
-                        "name", "AI-Enhanced Template"
+                # Ensure required fields exist
+                if "methodology" not in parsed_data:
+                    parsed_data["methodology"] = (
+                        "AI-powered value projection with template guidance and robust parsing"
                     )
-                    parsed_data["currency"] = "USD"
+                if "assumptions" not in parsed_data:
+                    parsed_data["assumptions"] = [
+                        "AI-generated assumptions based on PRD analysis"
+                    ]
 
-                    # Ensure required fields exist
-                    if "methodology" not in parsed_data:
-                        parsed_data["methodology"] = (
-                            "AI-powered value projection with template guidance"
-                        )
-                    if "assumptions" not in parsed_data:
-                        parsed_data["assumptions"] = [
-                            "AI-generated assumptions based on PRD analysis"
-                        ]
+                logger.info(
+                    f"[SalesValueAnalystAgent] Successfully parsed JSON with {len(parsed_data['scenarios'])} scenarios"
+                )
+                return parsed_data
+            else:
+                # Fallback: manual extraction
+                logger.warning(
+                    "[SalesValueAnalystAgent] Centralized JSON parsing failed, attempting manual extraction"
+                )
+                return self._manual_extract_scenarios(ai_text, template)
 
-                    logger.info(
-                        f"[SalesValueAnalystAgent] Successfully parsed JSON with {len(parsed_data['scenarios'])} scenarios"
-                    )
-                    return parsed_data
-
-            # Fallback: manual extraction
-            logger.info(
-                "[SalesValueAnalystAgent] JSON parsing failed, attempting manual extraction"
-            )
-            return self._manual_extract_scenarios(ai_text, template)
-
-        except json.JSONDecodeError as e:
-            logger.warning(
-                f"[SalesValueAnalystAgent] JSON parsing error: {e}, attempting manual extraction"
-            )
-            return self._manual_extract_scenarios(ai_text, template)
         except Exception as e:
             logger.error(f"[SalesValueAnalystAgent] Error parsing AI response: {e}")
-            return None
+            logger.debug(f"[SalesValueAnalystAgent] Raw AI response: {ai_text[:500]}...")
+            return self._manual_extract_scenarios(ai_text, template)
 
     def _manual_extract_scenarios(
         self, ai_text: str, template: Dict[str, Any]

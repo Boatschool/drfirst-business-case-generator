@@ -1,0 +1,337 @@
+{
+  "evaluation_summary": {
+    "evaluation_id": "c906acf2-7503-48a0-914d-86a0bb6922a8",
+    "total_examples_processed": 21,
+    "successful_agent_runs": 18,
+    "failed_agent_runs": 3,
+    "overall_validation_passed": 0,
+    "overall_validation_failed": 21,
+    "success_rate_percentage": 85.71,
+    "validation_pass_rate_percentage": 0.0,
+    "total_evaluation_time_seconds": 175,
+    "evaluation_completed_at": "2025-06-08T15:27:22.455841+00:00"
+  },
+  "agent_specific_statistics": {
+    "ProductManagerAgent": {
+      "total": 5,
+      "successful_runs": 5,
+      "validation_passed": 0,
+      "avg_execution_time_ms": 15085
+    },
+    "ArchitectAgent": {
+      "total": 3,
+      "successful_runs": 0,
+      "validation_passed": 0,
+      "avg_execution_time_ms": 31788
+    },
+    "PlannerAgent": {
+      "total": 3,
+      "successful_runs": 3,
+      "validation_passed": 0,
+      "avg_execution_time_ms": 1
+    },
+    "CostAnalystAgent": {
+      "total": 3,
+      "successful_runs": 3,
+      "validation_passed": 0,
+      "avg_execution_time_ms": 280
+    },
+    "SalesValueAnalystAgent": {
+      "total": 3,
+      "successful_runs": 3,
+      "validation_passed": 0,
+      "avg_execution_time_ms": 210
+    },
+    "FinancialModelAgent": {
+      "total": 4,
+      "successful_runs": 4,
+      "validation_passed": 0,
+      "avg_execution_time_ms": 0
+    }
+  },
+  "detailed_results": [
+    {
+      "inputId": "prd_simple_001",
+      "agentName": "ProductManagerAgent",
+      "status_of_agent_run": "SUCCESS",
+      "agent_error_message": null,
+      "execution_time_ms": 14124,
+      "live_agent_output_generated": true,
+      "validation_results": {
+        "structural_completeness": false,
+        "markdown_validity": true
+      },
+      "overall_automated_eval_passed": false,
+      "processed_at": "2025-06-08T15:24:41.658208+00:00"
+    },
+    {
+      "inputId": "prd_complex_002",
+      "agentName": "ProductManagerAgent",
+      "status_of_agent_run": "SUCCESS",
+      "agent_error_message": null,
+      "execution_time_ms": 15685,
+      "live_agent_output_generated": true,
+      "validation_results": {
+        "structural_completeness": false,
+        "markdown_validity": true
+      },
+      "overall_automated_eval_passed": false,
+      "processed_at": "2025-06-08T15:24:57.785818+00:00"
+    },
+    {
+      "inputId": "prd_minimal_003",
+      "agentName": "ProductManagerAgent",
+      "status_of_agent_run": "SUCCESS",
+      "agent_error_message": null,
+      "execution_time_ms": 14043,
+      "live_agent_output_generated": true,
+      "validation_results": {
+        "structural_completeness": false,
+        "markdown_validity": true
+      },
+      "overall_automated_eval_passed": false,
+      "processed_at": "2025-06-08T15:25:12.124103+00:00"
+    },
+    {
+      "inputId": "prd_integration_004",
+      "agentName": "ProductManagerAgent",
+      "status_of_agent_run": "SUCCESS",
+      "agent_error_message": null,
+      "execution_time_ms": 16015,
+      "live_agent_output_generated": true,
+      "validation_results": {
+        "structural_completeness": false,
+        "markdown_validity": true
+      },
+      "overall_automated_eval_passed": false,
+      "processed_at": "2025-06-08T15:25:28.240066+00:00"
+    },
+    {
+      "inputId": "prd_analytics_005",
+      "agentName": "ProductManagerAgent",
+      "status_of_agent_run": "SUCCESS",
+      "agent_error_message": null,
+      "execution_time_ms": 15561,
+      "live_agent_output_generated": true,
+      "validation_results": {
+        "structural_completeness": false,
+        "markdown_validity": true
+      },
+      "overall_automated_eval_passed": false,
+      "processed_at": "2025-06-08T15:25:43.890554+00:00"
+    },
+    {
+      "inputId": "arch_mobile_001",
+      "agentName": "ArchitectAgent",
+      "status_of_agent_run": "ERROR",
+      "agent_error_message": "Error invoking ArchitectAgent: unsupported operand type(s) for -: 'datetime.datetime' and 'float'",
+      "execution_time_ms": 30166,
+      "live_agent_output_generated": false,
+      "validation_results": {},
+      "overall_automated_eval_passed": false,
+      "processed_at": "2025-06-08T15:26:14.124342+00:00"
+    },
+    {
+      "inputId": "arch_integration_002",
+      "agentName": "ArchitectAgent",
+      "status_of_agent_run": "ERROR",
+      "agent_error_message": "Error invoking ArchitectAgent: unsupported operand type(s) for -: 'datetime.datetime' and 'float'",
+      "execution_time_ms": 33448,
+      "live_agent_output_generated": false,
+      "validation_results": {},
+      "overall_automated_eval_passed": false,
+      "processed_at": "2025-06-08T15:26:47.671385+00:00"
+    },
+    {
+      "inputId": "arch_analytics_003",
+      "agentName": "ArchitectAgent",
+      "status_of_agent_run": "ERROR",
+      "agent_error_message": "Error invoking ArchitectAgent: unsupported operand type(s) for -: 'datetime.datetime' and 'float'",
+      "execution_time_ms": 31751,
+      "live_agent_output_generated": false,
+      "validation_results": {},
+      "overall_automated_eval_passed": false,
+      "processed_at": "2025-06-08T15:27:19.526950+00:00"
+    },
+    {
+      "inputId": "plan_mobile_001",
+      "agentName": "PlannerAgent",
+      "status_of_agent_run": "SUCCESS",
+      "agent_error_message": null,
+      "execution_time_ms": 1,
+      "live_agent_output_generated": true,
+      "validation_results": {
+        "json_output_validity": false
+      },
+      "overall_automated_eval_passed": false,
+      "processed_at": "2025-06-08T15:27:19.620141+00:00"
+    },
+    {
+      "inputId": "plan_integration_002",
+      "agentName": "PlannerAgent",
+      "status_of_agent_run": "SUCCESS",
+      "agent_error_message": null,
+      "execution_time_ms": 1,
+      "live_agent_output_generated": true,
+      "validation_results": {
+        "json_output_validity": false
+      },
+      "overall_automated_eval_passed": false,
+      "processed_at": "2025-06-08T15:27:19.805044+00:00"
+    },
+    {
+      "inputId": "plan_simple_003",
+      "agentName": "PlannerAgent",
+      "status_of_agent_run": "SUCCESS",
+      "agent_error_message": null,
+      "execution_time_ms": 0,
+      "live_agent_output_generated": true,
+      "validation_results": {
+        "json_output_validity": false
+      },
+      "overall_automated_eval_passed": false,
+      "processed_at": "2025-06-08T15:27:19.904156+00:00"
+    },
+    {
+      "inputId": "cost_fixed_001",
+      "agentName": "CostAnalystAgent",
+      "status_of_agent_run": "SUCCESS",
+      "agent_error_message": null,
+      "execution_time_ms": 466,
+      "live_agent_output_generated": true,
+      "validation_results": {
+        "metadata_presence": false,
+        "calculation_correctness": null
+      },
+      "overall_automated_eval_passed": false,
+      "processed_at": "2025-06-08T15:27:20.513030+00:00"
+    },
+    {
+      "inputId": "cost_high_complexity_002",
+      "agentName": "CostAnalystAgent",
+      "status_of_agent_run": "SUCCESS",
+      "agent_error_message": null,
+      "execution_time_ms": 82,
+      "live_agent_output_generated": true,
+      "validation_results": {
+        "metadata_presence": false,
+        "calculation_correctness": null
+      },
+      "overall_automated_eval_passed": false,
+      "processed_at": "2025-06-08T15:27:20.684970+00:00"
+    },
+    {
+      "inputId": "cost_minimal_003",
+      "agentName": "CostAnalystAgent",
+      "status_of_agent_run": "SUCCESS",
+      "agent_error_message": null,
+      "execution_time_ms": 292,
+      "live_agent_output_generated": true,
+      "validation_results": {
+        "metadata_presence": false,
+        "calculation_correctness": null
+      },
+      "overall_automated_eval_passed": false,
+      "processed_at": "2025-06-08T15:27:21.100919+00:00"
+    },
+    {
+      "inputId": "value_mobile_001",
+      "agentName": "SalesValueAnalystAgent",
+      "status_of_agent_run": "SUCCESS",
+      "agent_error_message": null,
+      "execution_time_ms": 429,
+      "live_agent_output_generated": true,
+      "validation_results": {
+        "scenario_presence": true,
+        "json_output_validity": false
+      },
+      "overall_automated_eval_passed": false,
+      "processed_at": "2025-06-08T15:27:21.628749+00:00"
+    },
+    {
+      "inputId": "value_integration_002",
+      "agentName": "SalesValueAnalystAgent",
+      "status_of_agent_run": "SUCCESS",
+      "agent_error_message": null,
+      "execution_time_ms": 98,
+      "live_agent_output_generated": true,
+      "validation_results": {
+        "scenario_presence": true,
+        "json_output_validity": false
+      },
+      "overall_automated_eval_passed": false,
+      "processed_at": "2025-06-08T15:27:21.808751+00:00"
+    },
+    {
+      "inputId": "value_analytics_003",
+      "agentName": "SalesValueAnalystAgent",
+      "status_of_agent_run": "SUCCESS",
+      "agent_error_message": null,
+      "execution_time_ms": 103,
+      "live_agent_output_generated": true,
+      "validation_results": {
+        "scenario_presence": true,
+        "json_output_validity": false
+      },
+      "overall_automated_eval_passed": false,
+      "processed_at": "2025-06-08T15:27:22.016537+00:00"
+    },
+    {
+      "inputId": "financial_fixed_001",
+      "agentName": "FinancialModelAgent",
+      "status_of_agent_run": "SUCCESS",
+      "agent_error_message": null,
+      "execution_time_ms": 0,
+      "live_agent_output_generated": true,
+      "validation_results": {
+        "key_figures_presence": false,
+        "calculation_correctness": null
+      },
+      "overall_automated_eval_passed": false,
+      "processed_at": "2025-06-08T15:27:22.094758+00:00"
+    },
+    {
+      "inputId": "financial_large_project_002",
+      "agentName": "FinancialModelAgent",
+      "status_of_agent_run": "SUCCESS",
+      "agent_error_message": null,
+      "execution_time_ms": 0,
+      "live_agent_output_generated": true,
+      "validation_results": {
+        "key_figures_presence": false,
+        "calculation_correctness": null
+      },
+      "overall_automated_eval_passed": false,
+      "processed_at": "2025-06-08T15:27:22.209978+00:00"
+    },
+    {
+      "inputId": "financial_negative_roi_003",
+      "agentName": "FinancialModelAgent",
+      "status_of_agent_run": "SUCCESS",
+      "agent_error_message": null,
+      "execution_time_ms": 0,
+      "live_agent_output_generated": true,
+      "validation_results": {
+        "key_figures_presence": false,
+        "calculation_correctness": null
+      },
+      "overall_automated_eval_passed": false,
+      "processed_at": "2025-06-08T15:27:22.295468+00:00"
+    },
+    {
+      "inputId": "financial_currency_mismatch_004",
+      "agentName": "FinancialModelAgent",
+      "status_of_agent_run": "SUCCESS",
+      "agent_error_message": null,
+      "execution_time_ms": 0,
+      "live_agent_output_generated": true,
+      "validation_results": {
+        "key_figures_presence": false,
+        "calculation_correctness": null
+      },
+      "overall_automated_eval_passed": false,
+      "processed_at": "2025-06-08T15:27:22.378158+00:00"
+    }
+  ],
+  "eval_run_id": "c906acf2-7503-48a0-914d-86a0bb6922a8"
+}

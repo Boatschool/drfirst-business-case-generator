@@ -204,9 +204,75 @@ export interface UpdateStatusResponse {
 }
 
 /**
- * Defines the contract for agent communication services.
+ * Enhanced response type with detailed error information
  */
-export interface AgentService {
+export interface EnhancedAgentResponse {
+  success: boolean;
+  message: string;
+  data?: unknown;
+  errors?: Array<{
+    code: string;
+    message: string;
+    field?: string;
+  }>;
+  metadata?: {
+    operation_id?: string;
+    duration_ms?: number;
+    agent_version?: string;
+  };
+}
+
+/**
+ * Progress tracking for long-running operations
+ */
+export interface AgentProgress {
+  operation_id: string;
+  status: 'pending' | 'running' | 'completed' | 'failed';
+  progress_percentage: number;
+  current_step: string;
+  estimated_completion_ms?: number;
+  error?: string;
+}
+
+/**
+ * Enhanced agent service with better error handling and progress tracking
+ */
+export interface EnhancedAgentMethods {
+  /**
+   * Regenerate PRD with enhanced error handling
+   */
+  regeneratePrd(caseId: string, feedback?: string): Promise<EnhancedAgentResponse>;
+  
+  /**
+   * Regenerate system design with progress tracking
+   */
+  regenerateSystemDesign(
+    caseId: string,
+    feedback?: string,
+    onProgress?: (progress: AgentProgress) => void
+  ): Promise<EnhancedAgentResponse>;
+  
+  /**
+   * Regenerate financial estimates
+   */
+  regenerateFinancialEstimates(caseId: string): Promise<EnhancedAgentResponse>;
+  
+  /**
+   * Get agent operation status
+   */
+  getOperationStatus(operationId: string): Promise<AgentProgress>;
+  
+  /**
+   * Cancel long-running operation
+   */
+  cancelOperation(operationId: string): Promise<boolean>;
+}
+
+/**
+ * Defines the contract for agent communication services.
+ * Now includes enhanced methods for better error handling and progress tracking.
+ */
+export interface AgentService extends EnhancedAgentMethods {
   /**
    * Initiates a new business case with the agent system.
    * @param payload - The initial details for the business case.
@@ -329,6 +395,51 @@ export interface AgentService {
   ): Promise<{ message: string; new_status: string; case_id: string }>;
 
   /**
+   * Manually triggers system design generation for a business case.
+   * @param caseId - The ID of the business case to trigger system design for.
+   * @returns A promise that resolves with a confirmation message and the new status.
+   */
+  triggerSystemDesignGeneration(
+    caseId: string
+  ): Promise<{ message: string; new_status: string; case_id: string }>;
+
+  /**
+   * Manually triggers effort estimate generation for a business case.
+   * @param caseId - The ID of the business case to trigger effort estimation for.
+   * @returns A promise that resolves with a confirmation message and the new status.
+   */
+  triggerEffortEstimateGeneration(
+    caseId: string
+  ): Promise<{ message: string; new_status: string; case_id: string }>;
+
+  /**
+   * Manually triggers cost analysis generation for a business case.
+   * @param caseId - The ID of the business case to trigger cost analysis for.
+   * @returns A promise that resolves with a confirmation message and the new status.
+   */
+  triggerCostAnalysisGeneration(
+    caseId: string
+  ): Promise<{ message: string; new_status: string; case_id: string }>;
+
+  /**
+   * Manually triggers value analysis generation for a business case.
+   * @param caseId - The ID of the business case to trigger value analysis for.
+   * @returns A promise that resolves with a confirmation message and the new status.
+   */
+  triggerValueAnalysisGeneration(
+    caseId: string
+  ): Promise<{ message: string; new_status: string; case_id: string }>;
+
+  /**
+   * Manually triggers financial model generation for a business case.
+   * @param caseId - The ID of the business case to trigger financial model for.
+   * @returns A promise that resolves with a confirmation message and the new status.
+   */
+  triggerFinancialModelGeneration(
+    caseId: string
+  ): Promise<{ message: string; new_status: string; case_id: string }>;
+
+  /**
    * Updates the Effort Estimate for a specific business case.
    * @param caseId - The ID of the business case to update.
    * @param data - The effort estimate data to update.
@@ -444,6 +555,39 @@ export interface AgentService {
    * @returns A promise that resolves with a confirmation message and the new status.
    */
   rejectValueProjection(
+    caseId: string,
+    reason?: string
+  ): Promise<{ message: string; new_status: string; case_id: string }>;
+
+  // ============================
+  // FINANCIAL MODEL APPROVAL METHODS
+  // ============================
+
+  /**
+   * Submits the Financial Model for review, updating the case status to FINANCIAL_MODEL_PENDING_REVIEW.
+   * @param caseId - The ID of the business case to submit for review.
+   * @returns A promise that resolves with a confirmation message and the new status.
+   */
+  submitFinancialModelForReview(
+    caseId: string
+  ): Promise<{ message: string; new_status: string; case_id: string }>;
+
+  /**
+   * Approves the Financial Model for a business case.
+   * @param caseId - The ID of the business case to approve.
+   * @returns A promise that resolves with a confirmation message and the new status.
+   */
+  approveFinancialModel(
+    caseId: string
+  ): Promise<{ message: string; new_status: string; case_id: string }>;
+
+  /**
+   * Rejects the Financial Model for a business case with an optional reason.
+   * @param caseId - The ID of the business case to reject.
+   * @param reason - Optional rejection reason.
+   * @returns A promise that resolves with a confirmation message and the new status.
+   */
+  rejectFinancialModel(
     caseId: string,
     reason?: string
   ): Promise<{ message: string; new_status: string; case_id: string }>;

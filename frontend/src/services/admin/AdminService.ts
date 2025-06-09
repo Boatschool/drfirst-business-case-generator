@@ -103,6 +103,22 @@ export interface User {
   last_login?: string;
 }
 
+// New interfaces for role management and stage approver configuration
+export interface UpdateUserRoleRequest {
+  newSystemRole: string;
+}
+
+export interface StageApproverRolesConfig {
+  stageApproverRoles: Record<string, string>;
+  updatedAt?: string;
+  updatedBy?: string;
+  description?: string;
+}
+
+export interface UpdateStageApproverRolesRequest {
+  stageApproverRoles: Record<string, string>;
+}
+
 /**
  * AdminService interface defines the contract for admin operations
  */
@@ -176,6 +192,27 @@ export interface AdminService {
    * @returns Promise<User[]> List of users with their system roles
    */
   listUsers(): Promise<User[]>;
+
+  /**
+   * Update a user's system role (admin only)
+   * @param userId UID of the user whose role should be updated
+   * @param newRole New system role for the user
+   * @returns Promise<void>
+   */
+  updateUserSystemRole(userId: string, newRole: string): Promise<void>;
+
+  /**
+   * Get the stage-specific approver role settings
+   * @returns Promise<StageApproverRolesConfig> Current stage approver roles configuration
+   */
+  getStageApproverRoleSettings(): Promise<StageApproverRolesConfig>;
+
+  /**
+   * Set the stage-specific approver role settings
+   * @param settings New stage-to-role mappings
+   * @returns Promise<StageApproverRolesConfig> Updated stage approver roles configuration
+   */
+  setStageApproverRoleSettings(settings: Record<string, string>): Promise<StageApproverRolesConfig>;
 
   /**
    * Get the global final approver role setting

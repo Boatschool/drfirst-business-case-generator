@@ -35,6 +35,9 @@ markdown==3.7
 pandas==2.2.3
 numpy==2.2.0
 
+# JSON schema validation (for evaluation metrics)
+jsonschema==4.23.0
+
 # Development and testing
 pytest==8.3.4
 pytest-asyncio==0.24.0
@@ -51,6 +54,9 @@ python-dateutil==2.9.0
 
 # Environment management
 python-dotenv==1.0.1
+
+# System monitoring (for Issue #5 resource monitoring)
+psutil==6.1.0
 
 # Logging
 structlog==24.4.0

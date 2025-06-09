@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import StatusFilter from '../StatusFilter';
 
@@ -79,11 +79,11 @@ describe('StatusFilter Component', () => {
       const button = screen.getByRole('button');
       await user.click(button);
 
-      expect(screen.getByRole('menuitem', { name: 'All Statuses' })).toBeInTheDocument();
-      expect(screen.getByRole('menuitem', { name: 'Intake' })).toBeInTheDocument();
-      expect(screen.getByRole('menuitem', { name: 'Prd Drafting' })).toBeInTheDocument();
-      expect(screen.getByRole('menuitem', { name: 'Approved' })).toBeInTheDocument();
-      expect(screen.getByRole('menuitem', { name: 'Rejected' })).toBeInTheDocument();
+      expect(screen.getByRole('menuitem', { name: 'Show all statuses' })).toBeInTheDocument();
+      expect(screen.getByRole('menuitem', { name: 'Filter by Intake' })).toBeInTheDocument();
+      expect(screen.getByRole('menuitem', { name: 'Filter by Prd Drafting' })).toBeInTheDocument();
+              expect(screen.getByRole('menuitem', { name: 'Filter by Approved' })).toBeInTheDocument();
+        expect(screen.getByRole('menuitem', { name: 'Filter by Rejected' })).toBeInTheDocument();
     });
 
     it('should mark selected status as selected in menu', async () => {
@@ -93,8 +93,8 @@ describe('StatusFilter Component', () => {
       const button = screen.getByRole('button');
       await user.click(button);
 
-      const selectedItem = screen.getByRole('menuitem', { name: 'Intake' });
-      expect(selectedItem).toHaveAttribute('aria-selected', 'true');
+      const selectedItem = screen.getByRole('menuitem', { name: 'Filter by Intake' });
+      expect(selectedItem).toHaveClass('Mui-selected');
     });
 
     it('should mark "All Statuses" as selected when no status is selected', async () => {
@@ -104,8 +104,8 @@ describe('StatusFilter Component', () => {
       const button = screen.getByRole('button');
       await user.click(button);
 
-      const allStatusesItem = screen.getByRole('menuitem', { name: 'All Statuses' });
-      expect(allStatusesItem).toHaveAttribute('aria-selected', 'true');
+      const allStatusesItem = screen.getByRole('menuitem', { name: 'Show all statuses' });
+      expect(allStatusesItem).toHaveClass('Mui-selected');
     });
 
     it('should close menu when clicking outside', async () => {
@@ -116,8 +116,11 @@ describe('StatusFilter Component', () => {
       await user.click(button);
       expect(screen.getByRole('menu')).toBeInTheDocument();
 
-      // Click outside
-      await user.click(document.body);
+      // Click outside (on the backdrop)
+      const backdrop = document.querySelector('.MuiBackdrop-root');
+      if (backdrop) {
+        await user.click(backdrop as Element);
+      }
       await waitFor(() => {
         expect(screen.queryByRole('menu')).not.toBeInTheDocument();
       });
@@ -146,7 +149,7 @@ describe('StatusFilter Component', () => {
       const button = screen.getByRole('button');
       await user.click(button);
 
-      const allStatusesItem = screen.getByRole('menuitem', { name: 'All Statuses' });
+      const allStatusesItem = screen.getByRole('menuitem', { name: 'Show all statuses' });
       await user.click(allStatusesItem);
 
       expect(mockOnStatusChange).toHaveBeenCalledWith('');
@@ -159,7 +162,7 @@ describe('StatusFilter Component', () => {
       const button = screen.getByRole('button');
       await user.click(button);
 
-      const intakeItem = screen.getByRole('menuitem', { name: 'Intake' });
+      const intakeItem = screen.getByRole('menuitem', { name: 'Filter by Intake' });
       await user.click(intakeItem);
 
       expect(mockOnStatusChange).toHaveBeenCalledWith('INTAKE');
@@ -172,7 +175,7 @@ describe('StatusFilter Component', () => {
       const button = screen.getByRole('button');
       await user.click(button);
 
-      const intakeItem = screen.getByRole('menuitem', { name: 'Intake' });
+      const intakeItem = screen.getByRole('menuitem', { name: 'Filter by Intake' });
       await user.click(intakeItem);
 
       await waitFor(() => {
@@ -192,9 +195,9 @@ describe('StatusFilter Component', () => {
       const button = screen.getByRole('button');
       await user.click(button);
 
-      expect(screen.getByRole('menuitem', { name: 'System Design Pending Review' })).toBeInTheDocument();
-      expect(screen.getByRole('menuitem', { name: 'Value Analysis In Progress' })).toBeInTheDocument();
-      expect(screen.getByRole('menuitem', { name: 'Pending Final Approval' })).toBeInTheDocument();
+      expect(screen.getByRole('menuitem', { name: 'Filter by System Design Pending Review' })).toBeInTheDocument();
+      expect(screen.getByRole('menuitem', { name: 'Filter by Value Analysis In Progress' })).toBeInTheDocument();
+      expect(screen.getByRole('menuitem', { name: 'Filter by Pending Final Approval' })).toBeInTheDocument();
     });
   });
 
@@ -232,7 +235,7 @@ describe('StatusFilter Component', () => {
 
       // Navigate with arrow keys
       await user.keyboard('{ArrowDown}');
-      const intakeItem = screen.getByRole('menuitem', { name: 'Intake' });
+      const intakeItem = screen.getByRole('menuitem', { name: 'Filter by Intake' });
       expect(intakeItem).toHaveFocus();
 
       // Select with Enter
@@ -254,9 +257,9 @@ describe('StatusFilter Component', () => {
       const button = screen.getByRole('button');
       await user.click(button);
 
-      expect(screen.getByRole('menuitem', { name: 'Prd Drafting' })).toBeInTheDocument();
-      expect(screen.getByRole('menuitem', { name: 'System Design Approved' })).toBeInTheDocument();
-      expect(screen.getByRole('menuitem', { name: 'Value Analysis In Progress' })).toBeInTheDocument();
+      expect(screen.getByRole('menuitem', { name: 'Filter by Prd Drafting' })).toBeInTheDocument();
+      expect(screen.getByRole('menuitem', { name: 'Filter by System Design Approved' })).toBeInTheDocument();
+      expect(screen.getByRole('menuitem', { name: 'Filter by Value Analysis In Progress' })).toBeInTheDocument();
     });
 
     it('should handle single word status correctly', async () => {
@@ -271,9 +274,9 @@ describe('StatusFilter Component', () => {
       const button = screen.getByRole('button');
       await user.click(button);
 
-      expect(screen.getByRole('menuitem', { name: 'Approved' })).toBeInTheDocument();
-      expect(screen.getByRole('menuitem', { name: 'Rejected' })).toBeInTheDocument();
-      expect(screen.getByRole('menuitem', { name: 'Intake' })).toBeInTheDocument();
+      expect(screen.getByRole('menuitem', { name: 'Filter by Approved' })).toBeInTheDocument();
+      expect(screen.getByRole('menuitem', { name: 'Filter by Rejected' })).toBeInTheDocument();
+      expect(screen.getByRole('menuitem', { name: 'Filter by Intake' })).toBeInTheDocument();
     });
   });
 
@@ -286,7 +289,7 @@ describe('StatusFilter Component', () => {
       await user.click(button);
 
       // Should only show "All Statuses" option
-      expect(screen.getByRole('menuitem', { name: 'All Statuses' })).toBeInTheDocument();
+      expect(screen.getByRole('menuitem', { name: 'Show all statuses' })).toBeInTheDocument();
       expect(screen.getAllByRole('menuitem')).toHaveLength(1);
     });
 

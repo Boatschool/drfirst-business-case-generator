@@ -30,6 +30,7 @@ import {
 } from '@mui/icons-material';
 import { useAgentContext } from '../../hooks/useAgentContext';
 import { useAuth } from '../../hooks/useAuth';
+import { useStageApproverConfig } from '../../hooks/useStageApproverConfig';
 import { BusinessCaseDetails } from '../../services/agent/AgentService';
 import { toAppError } from '../../types/api';
 
@@ -43,6 +44,7 @@ export const FinancialEstimatesSection: React.FC<FinancialEstimatesSectionProps>
   isLoading,
 }) => {
   const { currentUser, systemRole } = useAuth();
+  const { canApproveStage } = useStageApproverConfig();
   const {
     approveEffortEstimate,
     rejectEffortEstimate,
@@ -82,7 +84,11 @@ export const FinancialEstimatesSection: React.FC<FinancialEstimatesSectionProps>
   const canApproveRejectEffortEstimate = () => {
     if (!currentCaseDetails || !currentUser) return false;
     const isInitiator = currentCaseDetails.user_id === currentUser.uid;
-    return isInitiator && currentCaseDetails.status === 'EFFORT_PENDING_REVIEW';
+    const isApprover = canApproveStage('EffortEstimate', systemRole);
+    return (
+      (isInitiator || isApprover) && 
+      currentCaseDetails.status === 'EFFORT_PENDING_REVIEW'
+    );
   };
 
   const canSubmitCostEstimate = () => {
@@ -99,7 +105,11 @@ export const FinancialEstimatesSection: React.FC<FinancialEstimatesSectionProps>
   const canApproveRejectCostEstimate = () => {
     if (!currentCaseDetails || !currentUser) return false;
     const isInitiator = currentCaseDetails.user_id === currentUser.uid;
-    return isInitiator && currentCaseDetails.status === 'COSTING_PENDING_REVIEW';
+    const isApprover = canApproveStage('CostEstimate', systemRole);
+    return (
+      (isInitiator || isApprover) && 
+      currentCaseDetails.status === 'COSTING_PENDING_REVIEW'
+    );
   };
 
   const canSubmitValueProjection = () => {
@@ -116,9 +126,9 @@ export const FinancialEstimatesSection: React.FC<FinancialEstimatesSectionProps>
   const canApproveRejectValueProjection = () => {
     if (!currentCaseDetails || !currentUser) return false;
     const isInitiator = currentCaseDetails.user_id === currentUser.uid;
-    const isSalesManagerApprover = systemRole === 'SALES_MANAGER_APPROVER';
+    const isApprover = canApproveStage('ValueProjection', systemRole);
     return (
-      (isInitiator || isSalesManagerApprover) &&
+      (isInitiator || isApprover) &&
       currentCaseDetails.status === 'VALUE_PENDING_REVIEW'
     );
   };

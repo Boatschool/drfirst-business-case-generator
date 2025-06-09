@@ -11,13 +11,26 @@ A comprehensive web application for DrFirst that leverages AI agents to automati
 ## Project Structure
 
 ```
-drfirst-business-case-gen/
-├── frontend/          # React/Vite Web Application
-├── backend/           # Python Backend with ADK Agents
+drfirst-business-case-generator/
+├── backend/           # Python Backend with FastAPI & AI Agents
+├── frontend/          # React/Vite Web Application  
 ├── shared/            # Shared TypeScript types
-├── scripts/           # Helper scripts
-├── archive/           # Archived/deprecated components
-└── docs/              # Project documentation
+├── docs/              # Project documentation (organized by category)
+│   ├── architecture/  # System design, PRDs, ADRs
+│   ├── deployment/    # CI/CD, infrastructure setup
+│   ├── development/   # Setup guides, technical docs
+│   ├── testing/       # Testing strategies, guides
+│   └── implementation/ # Feature completion summaries
+├── tests/             # Cross-component tests
+│   ├── e2e/          # End-to-end workflow tests
+│   ├── integration/  # Integration tests
+│   └── manual/       # Manual testing procedures
+├── scripts/           # Project automation scripts
+├── config/            # Configuration files
+│   ├── docker/       # Docker configurations
+│   ├── firebase/     # Firebase settings
+│   └── environments/ # Environment-specific configs
+└── tools/             # Development utilities
 ```
 
 ## Getting Started
@@ -55,9 +68,19 @@ drfirst-business-case-gen/
 
 ## Documentation
 
-- [Product Requirements Document](docs/PRD.md)
-- [System Design](docs/SystemDesign.md)
-- [Architecture Decision Records](docs/ADR/)
+### 📋 Quick Links
+- [Environment Setup](docs/development/ENVIRONMENT_SETUP.md)
+- [E2E Testing](tests/e2e/README.md)
+- [CORS Verification](docs/development/CORS_VERIFICATION_GUIDE.md)
+
+### 📚 Main Documentation
+- [Architecture & Design](docs/architecture/) - System design, PRDs, ADRs
+- [Development Guides](docs/development/) - Setup, technical implementation
+- [Deployment](docs/deployment/) - CI/CD, infrastructure, branching
+- [Testing](docs/testing/) - Testing strategies and guides
+- [Implementation Summaries](docs/implementation/) - Feature completion reports
+
+See [docs/README.md](docs/README.md) for complete documentation index.
 
 ## Contributing
 
@@ -65,4 +88,4 @@ Please read our contributing guidelines and follow the established patterns.
 
 ## License
 
-Internal DrFirst tool - All rights reserved. 
+Internal DrFirst tool - All rights reserved.

@@ -1,0 +1,13 @@
+# E2E Workflow Test Dependencies
+# Install with: pip install -r requirements_e2e.txt
+
+# HTTP Client Libraries
+requests>=2.28.0
+httpx>=0.24.0
+urllib3>=1.26.0
+
+# Data handling
+pydantic>=2.0.0
+
+# Logging and utilities
+python-dateutil>=2.8.0 

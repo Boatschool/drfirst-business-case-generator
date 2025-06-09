@@ -1,0 +1,331 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // =============================================================================
+    // HELPER FUNCTIONS
+    // =============================================================================
+    
+    // Get user's system role from custom claims (primary method)
+    function getUserRoleFromClaims() {
+      return request.auth.token.systemRole;
+    }
+    
+    // Get user's system role from Firestore user document (fallback method)
+    function getUserRoleFromFirestore() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.systemRole;
+    }
+    
+    // Get user's system role with fallback strategy
+    function getUserRole() {
+      return getUserRoleFromClaims() != null ? getUserRoleFromClaims() : getUserRoleFromFirestore();
+    }
+    
+    // Check if user has admin role
+    function isAdmin() {
+      return getUserRole() == 'ADMIN';
+    }
+    
+    // Check if user has specific role
+    function hasRole(role) {
+      return getUserRole() == role;
+    }
+    
+    // Check if user has any of the specified roles
+    function hasAnyRole(roles) {
+      return getUserRole() in roles;
+    }
+    
+    // Check if user is authenticated
+    function isAuthenticated() {
+      return request.auth != null && request.auth.uid != null;
+    }
+    
+    // Check if user is the owner of a document with user_id field
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+    
+    // Check if user is a service account (for backend operations)
+    function isServiceAccount() {
+      return request.auth != null && 
+             request.auth.token != null && 
+             request.auth.token.firebase != null &&
+             request.auth.token.firebase.sign_in_provider == 'custom';
+    }
+    
+    // Check if user can approve for specific workflow stage
+    function canApproveForStage(status) {
+      return isAdmin() ||
+             (status == 'PRD_REVIEW' && hasRole('PRODUCT_OWNER')) ||
+             (status in ['SYSTEM_DESIGN_PENDING_REVIEW', 'SYSTEM_DESIGN_DRAFTED'] && hasRole('DEVELOPER')) ||
+             (status == 'EFFORT_PENDING_REVIEW' && hasAnyRole(['DEVELOPER', 'TECHNICAL_ARCHITECT'])) ||
+             (status == 'COSTING_PENDING_REVIEW' && hasRole('FINANCE_APPROVER')) ||
+             (status == 'VALUE_PENDING_REVIEW' && hasRole('SALES_MANAGER')) ||
+             (status == 'PENDING_FINAL_APPROVAL' && hasRole('FINAL_APPROVER'));
+    }
+    
+    // Check if status is in a draft/editable stage for owner
+    function isOwnerEditableStatus(status) {
+      return status in ['INTAKE', 'PRD_DRAFTING', 'PRD_REVIEW', 'SYSTEM_DESIGN_DRAFTING'];
+    }
+    
+    // Validate required fields for business case creation
+    function hasRequiredBusinessCaseFields(data) {
+      return data.keys().hasAll(['user_id', 'title', 'problem_statement', 'status', 'created_at']) &&
+             data.user_id is string &&
+             data.title is string &&
+             data.problem_statement is string &&
+             data.status is string;
+    }
+    
+    // =============================================================================
+    // USERS COLLECTION
+    // =============================================================================
+    
+    match /users/{userId} {
+      // Read permissions:
+      // - Users can read their own document
+      // - Admins can read any user document
+      // - Developers can read user documents for assignment purposes (limited fields)
+      allow read: if isAuthenticated() && 
+                     (request.auth.uid == userId || 
+                      isAdmin() ||
+                      (hasRole('DEVELOPER') && resource.data.keys().hasAny(['displayName', 'email', 'systemRole'])));
+      
+      // Create permissions:
+      // - Only admins can create user documents
+      // - Backend service accounts can create user documents (for auth integration)
+      allow create: if isAdmin() || isServiceAccount();
+      
+      // Update permissions:
+      // - Users can update basic fields of their own document (not role or uid)
+      // - Admins can update any user document
+      // - Restrict critical field updates to admins only
+      allow update: if isAuthenticated() && 
+                       (isAdmin() || 
+                        (request.auth.uid == userId && 
+                         // Non-admin users cannot update critical fields
+                         !request.resource.data.diff(resource.data).affectedKeys().hasAny(['systemRole', 'uid', 'created_at']) &&
+                         // Validate that user_id in update matches their auth uid
+                         request.resource.data.uid == request.auth.uid));
+      
+      // Delete permissions:
+      // - Only admins can delete user documents
+      allow delete: if isAdmin();
+    }
+    
+    // =============================================================================
+    // BUSINESS CASES COLLECTION
+    // =============================================================================
+    
+    match /businessCases/{caseId} {
+      // Read permissions:
+      // 1. Case initiator can always read their own case
+      // 2. Admins can read any case
+      // 3. Approvers can read cases in their approval stage
+      // 4. NO general sharing of approved cases (security improvement)
+      allow read: if isAuthenticated() && 
+                     (isOwner(resource.data.user_id) ||
+                      isAdmin() ||
+                      canApproveForStage(resource.data.status));
+                      
+      // Special read permission for approved cases with explicit sharing
+      // Only for cases that have been explicitly marked as shareable
+      allow read: if isAuthenticated() && 
+                     resource.data.status == 'APPROVED' &&
+                     resource.data.get('shareable', false) == true;
+      
+      // Create permissions:
+      // - Any authenticated user can create a business case
+      // - Must set themselves as the user_id
+      // - Must provide required fields
+      // - Status must be INTAKE for new cases
+      allow create: if isAuthenticated() && 
+                       request.resource.data.user_id == request.auth.uid &&
+                       hasRequiredBusinessCaseFields(request.resource.data) &&
+                       request.resource.data.status == 'INTAKE';
+      
+      // Update permissions:
+      // 1. Case initiator can update content when in editable status
+      // 2. Approvers can update approval-related fields for their stage
+      // 3. Admins can update any case
+      // 4. Prevent concurrent modifications by checking updated_at
+      allow update: if isAuthenticated() && 
+                       (isAdmin() ||
+                        // Owner can update content in draft stages
+                        (isOwner(resource.data.user_id) && 
+                         isOwnerEditableStatus(resource.data.status) &&
+                         // Cannot update system fields
+                         !request.resource.data.diff(resource.data).affectedKeys().hasAny(['user_id', 'created_at']) &&
+                         // Must update the updated_at timestamp
+                         request.resource.data.updated_at != resource.data.updated_at) ||
+                        // Approvers can update approval-related fields
+                        (canApproveForStage(resource.data.status) &&
+                         // Only status and approval history can be updated by approvers
+                         request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'history', 'updated_at']) &&
+                         request.resource.data.updated_at != resource.data.updated_at));
+      
+      // Delete permissions:
+      // - Only admins can delete business cases
+      // - Soft delete preferred (status update) over hard delete
+      allow delete: if isAdmin();
+    }
+    
+    // =============================================================================
+    // CONFIGURATION AND REFERENCE DATA COLLECTIONS
+    // =============================================================================
+    
+    // Rate Cards - Cost estimation reference data
+    match /rateCards/{cardId} {
+      // Read: All authenticated users need access for cost estimation
+      allow read: if isAuthenticated();
+      
+      // Write: Only admins can modify rate cards
+      allow write: if isAdmin();
+    }
+    
+    // Pricing Templates - Value projection templates
+    match /pricingTemplates/{templateId} {
+      // Read: All authenticated users need access for value projection
+      allow read: if isAuthenticated();
+      
+      // Write: Only admins can modify pricing templates
+      allow write: if isAdmin();
+    }
+    
+    // System Configuration - Global application settings
+    match /systemConfiguration/{configId} {
+      // Read: Authenticated users can read non-sensitive configuration
+      // Admins can read all configuration
+      allow read: if isAuthenticated() && 
+                     (isAdmin() || 
+                      // Allow read access to non-sensitive config documents
+                      configId in ['approvalSettings', 'workflowSettings', 'generalSettings']);
+      
+      // Write: Only admins can modify system configuration
+      allow write: if isAdmin();
+    }
+    
+    // =============================================================================
+    // EVALUATION COLLECTIONS
+    // =============================================================================
+    
+    // Human Evaluation Results - Human evaluator assessments
+    match /humanEvaluationResults/{resultId} {
+      // Read: Admins and evaluators only
+      allow read: if isAdmin() || hasRole('EVALUATOR');
+      
+      // Create: Evaluators can create evaluations, admins can create any
+      allow create: if (hasRole('EVALUATOR') && 
+                        request.resource.data.evaluator_id == request.auth.uid) ||
+                       isAdmin();
+      
+      // Update: Evaluators can update their own evaluations, admins can update any
+      allow update: if (hasRole('EVALUATOR') && 
+                        resource.data.evaluator_id == request.auth.uid) ||
+                       isAdmin();
+      
+      // Delete: Only admins can delete evaluation results
+      allow delete: if isAdmin();
+    }
+    
+    // Automated Evaluation Results - System-generated evaluation results
+    match /automatedEvaluationResults/{resultId} {
+      // Read: Admins only (for dashboards and analysis)
+      allow read: if isAdmin();
+      
+      // Write: Backend service accounts only (from evaluation scripts)
+      allow write: if isServiceAccount();
+    }
+    
+    // Automated Evaluation Runs - Evaluation run summaries
+    match /automatedEvaluationRuns/{runId} {
+      // Read: Admins only (for dashboards and analysis)
+      allow read: if isAdmin();
+      
+      // Write: Backend service accounts only (from evaluation scripts)
+      allow write: if isServiceAccount();
+    }
+    
+    // =============================================================================
+    // AGENT MANAGEMENT COLLECTIONS
+    // =============================================================================
+    
+    // Agent Prompts - AI agent prompt templates and configurations
+    match /agentPrompts/{promptId} {
+      // Read: Admins only (sensitive business logic)
+      allow read: if isAdmin();
+      
+      // Write: Admins only (via Prompt Management API)
+      allow write: if isAdmin();
+    }
+    
+    // =============================================================================
+    // OPERATIONAL COLLECTIONS
+    // =============================================================================
+    
+    // Audit Logs - System audit trail
+    match /auditLogs/{logId} {
+      // Read: Admins only (for compliance and debugging)
+      allow read: if isAdmin();
+      
+      // Write: Backend service accounts only (to maintain audit integrity)
+      allow write: if isServiceAccount();
+    }
+    
+    // Jobs Collection - Background job processing
+    match /jobs/{jobId} {
+      // Read: Users can read their own job status, admins can read all
+      allow read: if isAuthenticated() && 
+                     (resource.data.user_id == request.auth.uid || isAdmin());
+      
+      // Create: Backend service accounts create jobs, users can create their own
+      allow create: if isServiceAccount() || 
+                       (isAuthenticated() && request.resource.data.user_id == request.auth.uid);
+      
+      // Update: Backend service accounts update job status
+      allow update: if isServiceAccount();
+      
+      // Delete: Backend service accounts and admins can delete jobs
+      allow delete: if isServiceAccount() || isAdmin();
+    }
+    
+    // =============================================================================
+    // SUBCOLLECTIONS
+    // =============================================================================
+    
+    // Business Case Comments - Comments on business cases
+    match /businessCases/{caseId}/comments/{commentId} {
+      // Read: Same permissions as parent business case
+      allow read: if isAuthenticated() && 
+                     (isOwner(get(/databases/$(database)/documents/businessCases/$(caseId)).data.user_id) ||
+                      isAdmin() ||
+                      canApproveForStage(get(/databases/$(database)/documents/businessCases/$(caseId)).data.status));
+      
+      // Create: Authenticated users can add comments to cases they can read
+      allow create: if isAuthenticated() && 
+                       request.resource.data.author_id == request.auth.uid &&
+                       (isOwner(get(/databases/$(database)/documents/businessCases/$(caseId)).data.user_id) ||
+                        isAdmin() ||
+                        canApproveForStage(get(/databases/$(database)/documents/businessCases/$(caseId)).data.status));
+      
+      // Update: Authors can edit their own comments, admins can edit any
+      allow update: if isAuthenticated() && 
+                       (resource.data.author_id == request.auth.uid || isAdmin());
+      
+      // Delete: Authors can delete their own comments, admins can delete any
+      allow delete: if isAuthenticated() && 
+                       (resource.data.author_id == request.auth.uid || isAdmin());
+    }
+    
+    // =============================================================================
+    // DEFAULT DENY RULE
+    // =============================================================================
+    
+    // Deny access to any other collections not explicitly defined above
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+} 

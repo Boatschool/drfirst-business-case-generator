@@ -1,0 +1,71 @@
+{
+  "summary": {
+    "passed": 1,
+    "total": 10,
+    "success_rate": 0.1,
+    "test_case_id": null,
+    "timestamp": "2025-06-08T11:37:00.379109"
+  },
+  "details": [
+    {
+      "test": "Create test business case",
+      "success": false,
+      "details": "Status: 401",
+      "timestamp": "2025-06-08T11:37:00.377531"
+    },
+    {
+      "test": "Verify initial estimates",
+      "success": false,
+      "details": "No test case ID",
+      "timestamp": "2025-06-08T11:37:00.377569"
+    },
+    {
+      "test": "Update effort estimate",
+      "success": false,
+      "details": "Missing test case or original effort estimate",
+      "timestamp": "2025-06-08T11:37:00.377576"
+    },
+    {
+      "test": "Submit effort estimate",
+      "success": false,
+      "details": "No test case ID",
+      "timestamp": "2025-06-08T11:37:00.377581"
+    },
+    {
+      "test": "Update cost estimate",
+      "success": false,
+      "details": "Missing test case or original cost estimate",
+      "timestamp": "2025-06-08T11:37:00.377587"
+    },
+    {
+      "test": "Submit cost estimate",
+      "success": false,
+      "details": "No test case ID",
+      "timestamp": "2025-06-08T11:37:00.377591"
+    },
+    {
+      "test": "Update value projection",
+      "success": false,
+      "details": "Missing test case or original value projection",
+      "timestamp": "2025-06-08T11:37:00.377596"
+    },
+    {
+      "test": "Submit value projection",
+      "success": false,
+      "details": "No test case ID",
+      "timestamp": "2025-06-08T11:37:00.377600"
+    },
+    {
+      "test": "Verify final state",
+      "success": false,
+      "details": "No test case ID",
+      "timestamp": "2025-06-08T11:37:00.377605"
+    },
+    {
+      "test": "Unauthorized access blocked",
+      "success": true,
+      "details": "",
+      "timestamp": "2025-06-08T11:37:00.378953"
+    }
+  ]
+}

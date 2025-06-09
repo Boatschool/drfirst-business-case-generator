@@ -1,0 +1,58 @@
+{
+  "evaluation_summary": {
+    "evaluation_id": "c5d205aa-7ffa-47d9-beda-265fbc51500f",
+    "total_examples_processed": 2,
+    "successful_agent_runs": 2,
+    "failed_agent_runs": 0,
+    "overall_validation_passed": 0,
+    "overall_validation_failed": 2,
+    "success_rate_percentage": 100.0,
+    "validation_pass_rate_percentage": 0.0,
+    "total_evaluation_time_seconds": 13,
+    "evaluation_completed_at": "2025-06-08T13:43:02.308010+00:00"
+  },
+  "agent_specific_statistics": {
+    "ProductManagerAgent": {
+      "total": 1,
+      "successful_runs": 1,
+      "validation_passed": 0,
+      "avg_execution_time_ms": 13069
+    },
+    "PlannerAgent": {
+      "total": 1,
+      "successful_runs": 1,
+      "validation_passed": 0,
+      "avg_execution_time_ms": 0
+    }
+  },
+  "detailed_results": [
+    {
+      "inputId": "test_prd_001",
+      "agentName": "ProductManagerAgent",
+      "status_of_agent_run": "SUCCESS",
+      "agent_error_message": null,
+      "execution_time_ms": 13069,
+      "live_agent_output_generated": true,
+      "validation_results": {
+        "structural_completeness": false,
+        "markdown_validity": true
+      },
+      "overall_automated_eval_passed": false,
+      "processed_at": "2025-06-08T13:43:01.786102+00:00"
+    },
+    {
+      "inputId": "test_plan_001",
+      "agentName": "PlannerAgent",
+      "status_of_agent_run": "SUCCESS",
+      "agent_error_message": null,
+      "execution_time_ms": 0,
+      "live_agent_output_generated": true,
+      "validation_results": {
+        "json_output_validity": false
+      },
+      "overall_automated_eval_passed": false,
+      "processed_at": "2025-06-08T13:43:02.216089+00:00"
+    }
+  ],
+  "eval_run_id": "c5d205aa-7ffa-47d9-beda-265fbc51500f"
+}

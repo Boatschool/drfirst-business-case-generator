@@ -29,41 +29,37 @@ const logger = Logger.create('HttpAgentAdapter');
 logger.debug('Using API_BASE_URL:', API_BASE_URL);
 
 export class HttpAgentAdapter implements AgentService {
-  private async getAuthHeaders(): Promise<HeadersInit> {
-    logger.debug('Getting auth headers...');
+  private async getAuthHeaders(): Promise<Record<string, string>> {
     try {
-      const token = await authService.getIdToken();
-      logger.debug(
-        'Token received:',
-        token ? `${token.substring(0, 20)}...` : 'NULL'
-      );
-
-      if (!token) {
+      const idToken = await authService.getIdToken();
+      if (!idToken) {
         const authError: AppError = {
           name: 'AuthError',
-          message: 'Authentication required',
+          message: 'Authentication required - please log in',
           type: 'auth',
           code: 'auth/no-token'
         };
         throw authError;
       }
-      
       return {
+        Authorization: `Bearer ${idToken}`,
         'Content-Type': 'application/json',
-        Authorization: `Bearer ${token}`,
       };
     } catch (error) {
-      // Enhance auth errors with better context
-      if (error instanceof Error) {
-        const authError: AppError = {
-          name: 'AuthError',
-          message: error.message || 'Authentication failed',
-          type: 'auth',
-          code: error.message?.includes('expired') ? 'auth/token-expired' : 'auth/failed'
-        };
-        throw authError;
+      // Don't log auth errors as errors - they're expected when not logged in
+      if (error && typeof error === 'object' && 'code' in error) {
+        logger.debug('[HttpAgentAdapter] Authentication required:', error);
+      } else {
+        logger.error('[HttpAgentAdapter] Error getting auth headers:', error);
       }
-      throw error;
+      const authError: AppError = {
+        name: 'AuthError',
+        message: 'Authentication failed - please log in',
+        type: 'auth',
+        code: 'auth/failed',
+        details: error
+      };
+      throw authError;
     }
   }
 
@@ -93,7 +89,7 @@ export class HttpAgentAdapter implements AgentService {
         // Extract error message from new standardized backend format
         let errorMessage = 'Unknown error';
         let errorCode: string | undefined;
-        let errorDetails: any = undefined;
+        let errorDetails: unknown = undefined;
         
         if (errorData?.error) {
           // New standardized format: { error: { message, error_code, details } }
@@ -315,6 +311,18 @@ export class HttpAgentAdapter implements AgentService {
     }>(`/cases/${caseId}/system-design/reject`, {
       method: 'POST',
       body: JSON.stringify(requestBody),
+    });
+  }
+
+  async triggerSystemDesignGeneration(
+    caseId: string
+  ): Promise<{ message: string; new_status: string; case_id: string }> {
+    return this.fetchWithAuth<{
+      message: string;
+      new_status: string;
+      case_id: string;
+    }>(`/cases/${caseId}/trigger-system-design`, {
+      method: 'POST',
     });
   }
 
@@ -547,6 +555,169 @@ export class HttpAgentAdapter implements AgentService {
 
     logger.debug('PDF export successful, returning blob');
     return response.blob();
+  }
+
+  // ===== ENHANCED AGENT METHODS =====
+
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  async regeneratePrd(_caseId: string, _feedback?: string): Promise<import('./AgentService').EnhancedAgentResponse> {
+    // TODO: Implement PRD regeneration with enhanced error handling
+    return {
+      success: false,
+      message: 'PRD regeneration not yet implemented',
+      errors: [{
+        code: 'NOT_IMPLEMENTED',
+        message: 'This feature is planned for future release'
+      }],
+      metadata: {
+        operation_id: `regen-prd-${Date.now()}`,
+        agent_version: '1.0.0'
+      }
+    };
+  }
+
+  async regenerateSystemDesign(
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    _caseId: string,
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    _feedback?: string,
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    _onProgress?: (progress: import('./AgentService').AgentProgress) => void
+  ): Promise<import('./AgentService').EnhancedAgentResponse> {
+    // TODO: Implement system design regeneration with progress tracking
+    return {
+      success: false,
+      message: 'System design regeneration not yet implemented',
+      errors: [{
+        code: 'NOT_IMPLEMENTED',
+        message: 'This feature is planned for future release'
+      }],
+      metadata: {
+        operation_id: `regen-design-${Date.now()}`,
+        agent_version: '1.0.0'
+      }
+    };
+  }
+
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  async regenerateFinancialEstimates(_caseId: string): Promise<import('./AgentService').EnhancedAgentResponse> {
+    // TODO: Implement financial estimates regeneration
+    return {
+      success: false,
+      message: 'Financial estimates regeneration not yet implemented',
+      errors: [{
+        code: 'NOT_IMPLEMENTED',
+        message: 'This feature is planned for future release'
+      }],
+      metadata: {
+        operation_id: `regen-financial-${Date.now()}`,
+        agent_version: '1.0.0'
+      }
+    };
+  }
+
+  async getOperationStatus(operationId: string): Promise<import('./AgentService').AgentProgress> {
+    // TODO: Implement operation status tracking
+    return {
+      operation_id: operationId,
+      status: 'failed',
+      progress_percentage: 0,
+      current_step: 'Not implemented',
+      error: 'Operation status tracking not yet implemented'
+    };
+  }
+
+  async cancelOperation(operationId: string): Promise<boolean> {
+    // TODO: Implement operation cancellation
+    console.warn(`Operation cancellation not yet implemented for operation: ${operationId}`);
+    return false;
+  }
+
+  async triggerEffortEstimateGeneration(
+    caseId: string
+  ): Promise<{ message: string; new_status: string; case_id: string }> {
+    return this.fetchWithAuth<{
+      message: string;
+      new_status: string;
+      case_id: string;
+    }>(`/cases/${caseId}/effort-estimate/generate`, {
+      method: 'POST',
+    });
+  }
+
+  async triggerCostAnalysisGeneration(
+    caseId: string
+  ): Promise<{ message: string; new_status: string; case_id: string }> {
+    return this.fetchWithAuth<{
+      message: string;
+      new_status: string;
+      case_id: string;
+    }>(`/cases/${caseId}/cost-analysis/generate`, {
+      method: 'POST',
+    });
+  }
+
+  async triggerValueAnalysisGeneration(
+    caseId: string
+  ): Promise<{ message: string; new_status: string; case_id: string }> {
+    return this.fetchWithAuth<{
+      message: string;
+      new_status: string;
+      case_id: string;
+    }>(`/cases/${caseId}/value-analysis/generate`, {
+      method: 'POST',
+    });
+  }
+
+  async triggerFinancialModelGeneration(
+    caseId: string
+  ): Promise<{ message: string; new_status: string; case_id: string }> {
+    return this.fetchWithAuth<{
+      message: string;
+      new_status: string;
+      case_id: string;
+    }>(`/cases/${caseId}/financial-model/generate`, {
+      method: 'POST',
+    });
+  }
+
+  async submitFinancialModelForReview(
+    caseId: string
+  ): Promise<{ message: string; new_status: string; case_id: string }> {
+    return this.fetchWithAuth<{
+      message: string;
+      new_status: string;
+      case_id: string;
+    }>(`/cases/${caseId}/financial-model/submit-review`, {
+      method: 'POST',
+    });
+  }
+
+  async approveFinancialModel(
+    caseId: string
+  ): Promise<{ message: string; new_status: string; case_id: string }> {
+    return this.fetchWithAuth<{
+      message: string;
+      new_status: string;
+      case_id: string;
+    }>(`/cases/${caseId}/financial-model/approve`, {
+      method: 'POST',
+    });
+  }
+
+  async rejectFinancialModel(
+    caseId: string,
+    reason?: string
+  ): Promise<{ message: string; new_status: string; case_id: string }> {
+    const body = reason ? JSON.stringify({ reason }) : undefined;
+    return this.fetchWithAuth<{
+      message: string;
+      new_status: string;
+      case_id: string;
+    }>(`/cases/${caseId}/financial-model/reject`, {
+      method: 'POST',
+      body,
+    });
   }
 }
 

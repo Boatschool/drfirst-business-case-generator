@@ -2,13 +2,15 @@
 Planner Agent for estimating development effort based on PRDs and system designs.
 """
 
-from typing import Dict, Any
+from typing import Dict, Any, Optional
 import json
 import re
-import vertexai
+import time
 from vertexai.generative_models import GenerativeModel
 import vertexai.preview.generative_models as generative_models
 from ..core.config import settings
+from ..core.agent_logging import create_agent_logger
+from ..services.vertex_ai_service import VertexAIService
 import logging
 
 # Set up logging
@@ -32,20 +34,27 @@ class PlannerAgent:
         self.model_name = settings.vertex_ai_model_name or "gemini-2.0-flash-lite"
 
         try:
-            vertexai.init(project=self.project_id, location=self.location)
-            self.model = GenerativeModel(self.model_name)
-            logger.info(
-                f"PlannerAgent: Vertex AI initialized successfully with model {self.model_name}."
-            )
+            # Use centralized VertexAI service
+            from app.services.vertex_ai_service import vertex_ai_service
+            vertex_ai_service.initialize()
+            
+            if vertex_ai_service.is_initialized:
+                self.model = GenerativeModel(self.model_name)
+                logger.info(
+                    f"PlannerAgent: Vertex AI initialized successfully with model {self.model_name}."
+                )
+            else:
+                logger.error("PlannerAgent: VertexAI service not initialized")
+                self.model = None
         except Exception as e:
-            logger.info(f"PlannerAgent: Failed to initialize Vertex AI: {e}")
+            logger.info(f"PlannerAgent: Failed to initialize with VertexAI service: {e}")
             self.model = None
 
         logger.info("PlannerAgent: Initialized successfully.")
         self.status = "available"
 
     async def estimate_effort(
-        self, prd_content: str, system_design_content: str, case_title: str
+        self, prd_content: str, system_design_content: str, case_title: str, case_id: Optional[str] = None
     ) -> Dict[str, Any]:
         """
         Estimates development effort based on PRD and system design content using AI analysis.
@@ -54,83 +63,116 @@ class PlannerAgent:
             prd_content (str): The content of the approved PRD
             system_design_content (str): The content of the system design
             case_title (str): Title of the business case
+            case_id (str, optional): Business case ID for logging
 
         Returns:
             Dict[str, Any]: Response containing status and effort breakdown
         """
-        logger.info(f"[PlannerAgent] Received request to estimate effort for: {case_title}")
+        # Create agent logger
+        agent_logger = create_agent_logger("PlannerAgent", case_id)
+        
+        # Prepare input payload for logging
+        input_payload = {
+            "prd_content_length": len(prd_content) if prd_content else 0,
+            "system_design_content_length": len(system_design_content) if system_design_content else 0,
+            "case_title": case_title,
+            "has_prd_content": bool(prd_content),
+            "has_system_design_content": bool(system_design_content)
+        }
+        
+        # Use logging context manager
+        with agent_logger.log_method_execution(
+            method_name="estimate_effort",
+            input_payload=input_payload
+        ) as log_context:
+            
+            logger.info(f"[PlannerAgent] Received request to estimate effort for: {case_title}")
 
-        try:
-            # First try AI-powered estimation
-            if self.model:
-                effort_data = await self._ai_effort_estimation(
-                    prd_content, system_design_content, case_title
+            try:
+                effort_data = None
+                methodology = "keyword_based"  # Default fallback
+                
+                # First try AI-powered estimation
+                if self.model:
+                    # Get the log_llm function from the context
+                    log_llm_func = getattr(log_context, 'log_llm', None)
+                    effort_data = await self._ai_effort_estimation(
+                        prd_content, system_design_content, case_title, log_llm_func
+                    )
+                    if effort_data:
+                        methodology = "ai_powered"
+                        logger.info(
+                            f"[PlannerAgent] AI-powered effort estimation completed for {case_title}: {effort_data['total_hours']} total hours"
+                        )
+
+                # Fallback to keyword-based estimation if AI fails
+                if not effort_data:
+                    logger.info(
+                        f"[PlannerAgent] Falling back to keyword-based estimation for {case_title}"
+                    )
+                    effort_data = await self._keyword_effort_estimation(
+                        prd_content, system_design_content, case_title
+                    )
+                    methodology = "keyword_based"
+
+                logger.info(
+                    f"[PlannerAgent] {methodology.replace('_', ' ').title()} effort estimation completed for {case_title}: {effort_data['total_hours']} total hours"
                 )
-                if effort_data:
-                    logger.info(
-                        f"[PlannerAgent] AI-powered effort estimation completed for {case_title}: {effort_data['total_hours']} total hours"
-                    )
-                    logger.info(
-                        f"[PlannerAgent] Generated AI-powered effort estimate: {effort_data['total_hours']} total hours across {len(effort_data['roles'])} roles"
-                    )
 
-                    return {
-                        "status": "success",
-                        "message": "AI-powered effort estimation completed successfully",
-                        "effort_breakdown": effort_data,
-                    }
+                # Prepare output payload
+                output_payload = {
+                    "status": "success",
+                    "message": f"{methodology.replace('_', ' ').title()} effort estimation completed successfully",
+                    "effort_breakdown": effort_data,
+                    "methodology": methodology,
+                    "total_hours": effort_data['total_hours'],
+                    "roles_count": len(effort_data['roles'])
+                }
 
-            # Fallback to keyword-based estimation if AI fails
-            logger.info(
-                f"[PlannerAgent] Falling back to keyword-based estimation for {case_title}"
-            )
-            effort_data = await self._keyword_effort_estimation(
-                prd_content, system_design_content, case_title
-            )
+                return output_payload
 
-            logger.info(
-                f"[PlannerAgent] Keyword-based effort estimation completed for {case_title}: {effort_data['total_hours']} total hours"
-            )
-            logger.info(
-                f"[PlannerAgent] Generated keyword-based effort estimate: {effort_data['total_hours']} total hours across {len(effort_data['roles'])} roles"
-            )
-
-            return {
-                "status": "success",
-                "message": "Keyword-based effort estimation completed successfully",
-                "effort_breakdown": effort_data,
-            }
-
-        except Exception as e:
-            error_msg = f"Error estimating effort: {str(e)}"
-            logger.error(f"[PlannerAgent] {error_msg} for case {case_title}")
-            logger.info(f"[PlannerAgent] {error_msg}")
-            return {"status": "error", "message": error_msg, "effort_breakdown": None}
+            except Exception as e:
+                error_msg = f"Error estimating effort: {str(e)}"
+                logger.error(f"[PlannerAgent] {error_msg} for case {case_title}")
+                
+                # Return error response for logging context
+                return {
+                    "status": "error", 
+                    "message": error_msg, 
+                    "effort_breakdown": None,
+                    "methodology": "failed"
+                }
 
     async def _ai_effort_estimation(
-        self, prd_content: str, system_design_content: str, case_title: str
+        self, prd_content: str, system_design_content: str, case_title: str, log_llm_func
     ) -> Dict[str, Any]:
         """
         Use AI to analyze PRD and System Design content for effort estimation.
+
+        Args:
+            log_llm_func: LLM logging function from parent context
 
         Returns:
             Dict[str, Any]: Effort breakdown or None if AI estimation fails
         """
         try:
-            # Truncate content to avoid token limits
-            max_content_length = 6000
-            truncated_prd = (
-                prd_content[:max_content_length]
-                if prd_content
-                else "No PRD content provided"
+            # Use centralized content truncation with proper logging
+            truncated_prd, prd_was_truncated = VertexAIService.truncate_content(
+                prd_content or "No PRD content provided", 6000
             )
-            truncated_system_design = (
-                system_design_content[:max_content_length]
-                if system_design_content
-                else "No System Design content provided"
+            truncated_system_design, sd_was_truncated = VertexAIService.truncate_content(
+                system_design_content or "No System Design content provided", 6000
             )
+            
+            if prd_was_truncated:
+                logger.warning("[PlannerAgent] PRD content was truncated for analysis")
+            if sd_was_truncated:
+                logger.warning("[PlannerAgent] System Design content was truncated for analysis")
 
-            prompt = """You are a Senior Project Planner with expertise in healthcare technology projects. Based on the following PRD and System Design for a project titled '{case_title}', estimate the development effort in hours for each role.
+            prompt = f"""You are a Senior Project Planner with expertise in healthcare technology projects at DrFirst. Your role is to provide accurate development effort estimates based on technical requirements and industry best practices.
+
+**Project Information:**
+- **Title**: {case_title}
 
 --- PRD Content ---
 {truncated_prd}
@@ -138,15 +180,18 @@ class PlannerAgent:
 --- System Design Content ---
 {truncated_system_design}
 
-Instructions:
-1. Analyze the complexity of features, integrations, UI requirements, data handling, security needs, and technical challenges
-2. Consider healthcare industry standards and compliance requirements (HIPAA, HL7, etc.)
-3. Estimate effort for these roles: Product Manager, Lead Developer, Senior Developer, Junior Developer, QA Engineer, DevOps Engineer, UI/UX Designer
-4. Provide realistic hours that account for planning, development, testing, and deployment
-5. Include a complexity assessment (Low, Medium, High, Very High)
-6. Estimate project duration in weeks
+**Your Task:**
+Analyze the provided PRD and System Design documents to estimate development effort in hours for each role. Consider the following factors:
 
-Respond ONLY with a valid JSON object in this exact format:
+1. **Technical Complexity**: Features, integrations, UI requirements, data handling, security needs
+2. **Healthcare Compliance**: HIPAA, HL7, FHIR, and other healthcare industry standards
+3. **Development Phases**: Planning, development, testing, deployment, and documentation
+4. **Team Roles**: Product Manager, Lead Developer, Senior Developer, Junior Developer, QA Engineer, DevOps Engineer, UI/UX Designer
+5. **Project Scope**: Include realistic buffer time for healthcare project complexities
+
+**Output Requirements:**
+Respond ONLY with a valid JSON object in this exact format (no additional text, markdown, or explanations):
+
 {{
   "roles": [
     {{"role": "Product Manager", "hours": <number>}},
@@ -163,7 +208,7 @@ Respond ONLY with a valid JSON object in this exact format:
   "notes": "<brief rationale for the estimate in 1-2 sentences>"
 }}
 
-Make sure your response is valid JSON without any additional text or markdown formatting."""
+**Important**: Ensure your response is valid JSON only. No markdown formatting or additional text."""
 
             # Configure generation settings for structured output
             generation_config = {
@@ -173,55 +218,39 @@ Make sure your response is valid JSON without any additional text or markdown fo
                 "top_k": 20,
             }
 
-            safety_settings = {
-                generative_models.HarmCategory.HARM_CATEGORY_HATE_SPEECH: generative_models.HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE,
-                generative_models.HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT: generative_models.HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE,
-                generative_models.HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT: generative_models.HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE,
-                generative_models.HarmCategory.HARM_CATEGORY_HARASSMENT: generative_models.HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE,
-            }
-
             logger.info("[PlannerAgent] Calling AI model for effort estimation...")
-            response = await self.model.generate_content_async(
-                [prompt],
+            
+            # Use centralized retry logic for robust LLM call
+            response_text = await VertexAIService.generate_with_retry(
+                model=self.model,
+                prompt=prompt,
                 generation_config=generation_config,
-                safety_settings=safety_settings,
-                stream=False,
+                model_name=self.model_name,
+                max_retries=2,
+                timeout_seconds=120,
+                log_llm_call=log_llm_func,
+                agent_name="PlannerAgent"
             )
 
-            if response.candidates and response.candidates[0].content.parts:
-                response_text = response.candidates[0].content.parts[0].text.strip()
+            if response_text:
                 logger.info(f"[PlannerAgent] AI response received: {response_text[:200]}...")
 
-                # Parse JSON response
-                try:
-                    # Clean the response to extract just the JSON
-                    json_match = re.search(r"\{.*\}", response_text, re.DOTALL)
-                    if json_match:
-                        json_str = json_match.group(0)
-                        effort_data = json.loads(json_str)
-
-                        # Validate the structure
-                        if self._validate_effort_data(effort_data):
-                            logger.info(
-                                "[PlannerAgent] Successfully parsed AI effort estimation"
-                            )
-                            return effort_data
-                        else:
-                            logger.info("[PlannerAgent] AI response validation failed")
-                            return None
-                    else:
-                        logger.info("[PlannerAgent] No valid JSON found in AI response")
-                        return None
-
-                except json.JSONDecodeError as e:
-                    logger.info(f"[PlannerAgent] Failed to parse AI response as JSON: {e}")
+                # Use centralized JSON extraction
+                effort_data = VertexAIService.extract_json_from_text(response_text)
+                
+                if effort_data and self._validate_effort_data(effort_data):
+                    logger.info("[PlannerAgent] Successfully parsed and validated AI effort estimation")
+                    return effort_data
+                else:
+                    logger.warning("[PlannerAgent] Failed to extract valid JSON from AI response")
+                    logger.debug(f"[PlannerAgent] Raw response: {response_text}")
                     return None
             else:
-                logger.info("[PlannerAgent] No valid response from AI model")
+                logger.warning("[PlannerAgent] No valid response from AI model after retries")
                 return None
 
         except Exception as e:
-            logger.info(f"[PlannerAgent] Error in AI effort estimation: {str(e)}")
+            logger.error(f"[PlannerAgent] Error in AI effort estimation: {str(e)}")
             return None
 
     async def _keyword_effort_estimation(

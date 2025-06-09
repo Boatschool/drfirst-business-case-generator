@@ -1,0 +1,68 @@
+# E2E Workflow Test Configuration Template
+# Copy this file to e2e_config.yaml and update with your test environment details
+
+# API Configuration
+api:
+  base_url: "http://localhost:8000"
+  timeout: 30
+
+# Firebase Configuration
+firebase:
+  api_key: "AIzaSyBSsGH6ihs8GINwee8fBRGI84P3LqbVQ4w"
+  project_id: "drfirst-business-case-gen"
+
+# Test User Credentials
+# NOTE: In production, store these securely (e.g., environment variables, secrets manager)
+test_users:
+  initiator:
+    email: "test.initiator@drfirst.com"
+    password: "TestPassword123!"
+    
+  prd_approver:
+    email: "test.prd.approver@drfirst.com"
+    password: "TestPassword123!"
+    
+  sys_design_approver:
+    email: "test.developer@drfirst.com"
+    password: "TestPassword123!"
+    role: "DEVELOPER"
+    
+  effort_approver:
+    email: "test.effort.approver@drfirst.com"
+    password: "TestPassword123!"
+    
+  cost_approver:
+    email: "test.finance@drfirst.com"
+    password: "TestPassword123!"
+    role: "FINANCE_APPROVER"
+    
+  value_approver:
+    email: "test.sales@drfirst.com"
+    password: "TestPassword123!"
+    role: "SALES_MANAGER_APPROVER"
+    
+  final_approver:
+    email: "test.final.approver@drfirst.com"
+    password: "TestPassword123!"
+    role: "FINAL_APPROVER"
+    
+  admin:
+    email: "test.admin@drfirst.com"
+    password: "TestPassword123!"
+    role: "ADMIN"
+
+# Test Configuration
+test_settings:
+  max_poll_time: 1200  # 20 minutes max polling for AI operations
+  poll_interval: 10    # 10 seconds between polls (reduce API calls)
+  cleanup_after_test: true
+  
+# Test Data
+test_case:
+  problem_statement: "Healthcare providers need a more efficient way to manage patient appointment scheduling and reduce no-shows. Current system requires multiple phone calls and has a 25% no-show rate causing $50K monthly revenue loss."
+  project_title: "Smart Patient Appointment Management System"
+  relevant_links:
+    - name: "Current System Analysis"
+      url: "https://confluence.drfirst.com/current-analysis"
+    - name: "Industry Best Practices"
+      url: "https://confluence.drfirst.com/best-practices" 

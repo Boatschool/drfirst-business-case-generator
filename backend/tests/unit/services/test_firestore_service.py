@@ -282,17 +282,20 @@ class TestFirestoreService:
         mock_doc = Mock()
         mock_doc.exists = True
         mock_doc.to_dict.return_value = {
-            "request_data": {
-                "title": sample_business_case.request_data.title,
-                "description": sample_business_case.request_data.description,
-                "requester_uid": sample_business_case.request_data.requester_uid,
-                "priority": sample_business_case.request_data.priority
-            },
-            "status": sample_business_case.status.value,
-            "generated_content": {},
+            "user_id": sample_business_case.request_data.requester_uid,
+            "title": sample_business_case.request_data.title,
+            "problem_statement": sample_business_case.request_data.description,
+            "relevant_links": [],
+            "status": "INTAKE",  # Use valid enum value
+            "history": [],
+            "prd_draft": None,
+            "system_design_v1_draft": None,
+            "effort_estimate_v1": None,
+            "cost_estimate_v1": None,
+            "value_projection_v1": None,
+            "financial_summary_v1": None,
             "created_at": "2023-01-01T00:00:00",
-            "updated_at": "2023-01-01T00:00:00",
-            "generated_by_agents": []
+            "updated_at": "2023-01-01T00:00:00"
         }
         
         mock_db.collection.return_value.document.return_value = mock_doc_ref
@@ -303,8 +306,8 @@ class TestFirestoreService:
             result = await firestore_service.get_business_case(sample_business_case.id)
             
             assert result is not None
-            assert result.id == sample_business_case.id
-            assert result.request_data.title == sample_business_case.request_data.title
+            assert result.case_id == sample_business_case.id
+            assert result.title == sample_business_case.request_data.title
 
     @pytest.mark.asyncio
     async def test_update_business_case_success(self, firestore_service, mock_db):
@@ -331,17 +334,20 @@ class TestFirestoreService:
         mock_doc.exists = True
         mock_doc.id = sample_business_case.id
         mock_doc.to_dict.return_value = {
-            "request_data": {
-                "title": sample_business_case.request_data.title,
-                "description": sample_business_case.request_data.description,
-                "requester_uid": sample_business_case.request_data.requester_uid,
-                "priority": sample_business_case.request_data.priority
-            },
-            "status": sample_business_case.status.value,
-            "generated_content": {},
+            "user_id": sample_business_case.request_data.requester_uid,
+            "title": sample_business_case.request_data.title,
+            "problem_statement": sample_business_case.request_data.description,
+            "relevant_links": [],
+            "status": "INTAKE",  # Use valid enum value
+            "history": [],
+            "prd_draft": None,
+            "system_design_v1_draft": None,
+            "effort_estimate_v1": None,
+            "cost_estimate_v1": None,
+            "value_projection_v1": None,
+            "financial_summary_v1": None,
             "created_at": "2023-01-01T00:00:00",
-            "updated_at": "2023-01-01T00:00:00",
-            "generated_by_agents": []
+            "updated_at": "2023-01-01T00:00:00"
         }
         
         mock_query = Mock()
@@ -353,7 +359,7 @@ class TestFirestoreService:
             result = await firestore_service.list_business_cases_for_user("test-uid")
             
             assert len(result) == 1
-            assert result[0].id == sample_business_case.id
+            assert result[0].case_id == sample_business_case.id
 
     @pytest.mark.asyncio
     async def test_delete_business_case_success(self, firestore_service, mock_db):
@@ -507,7 +513,7 @@ class TestFirestoreService:
         """Test that service errors are properly propagated"""
         mock_db.collection.side_effect = Exception("Network error")
         
-        with pytest.raises(FirestoreServiceError) as exc_info:
+        with pytest.raises(DatabaseError) as exc_info:
             await firestore_service.create_user(sample_user)
         
         assert "Failed to create user" in str(exc_info.value)

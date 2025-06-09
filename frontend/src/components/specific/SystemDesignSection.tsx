@@ -27,6 +27,7 @@ import ReactMarkdown from 'react-markdown';
 import { BusinessCaseDetails } from '../../services/agent/AgentService';
 import { useAgentContext } from '../../hooks/useAgentContext';
 import { useAuth } from '../../hooks/useAuth';
+import { useStageApproverConfig } from '../../hooks/useStageApproverConfig';
 import { PAPER_ELEVATION, STANDARD_STYLES } from '../../styles/constants';
 import { toAppError } from '../../types/api';
 
@@ -34,6 +35,136 @@ interface SystemDesignSectionProps {
   currentCaseDetails: BusinessCaseDetails | null;
   isLoading: boolean;
 }
+
+// Enhanced markdown styles for better formatting and readability
+const markdownStyles = {
+  '& h1': {
+    fontSize: '1.8rem',
+    fontWeight: 600,
+    color: '#1976d2',
+    marginTop: '2rem',
+    marginBottom: '1rem',
+    borderBottom: '2px solid #e3f2fd',
+    paddingBottom: '0.5rem',
+  },
+  '& h2': {
+    fontSize: '1.5rem',
+    fontWeight: 600,
+    color: '#333',
+    marginTop: '1.5rem',
+    marginBottom: '0.8rem',
+  },
+  '& h3': {
+    fontSize: '1.3rem',
+    fontWeight: 500,
+    color: '#444',
+    marginTop: '1.2rem',
+    marginBottom: '0.6rem',
+  },
+  '& h4': {
+    fontSize: '1.1rem',
+    fontWeight: 500,
+    color: '#555',
+    marginTop: '1rem',
+    marginBottom: '0.5rem',
+  },
+  '& p': {
+    marginBottom: '1rem',
+    lineHeight: 1.6,
+    color: '#333',
+    fontSize: '1rem',
+  },
+  '& ul, & ol': {
+    marginBottom: '1rem',
+    paddingLeft: '1.5rem',
+  },
+  '& li': {
+    marginBottom: '0.5rem',
+    lineHeight: 1.5,
+  },
+  '& strong': {
+    fontWeight: 600,
+    color: '#1976d2',
+  },
+  '& em': {
+    fontStyle: 'italic',
+    color: '#666',
+  },
+  '& blockquote': {
+    borderLeft: '4px solid #1976d2',
+    paddingLeft: '1rem',
+    margin: '1rem 0',
+    fontStyle: 'italic',
+    backgroundColor: '#f8f9fa',
+    padding: '0.5rem 1rem',
+    borderRadius: '4px',
+  },
+  '& code': {
+    backgroundColor: '#f5f5f5',
+    padding: '0.2rem 0.4rem',
+    borderRadius: '3px',
+    fontSize: '0.9em',
+    fontFamily: 'monospace',
+    color: '#d32f2f',
+  },
+  '& pre': {
+    backgroundColor: '#f5f5f5',
+    padding: '1rem',
+    borderRadius: '5px',
+    overflow: 'auto',
+    margin: '1rem 0',
+    border: '1px solid #e0e0e0',
+  },
+  '& table': {
+    width: '100%',
+    borderCollapse: 'collapse',
+    margin: '1rem 0',
+  },
+  '& th, & td': {
+    border: '1px solid #ddd',
+    padding: '8px 12px',
+    textAlign: 'left',
+  },
+  '& th': {
+    backgroundColor: '#f5f5f5',
+    fontWeight: 600,
+  },
+};
+
+const formatSystemDesignContent = (content: string): string => {
+  if (!content) return content;
+
+  // Remove markdown code fences if present
+  const cleanedContent = content
+    // Remove opening markdown code fence
+    .replace(/^```markdown\n?/i, '')
+    // Remove closing code fence
+    .replace(/\n?```\s*$/i, '')
+    // Also handle case where there might be just ``` without markdown
+    .replace(/^```\n?/, '')
+    .replace(/\n?```\s*$/, '');
+
+  // More comprehensive formatting for complex markdown content
+  const formatted = cleanedContent
+    // Clean up problematic nested markdown patterns like **text:** inside headings
+    .replace(/^(#{1,6}\s+)(.*?)\*\*(.*?)\*\*(.*?)$/gm, '$1$2**$3**$4')
+    // Handle bullet points with embedded formatting
+    .replace(/^\s*\*\s+\*\*(.*?)\*\*:\s*(.*?)$/gm, '* **$1:** $2')
+    // Clean up extra asterisks and plus signs that might be raw markdown
+    .replace(/\+\+/g, '')
+    // Ensure proper spacing around headings
+    .replace(/^(#{1,6}\s.+)$/gm, '$1\n')
+    .replace(/([^\n])\n(#{1,6}\s)/g, '$1\n\n$2')
+    // Better bullet point handling
+    .replace(/^(\s*[*-+]\s.+)$/gm, '$1')
+    .replace(/^(\s*[*-+]\s.+)(\n(?!\s*[*-+]))/gm, '$1\n$2')
+    // Clean up multiple consecutive line breaks
+    .replace(/\n{3,}/g, '\n\n')
+    // Ensure there's a line break at the end
+    .trim();
+
+  return formatted;
+};
 
 export const SystemDesignSection: React.FC<SystemDesignSectionProps> = ({
   currentCaseDetails,
@@ -44,8 +175,10 @@ export const SystemDesignSection: React.FC<SystemDesignSectionProps> = ({
     submitSystemDesignForReview,
     approveSystemDesign,
     rejectSystemDesign,
+    triggerSystemDesignGeneration,
   } = useAgentContext();
   const { currentUser, systemRole } = useAuth();
+  const { canApproveStage } = useStageApproverConfig();
 
   // Local state for system design editing
   const [isEditingSystemDesign, setIsEditingSystemDesign] = useState(false);
@@ -194,6 +327,26 @@ export const SystemDesignSection: React.FC<SystemDesignSectionProps> = ({
     setSystemDesignRejectionReason('');
   };
 
+  const handleTriggerSystemDesign = async () => {
+    if (!currentCaseDetails?.case_id) return;
+    
+    try {
+      setStatusUpdateError(null);
+      setStatusUpdateSuccess(null);
+      
+      const success = await triggerSystemDesignGeneration(currentCaseDetails.case_id);
+      
+      if (success) {
+        setStatusUpdateSuccess('System design generation triggered successfully! The page will refresh automatically when the design is ready.');
+        setTimeout(() => setStatusUpdateSuccess(null), 8000);
+      } else {
+        setStatusUpdateError('Failed to trigger system design generation. Please try again or contact support.');
+      }
+    } catch (error) {
+      setStatusUpdateError('An error occurred while triggering system design generation. Please try again.');
+    }
+  };
+
   // Permission helpers
   const canEditSystemDesign = () => {
     if (!currentCaseDetails || !currentUser) return false;
@@ -215,9 +368,10 @@ export const SystemDesignSection: React.FC<SystemDesignSectionProps> = ({
 
   const canApproveRejectSystemDesign = () => {
     if (!currentCaseDetails || !currentUser) return false;
-    const isDeveloper = systemRole === 'DEVELOPER';
+    const isInitiator = currentCaseDetails.user_id === currentUser.uid;
+    const isApprover = canApproveStage('SystemDesign', systemRole);
     return (
-      isDeveloper &&
+      (isInitiator || isApprover) &&
       currentCaseDetails.status === 'SYSTEM_DESIGN_PENDING_REVIEW'
     );
   };
@@ -251,10 +405,17 @@ export const SystemDesignSection: React.FC<SystemDesignSectionProps> = ({
                 </Button>
                 <Button
                   variant="outlined"
+                  color="primary"
+                  onClick={handleTriggerSystemDesign}
+                  disabled={isLoading}
+                >
+                  Trigger System Design
+                </Button>
+                <Button
+                  variant="outlined"
                   color="secondary"
                   onClick={() => {
-                    // For now, suggest refresh - we could add a manual trigger API later
-                    alert('Please try refreshing the page. If the issue persists, the system design generation may have encountered an error during the PRD approval process.');
+                    alert('If the Trigger System Design button doesn\'t work, please contact support. This usually happens when the automatic workflow failed during PRD approval.');
                   }}
                   disabled={isLoading}
                 >
@@ -397,7 +558,7 @@ export const SystemDesignSection: React.FC<SystemDesignSectionProps> = ({
 
         {/* System Design Content */}
         {!isEditingSystemDesign ? (
-          <Box>
+          <Box sx={markdownStyles}>
             {currentCaseDetails.system_design_v1_draft.generated_by && (
               <Typography
                 variant="caption"
@@ -410,7 +571,7 @@ export const SystemDesignSection: React.FC<SystemDesignSectionProps> = ({
               </Typography>
             )}
             <ReactMarkdown>
-              {currentCaseDetails.system_design_v1_draft.content_markdown}
+              {formatSystemDesignContent(currentCaseDetails.system_design_v1_draft.content_markdown)}
             </ReactMarkdown>
           </Box>
         ) : (

@@ -160,6 +160,26 @@ export function formatErrorMessage(
   error: unknown,
   context?: string
 ): FormattedError {
+  // If error is a simple string, use it directly
+  if (typeof error === 'string' && error.trim()) {
+    return {
+      message: error,
+      severity: 'error',
+      actionable: 'Please try again. If the problem continues, contact support',
+      retry: true,
+    };
+  }
+  
+  // If error is an Error object with a message, use it directly
+  if (error instanceof Error && error.message.trim()) {
+    return {
+      message: error.message,
+      severity: 'error',
+      actionable: 'Please try again. If the problem continues, contact support',
+      retry: true,
+    };
+  }
+  
   const errorType = getErrorType(error);
   const template = ERROR_MESSAGES[errorType];
   

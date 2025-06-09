@@ -21,6 +21,7 @@ import {
 } from '../services/agent/AgentService';
 import { HttpAgentAdapter } from '../services/agent/HttpAgentAdapter'; // Concrete implementation
 import { AppError, toAppError } from '../types/api';
+import { AuthContext } from './AuthContext';
 import Logger from '../utils/logger';
 
 // Generate unique provider ID for debugging
@@ -58,6 +59,11 @@ interface AgentContextType extends AgentContextState {
   submitSystemDesignForReview: (caseId: string) => Promise<boolean>;
   approveSystemDesign: (caseId: string) => Promise<boolean>;
   rejectSystemDesign: (caseId: string, reason?: string) => Promise<boolean>;
+  triggerSystemDesignGeneration: (caseId: string) => Promise<boolean>;
+  triggerEffortEstimateGeneration: (caseId: string) => Promise<boolean>;
+  triggerCostAnalysisGeneration: (caseId: string) => Promise<boolean>;
+  triggerValueAnalysisGeneration: (caseId: string) => Promise<boolean>;
+  triggerFinancialModelGeneration: (caseId: string) => Promise<boolean>;
   updateEffortEstimate: (
     caseId: string,
     data: EffortEstimate
@@ -76,6 +82,9 @@ interface AgentContextType extends AgentContextState {
   rejectCostEstimate: (caseId: string, reason?: string) => Promise<boolean>;
   approveValueProjection: (caseId: string) => Promise<boolean>;
   rejectValueProjection: (caseId: string, reason?: string) => Promise<boolean>;
+  submitFinancialModelForReview: (caseId: string) => Promise<boolean>;
+  approveFinancialModel: (caseId: string) => Promise<boolean>;
+  rejectFinancialModel: (caseId: string, reason?: string) => Promise<boolean>;
   submitCaseForFinalApproval: (caseId: string) => Promise<boolean>;
   approveFinalCase: (caseId: string) => Promise<boolean>;
   rejectFinalCase: (caseId: string, reason?: string) => Promise<boolean>;
@@ -96,6 +105,9 @@ interface AgentProviderProps {
 
 export const AgentProvider: React.FC<AgentProviderProps> = ({ children }) => {
   logger.debug(`🟢 [${PROVIDER_ID}] AgentProvider: Component mounted/rendering`);
+
+  // Get authentication context to check auth state
+  const authContext = React.useContext(AuthContext);
 
   const [state, setState] = useState<AgentContextState>({
     currentCaseId: null,
@@ -118,6 +130,8 @@ export const AgentProvider: React.FC<AgentProviderProps> = ({ children }) => {
     };
   }, []);
 
+
+
   // SIMPLIFIED: Inline refresh helper - no dependencies, no complexity
   const inlineRefreshCaseDetails = async (
     caseId: string,
@@ -139,6 +153,12 @@ export const AgentProvider: React.FC<AgentProviderProps> = ({ children }) => {
 
   // SIMPLIFIED: Stable functions with no interdependencies
   const fetchUserCases = useCallback(async () => {
+    // Check if authentication is ready
+    if (!authContext || authContext.loading || !authContext.currentUser) {
+      logger.debug('Authentication not ready, skipping fetchUserCases');
+      return;
+    }
+
     setState((prevState) => ({
       ...prevState,
       isLoadingCases: true,
@@ -153,13 +173,19 @@ export const AgentProvider: React.FC<AgentProviderProps> = ({ children }) => {
       }));
     } catch (err) {
       const appError = toAppError(err, 'api');
+      // Only log as error if the user is actually authenticated
+      if (authContext && authContext.currentUser) {
+        logger.error('Error fetching user cases:', appError);
+      } else {
+        logger.debug('Skipping case fetch error logging - user not authenticated');
+      }
       setState((prevState) => ({
         ...prevState,
         isLoadingCases: false,
         casesError: appError,
       }));
     }
-  }, []); // STABLE: No dependencies
+  }, [authContext]); // Updated dependencies to include authContext
 
   const fetchCaseDetails = useCallback(async (caseId: string) => {
     setState((prevState) => ({
@@ -386,6 +412,27 @@ export const AgentProvider: React.FC<AgentProviderProps> = ({ children }) => {
       setState((prevState) => ({ ...prevState, isLoading: true, error: null }));
       try {
         await agentService.rejectSystemDesign(caseId, reason);
+        setState((prevState) => ({ ...prevState, isLoading: false }));
+        await inlineRefreshCaseDetails(caseId, state.currentCaseId);
+        return true;
+      } catch (err) {
+        const appError = toAppError(err, 'api');
+        setState((prevState) => ({
+          ...prevState,
+          isLoading: false,
+          error: appError,
+        }));
+        return false;
+      }
+    },
+    [state.currentCaseId]
+  );
+
+  const triggerSystemDesignGeneration = useCallback(
+    async (caseId: string): Promise<boolean> => {
+      setState((prevState) => ({ ...prevState, isLoading: true, error: null }));
+      try {
+        await agentService.triggerSystemDesignGeneration(caseId);
         setState((prevState) => ({ ...prevState, isLoading: false }));
         await inlineRefreshCaseDetails(caseId, state.currentCaseId);
         return true;
@@ -718,6 +765,130 @@ export const AgentProvider: React.FC<AgentProviderProps> = ({ children }) => {
     [state.currentCaseId]
   );
 
+  // NEW: Additional trigger methods for workflow progression
+  const triggerEffortEstimateGeneration = useCallback(
+    async (caseId: string): Promise<boolean> => {
+      setState((prevState) => ({ ...prevState, isLoading: true, error: null }));
+      try {
+        await agentService.triggerEffortEstimateGeneration(caseId);
+        setState((prevState) => ({ ...prevState, isLoading: false }));
+        await inlineRefreshCaseDetails(caseId, state.currentCaseId);
+        return true;
+      } catch (err) {
+        const appError = toAppError(err, 'api');
+        setState((prevState) => ({
+          ...prevState,
+          isLoading: false,
+          error: appError,
+        }));
+        return false;
+      }
+    },
+    [state.currentCaseId]
+  );
+
+  const triggerCostAnalysisGeneration = useCallback(
+    async (caseId: string): Promise<boolean> => {
+      setState((prevState) => ({ ...prevState, isLoading: true, error: null }));
+      try {
+        await agentService.triggerCostAnalysisGeneration(caseId);
+        setState((prevState) => ({ ...prevState, isLoading: false }));
+        await inlineRefreshCaseDetails(caseId, state.currentCaseId);
+        return true;
+      } catch (err) {
+        const appError = toAppError(err, 'api');
+        setState((prevState) => ({
+          ...prevState,
+          isLoading: false,
+          error: appError,
+        }));
+        return false;
+      }
+    },
+    [state.currentCaseId]
+  );
+
+  const triggerValueAnalysisGeneration = useCallback(
+    async (caseId: string): Promise<boolean> => {
+      setState((prevState) => ({ ...prevState, isLoading: true, error: null }));
+      try {
+        await agentService.triggerValueAnalysisGeneration(caseId);
+        setState((prevState) => ({ ...prevState, isLoading: false }));
+        await inlineRefreshCaseDetails(caseId, state.currentCaseId);
+        return true;
+      } catch (err) {
+        const appError = toAppError(err, 'api');
+        setState((prevState) => ({
+          ...prevState,
+          isLoading: false,
+          error: appError,
+        }));
+        return false;
+      }
+    },
+    [state.currentCaseId]
+  );
+
+  const submitFinancialModelForReview = useCallback(
+    async (caseId: string): Promise<boolean> => {
+      try {
+        await agentService.submitFinancialModelForReview(caseId);
+        await inlineRefreshCaseDetails(caseId, state.currentCaseId);
+        return true;
+      } catch {
+        return false;
+      }
+    },
+    [state.currentCaseId]
+  );
+
+  const approveFinancialModel = useCallback(
+    async (caseId: string): Promise<boolean> => {
+      try {
+        await agentService.approveFinancialModel(caseId);
+        await inlineRefreshCaseDetails(caseId, state.currentCaseId);
+        return true;
+      } catch {
+        return false;
+      }
+    },
+    [state.currentCaseId]
+  );
+
+  const rejectFinancialModel = useCallback(
+    async (caseId: string, reason?: string): Promise<boolean> => {
+      try {
+        await agentService.rejectFinancialModel(caseId, reason);
+        await inlineRefreshCaseDetails(caseId, state.currentCaseId);
+        return true;
+      } catch {
+        return false;
+      }
+    },
+    [state.currentCaseId]
+  );
+
+  const triggerFinancialModelGeneration = useCallback(
+    async (caseId: string): Promise<boolean> => {
+      setState((prevState) => ({ ...prevState, isLoading: true, error: null }));
+      try {
+        await agentService.triggerFinancialModelGeneration(caseId);
+        setState((prevState) => ({ ...prevState, isLoading: false }));
+        await inlineRefreshCaseDetails(caseId, state.currentCaseId);
+        return true;
+      } catch (err) {
+        const appError = toAppError(err, 'api');
+        setState((prevState) => ({
+          ...prevState,
+          isLoading: false,
+          error: appError,
+        }));
+        return false;
+      }
+    },
+    [state.currentCaseId]
+  );
+
   const value = useMemo(
     () => ({
       ...state,
@@ -734,6 +905,11 @@ export const AgentProvider: React.FC<AgentProviderProps> = ({ children }) => {
       submitSystemDesignForReview,
       approveSystemDesign,
       rejectSystemDesign,
+      triggerSystemDesignGeneration,
+      triggerEffortEstimateGeneration,
+      triggerCostAnalysisGeneration,
+      triggerValueAnalysisGeneration,
+      triggerFinancialModelGeneration,
       updateEffortEstimate,
       submitEffortEstimateForReview,
       updateCostEstimate,
@@ -746,6 +922,9 @@ export const AgentProvider: React.FC<AgentProviderProps> = ({ children }) => {
       rejectCostEstimate,
       approveValueProjection,
       rejectValueProjection,
+      submitFinancialModelForReview,
+      approveFinancialModel,
+      rejectFinancialModel,
       submitCaseForFinalApproval,
       approveFinalCase,
       rejectFinalCase,
@@ -769,6 +948,11 @@ export const AgentProvider: React.FC<AgentProviderProps> = ({ children }) => {
       submitSystemDesignForReview,
       approveSystemDesign,
       rejectSystemDesign,
+      triggerSystemDesignGeneration,
+      triggerEffortEstimateGeneration,
+      triggerCostAnalysisGeneration,
+      triggerValueAnalysisGeneration,
+      triggerFinancialModelGeneration,
       updateEffortEstimate,
       submitEffortEstimateForReview,
       updateCostEstimate,
@@ -781,6 +965,9 @@ export const AgentProvider: React.FC<AgentProviderProps> = ({ children }) => {
       rejectCostEstimate,
       approveValueProjection,
       rejectValueProjection,
+      submitFinancialModelForReview,
+      approveFinancialModel,
+      rejectFinancialModel,
       submitCaseForFinalApproval,
       approveFinalCase,
       rejectFinalCase,

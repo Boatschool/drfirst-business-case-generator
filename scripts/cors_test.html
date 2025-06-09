@@ -1,0 +1,313 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CORS Test Page - DrFirst Business Case Generator</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #f5f5f5;
+            line-height: 1.6;
+        }
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #333;
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .warning {
+            background-color: #fff8dc;
+            border: 1px solid #f0ad4e;
+            padding: 15px;
+            border-radius: 5px;
+            margin-bottom: 20px;
+        }
+        .config-section {
+            background-color: #f8f9fa;
+            padding: 15px;
+            border-radius: 5px;
+            margin-bottom: 20px;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+            color: #555;
+        }
+        input[type="text"] {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 14px;
+            margin-bottom: 10px;
+            box-sizing: border-box;
+        }
+        button {
+            background-color: #007bff;
+            color: white;
+            padding: 12px 24px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+            margin: 5px;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+        button:disabled {
+            background-color: #6c757d;
+            cursor: not-allowed;
+        }
+        #results {
+            margin-top: 30px;
+            padding: 20px;
+            background-color: #f8f9fa;
+            border-radius: 5px;
+            white-space: pre-wrap;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+        .test-section {
+            border: 1px solid #dee2e6;
+            border-radius: 5px;
+            padding: 15px;
+            margin-bottom: 15px;
+        }
+        .success { color: #28a745; }
+        .error { color: #dc3545; }
+        .warning-text { color: #ffc107; }
+        .info { color: #17a2b8; }
+        .origin-info {
+            background-color: #e9ecef;
+            padding: 10px;
+            border-radius: 4px;
+            margin-bottom: 15px;
+            font-family: monospace;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔒 CORS Configuration Test Page</h1>
+        
+        <div class="warning">
+            <strong>⚠️ Test Purpose:</strong> This page is designed to test CORS blocking by making requests 
+            from an unauthorized origin. If CORS is configured correctly, the requests should fail with 
+            CORS errors in the browser console.
+        </div>
+
+        <div class="origin-info">
+            <strong>Current Origin:</strong> <span id="currentOrigin"></span>
+        </div>
+
+        <div class="config-section">
+            <h3>🎯 Test Configuration</h3>
+            <label for="backendUrl">Backend URL:</label>
+            <input type="text" id="backendUrl" placeholder="https://your-backend.run.app" 
+                   value="http://localhost:8000">
+            
+            <label for="testEndpoint">Test Endpoint (relative to backend):</label>
+            <input type="text" id="testEndpoint" placeholder="/health" value="/health">
+        </div>
+
+        <div class="test-section">
+            <h3>🧪 CORS Tests</h3>
+            <button onclick="testSimpleRequest()">Test Simple GET Request</button>
+            <button onclick="testPreflightRequest()">Test Preflight Request</button>
+            <button onclick="testAuthenticatedRequest()">Test Authenticated Request</button>
+            <button onclick="clearResults()">Clear Results</button>
+        </div>
+
+        <div id="results"></div>
+    </div>
+
+    <script>
+        // Display current origin
+        document.getElementById('currentOrigin').textContent = window.location.origin;
+
+        let testCounter = 0;
+
+        function log(message, type = 'info') {
+            const results = document.getElementById('results');
+            const timestamp = new Date().toLocaleTimeString();
+            const className = type === 'success' ? 'success' : 
+                             type === 'error' ? 'error' : 
+                             type === 'warning' ? 'warning-text' : 'info';
+            
+            results.innerHTML += `<span class="${className}">[${timestamp}] ${message}</span>\n`;
+            results.scrollTop = results.scrollHeight;
+        }
+
+        function clearResults() {
+            document.getElementById('results').innerHTML = '';
+            testCounter = 0;
+        }
+
+        function getBackendUrl() {
+            return document.getElementById('backendUrl').value.trim();
+        }
+
+        function getTestEndpoint() {
+            return document.getElementById('testEndpoint').value.trim();
+        }
+
+        async function testSimpleRequest() {
+            testCounter++;
+            const testId = testCounter;
+            const backendUrl = getBackendUrl();
+            const endpoint = getTestEndpoint();
+            const fullUrl = backendUrl + endpoint;
+
+            log(`\n=== Test ${testId}: Simple GET Request ===`, 'info');
+            log(`🔗 URL: ${fullUrl}`, 'info');
+            log(`🌐 Origin: ${window.location.origin}`, 'info');
+            log(`⏳ Sending request...`, 'info');
+
+            try {
+                const response = await fetch(fullUrl, {
+                    method: 'GET',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                });
+
+                log(`✅ Request succeeded!`, 'success');
+                log(`📊 Status: ${response.status} ${response.statusText}`, 'success');
+                
+                // Check CORS headers
+                const corsHeaders = {};
+                response.headers.forEach((value, key) => {
+                    if (key.toLowerCase().startsWith('access-control')) {
+                        corsHeaders[key] = value;
+                    }
+                });
+
+                if (Object.keys(corsHeaders).length > 0) {
+                    log(`🔒 CORS Headers:`, 'info');
+                    for (const [key, value] of Object.entries(corsHeaders)) {
+                        log(`   ${key}: ${value}`, 'info');
+                    }
+                } else {
+                    log(`⚠️  No CORS headers found`, 'warning');
+                }
+
+                // Try to read response
+                try {
+                    const data = await response.text();
+                    log(`📄 Response: ${data.substring(0, 200)}${data.length > 200 ? '...' : ''}`, 'info');
+                } catch (e) {
+                    log(`⚠️  Could not read response body: ${e.message}`, 'warning');
+                }
+
+                log(`🚨 WARNING: This request should have been blocked by CORS!`, 'error');
+                
+            } catch (error) {
+                log(`❌ Request failed (Expected for CORS blocking)`, 'success');
+                log(`📋 Error: ${error.message}`, 'success');
+                
+                if (error.message.includes('CORS') || error.message.includes('cross-origin')) {
+                    log(`✅ CORS is working correctly - request blocked!`, 'success');
+                } else {
+                    log(`⚠️  Error might not be CORS-related`, 'warning');
+                }
+            }
+        }
+
+        async function testPreflightRequest() {
+            testCounter++;
+            const testId = testCounter;
+            const backendUrl = getBackendUrl();
+            const fullUrl = backendUrl + '/api/v1/auth/me'; // Endpoint that requires preflight
+
+            log(`\n=== Test ${testId}: Preflight (OPTIONS) Request ===`, 'info');
+            log(`🔗 URL: ${fullUrl}`, 'info');
+            log(`🌐 Origin: ${window.location.origin}`, 'info');
+            log(`⏳ Sending preflight request...`, 'info');
+
+            try {
+                const response = await fetch(fullUrl, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': 'Bearer fake-token'
+                    },
+                    body: JSON.stringify({ test: 'data' })
+                });
+
+                log(`✅ Preflight request succeeded!`, 'success');
+                log(`📊 Status: ${response.status} ${response.statusText}`, 'success');
+                log(`🚨 WARNING: This preflight should have been blocked by CORS!`, 'error');
+                
+            } catch (error) {
+                log(`❌ Preflight request failed (Expected for CORS blocking)`, 'success');
+                log(`📋 Error: ${error.message}`, 'success');
+                
+                if (error.message.includes('CORS') || error.message.includes('cross-origin')) {
+                    log(`✅ CORS is working correctly - preflight blocked!`, 'success');
+                } else {
+                    log(`⚠️  Error might not be CORS-related`, 'warning');
+                }
+            }
+        }
+
+        async function testAuthenticatedRequest() {
+            testCounter++;
+            const testId = testCounter;
+            const backendUrl = getBackendUrl();
+            const fullUrl = backendUrl + '/api/v1/auth/me';
+
+            log(`\n=== Test ${testId}: Authenticated Request ===`, 'info');
+            log(`🔗 URL: ${fullUrl}`, 'info');
+            log(`🌐 Origin: ${window.location.origin}`, 'info');
+            log(`🔐 Including Authorization header`, 'info');
+            log(`⏳ Sending authenticated request...`, 'info');
+
+            try {
+                const response = await fetch(fullUrl, {
+                    method: 'GET',
+                    headers: {
+                        'Authorization': 'Bearer test-token',
+                        'Content-Type': 'application/json'
+                    },
+                    credentials: 'include'  // This should trigger CORS preflight
+                });
+
+                log(`✅ Authenticated request succeeded!`, 'success');
+                log(`📊 Status: ${response.status} ${response.statusText}`, 'success');
+                log(`🚨 WARNING: This authenticated request should have been blocked by CORS!`, 'error');
+                
+            } catch (error) {
+                log(`❌ Authenticated request failed (Expected for CORS blocking)`, 'success');
+                log(`📋 Error: ${error.message}`, 'success');
+                
+                if (error.message.includes('CORS') || error.message.includes('cross-origin')) {
+                    log(`✅ CORS is working correctly - authenticated request blocked!`, 'success');
+                } else {
+                    log(`⚠️  Error might not be CORS-related`, 'warning');
+                }
+            }
+        }
+
+        // Initialize with current origin info
+        log(`🚀 CORS Test Page Initialized`, 'info');
+        log(`🌐 Current Origin: ${window.location.origin}`, 'info');
+        log(`📋 This page will test if the backend correctly blocks requests from unauthorized origins.`, 'info');
+        log(`✅ Expected Result: All requests should fail with CORS errors.`, 'info');
+        log(`❌ Security Issue: If requests succeed, CORS is not properly configured.`, 'warning');
+    </script>
+</body>
+</html> 

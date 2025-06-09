@@ -1,0 +1,515 @@
+{
+  "metadata": {
+    "version": "1.0",
+    "created_date": "2025-06-07",
+    "description": "Golden datasets for evaluating the 6 core AI agents in DrFirst Business Case Generator",
+    "total_examples": 20,
+    "examples_per_agent": {
+      "ProductManagerAgent": 5,
+      "ArchitectAgent": 3,
+      "PlannerAgent": 3, 
+      "CostAnalystAgent": 3,
+      "SalesValueAnalystAgent": 3,
+      "FinancialModelAgent": 4
+    },
+    "agents_covered": [
+      "ProductManagerAgent",
+      "ArchitectAgent", 
+      "PlannerAgent",
+      "CostAnalystAgent",
+      "SalesValueAnalystAgent",
+      "FinancialModelAgent"
+    ]
+  },
+  "datasets": {
+    "ProductManagerAgent": [
+      {
+        "inputId": "prd_simple_001",
+        "agentName": "ProductManagerAgent",
+        "input_payload": {
+          "case_title": "Patient Portal Mobile App",
+          "problem_statement": "Patients struggle to access their medical records and communicate with providers outside of office visits. Current patient portal is desktop-only and difficult to use.",
+          "relevant_links": [
+            {"name": "Current Portal", "url": "https://portal.drfirst.com"},
+            {"name": "HIPAA Guidelines", "url": "https://hhs.gov/hipaa"}
+          ]
+        },
+        "expected_characteristics_or_ideal_output": {
+          "must_contain_sections": ["Introduction", "Problem Statement", "Goals", "Key Features", "Technical Requirements", "Acceptance Criteria"],
+          "ideal_introduction_snippet": "This project aims to develop a mobile application that provides patients with convenient, secure access to their medical records and healthcare providers",
+          "quality_notes": "Should be specific to healthcare domain, mention HIPAA compliance, include mobile-specific considerations"
+        }
+      },
+      {
+        "inputId": "prd_complex_002", 
+        "agentName": "ProductManagerAgent",
+        "input_payload": {
+          "case_title": "AI-Powered Drug Interaction Checker",
+          "problem_statement": "Healthcare providers need real-time alerts about dangerous drug interactions when prescribing medications. Current systems have high false positive rates and poor integration with EHR systems.",
+          "relevant_links": [
+            {"name": "FDA Drug Database", "url": "https://fda.gov/drugs"},
+            {"name": "Clinical Decision Support", "url": "https://cds.ahrq.gov"}
+          ]
+        },
+        "expected_characteristics_or_ideal_output": {
+          "must_contain_sections": ["Introduction", "Problem Statement", "Goals", "Key Features", "Technical Requirements", "Integration Requirements", "Acceptance Criteria"],
+          "ideal_introduction_snippet": "This project develops an AI-powered clinical decision support system that provides accurate, real-time drug interaction alerts",
+          "quality_notes": "Should address AI/ML components, clinical workflow integration, regulatory considerations"
+        }
+      },
+      {
+        "inputId": "prd_minimal_003",
+        "agentName": "ProductManagerAgent",
+        "input_payload": {
+          "case_title": "Simple Appointment Reminder System",
+          "problem_statement": "Patients frequently miss appointments leading to revenue loss and scheduling inefficiencies.",
+          "relevant_links": []
+        },
+        "expected_characteristics_or_ideal_output": {
+          "must_contain_sections": ["Introduction", "Problem Statement", "Goals", "Key Features"],
+          "ideal_introduction_snippet": "This project aims to reduce appointment no-shows through automated reminder system",
+          "quality_notes": "Should be concise but complete, handle minimal input gracefully"
+        }
+      },
+      {
+        "inputId": "prd_integration_004",
+        "agentName": "ProductManagerAgent",
+        "input_payload": {
+          "case_title": "EHR Integration Platform",
+          "problem_statement": "Healthcare providers use multiple disconnected systems leading to data silos and workflow inefficiencies. Need unified platform for Epic, Cerner, and Allscripts integration.",
+          "relevant_links": [
+            {"name": "FHIR Specification", "url": "https://hl7.org/fhir"},
+            {"name": "Epic API", "url": "https://fhir.epic.com"},
+            {"name": "Cerner SMART", "url": "https://fhir.cerner.com"}
+          ]
+        },
+        "expected_characteristics_or_ideal_output": {
+          "must_contain_sections": ["Introduction", "Problem Statement", "Goals", "Key Features", "Technical Requirements", "Integration Requirements", "Compliance Requirements"],
+          "ideal_introduction_snippet": "This project develops a unified integration platform that connects disparate EHR systems",
+          "quality_notes": "Should address interoperability standards, data mapping, security, and compliance complexity"
+        }
+      },
+      {
+        "inputId": "prd_analytics_005",
+        "agentName": "ProductManagerAgent",
+        "input_payload": {
+          "case_title": "Population Health Analytics Dashboard",
+          "problem_statement": "Healthcare administrators lack visibility into population health trends and quality metrics across patient populations. Current reporting is manual and outdated.",
+          "relevant_links": [
+            {"name": "CMS Quality Measures", "url": "https://cms.gov/quality"},
+            {"name": "HEDIS Measures", "url": "https://ncqa.org/hedis"}
+          ]
+        },
+        "expected_characteristics_or_ideal_output": {
+          "must_contain_sections": ["Introduction", "Problem Statement", "Goals", "Key Features", "Analytics Requirements", "Data Requirements"],
+          "ideal_introduction_snippet": "This project creates a comprehensive analytics platform for population health management and quality reporting",
+          "quality_notes": "Should focus on healthcare analytics, quality metrics, regulatory reporting requirements"
+        }
+      }
+    ],
+    "ArchitectAgent": [
+      {
+        "inputId": "arch_mobile_001",
+        "agentName": "ArchitectAgent", 
+        "input_payload": {
+          "prd_content": "# Patient Portal Mobile App\n\n## Problem Statement\nPatients need mobile access to medical records...\n\n## Key Features\n- Secure login with biometrics\n- View lab results and medical history\n- Message healthcare providers\n- Appointment scheduling\n- Prescription refill requests",
+          "case_title": "Patient Portal Mobile App"
+        },
+        "expected_characteristics_or_ideal_output": {
+          "must_contain_sections": ["Frontend Architecture", "Backend Services", "Data Storage", "Security", "API Design", "Integration Points"],
+          "architecture_patterns": ["Mobile app architecture", "RESTful APIs", "Secure authentication"],
+          "quality_notes": "Should specify mobile frameworks, security measures for healthcare data, API design for patient data access"
+        }
+      },
+      {
+        "inputId": "arch_integration_002",
+        "agentName": "ArchitectAgent",
+        "input_payload": {
+          "prd_content": "# EHR Integration Platform\n\n## Goals\nUnify Epic, Cerner, Allscripts systems\n\n## Key Features\n- FHIR-compliant data exchange\n- Real-time synchronization\n- Data mapping and transformation\n- Audit logging and monitoring",
+          "case_title": "EHR Integration Platform"
+        },
+        "expected_characteristics_or_ideal_output": {
+          "must_contain_sections": ["Integration Architecture", "Data Storage", "API Design", "Security", "Monitoring"],
+          "architecture_patterns": ["Microservices", "Event-driven architecture", "Data transformation pipelines"],
+          "quality_notes": "Should address interoperability, data mapping, real-time processing, scalability"
+        }
+      },
+      {
+        "inputId": "arch_analytics_003",
+        "agentName": "ArchitectAgent",
+        "input_payload": {
+          "prd_content": "# Population Health Analytics\n\n## Features\n- Real-time dashboards\n- Quality measure calculations\n- Population segmentation\n- Predictive analytics\n- Report generation",
+          "case_title": "Population Health Analytics Dashboard"
+        },
+        "expected_characteristics_or_ideal_output": {
+          "must_contain_sections": ["Frontend Architecture", "Backend Services", "Data Storage", "Analytics Engine", "API Design"],
+          "architecture_patterns": ["Data warehouse", "ETL pipelines", "Analytics platform"],
+          "quality_notes": "Should specify analytics technologies, data processing, visualization components"
+        }
+      }
+    ],
+    "PlannerAgent": [
+      {
+        "inputId": "plan_mobile_001",
+        "agentName": "PlannerAgent",
+        "input_payload": {
+          "prd_content": "Mobile patient portal with secure login, medical records access, provider messaging, appointment scheduling",
+          "system_design_content": "React Native app, Node.js backend, PostgreSQL database, OAuth2 + biometric auth, RESTful APIs",
+          "case_title": "Patient Portal Mobile App"
+        },
+        "expected_characteristics_or_ideal_output": {
+          "json_schema_requirements": {
+            "roles": "array",
+            "total_hours": "number",
+            "estimated_duration_weeks": "number", 
+            "complexity_assessment": "string",
+            "notes": "string"
+          },
+          "reasonable_hour_ranges": {
+            "Product Manager": [20, 60],
+            "Lead Developer": [40, 120],
+            "Senior Developer": [60, 200],
+            "QA Engineer": [30, 100]
+          },
+          "quality_notes": "Rationale should mention mobile development complexity, healthcare compliance requirements, security considerations"
+        }
+      },
+      {
+        "inputId": "plan_integration_002",
+        "agentName": "PlannerAgent",
+        "input_payload": {
+          "prd_content": "EHR Integration Platform - FHIR-compliant, real-time sync, Epic/Cerner/Allscripts support, data transformation",
+          "system_design_content": "Microservices architecture, Kafka event streaming, Docker containers, Redis caching, monitoring dashboard",
+          "case_title": "EHR Integration Platform"
+        },
+        "expected_characteristics_or_ideal_output": {
+          "json_schema_requirements": {
+            "roles": "array",
+            "total_hours": "number",
+            "estimated_duration_weeks": "number",
+            "complexity_assessment": "string", 
+            "notes": "string"
+          },
+          "reasonable_hour_ranges": {
+            "Product Manager": [40, 80],
+            "Lead Developer": [80, 160],
+            "Senior Developer": [120, 300],
+            "DevOps Engineer": [60, 120]
+          },
+          "quality_notes": "Should consider integration complexity, data mapping effort, testing across multiple EHR systems"
+        }
+      },
+      {
+        "inputId": "plan_simple_003",
+        "agentName": "PlannerAgent",
+        "input_payload": {
+          "prd_content": "Simple appointment reminder system - SMS/email notifications, appointment scheduling integration",
+          "system_design_content": "Web app, Python Flask, SQLite database, Twilio SMS API",
+          "case_title": "Appointment Reminder System"
+        },
+        "expected_characteristics_or_ideal_output": {
+          "json_schema_requirements": {
+            "roles": "array",
+            "total_hours": "number",
+            "estimated_duration_weeks": "number",
+            "complexity_assessment": "string",
+            "notes": "string"
+          },
+          "reasonable_hour_ranges": {
+            "Product Manager": [10, 30],
+            "Senior Developer": [30, 80],
+            "QA Engineer": [15, 40]
+          },
+          "quality_notes": "Should reflect lower complexity, fewer roles needed, shorter timeline for simple system"
+        }
+      }
+    ],
+    "CostAnalystAgent": [
+      {
+        "inputId": "cost_fixed_001",
+        "agentName": "CostAnalystAgent",
+        "input_payload": {
+          "effort_breakdown": {
+            "roles": [
+              {"role": "Product Manager", "hours": 40},
+              {"role": "Lead Developer", "hours": 80},
+              {"role": "Senior Developer", "hours": 120},
+              {"role": "QA Engineer", "hours": 60}
+            ],
+            "total_hours": 300,
+            "complexity_assessment": "Medium"
+          },
+          "case_title": "Test Cost Calculation"
+        },
+        "expected_output_values": {
+          "mock_rate_card": {
+            "Product Manager": 150,
+            "Lead Developer": 140,
+            "Senior Developer": 120,
+            "QA Engineer": 100
+          },
+          "expected_calculations": {
+            "product_manager_cost": 6000,
+            "lead_developer_cost": 11200,
+            "senior_developer_cost": 14400,
+            "qa_engineer_cost": 6000,
+            "total_cost": 37600
+          },
+          "required_fields": ["currency", "rate_card_used", "estimated_cost", "role_costs"]
+        }
+      },
+      {
+        "inputId": "cost_high_complexity_002",
+        "agentName": "CostAnalystAgent",
+        "input_payload": {
+          "effort_breakdown": {
+            "roles": [
+              {"role": "Product Manager", "hours": 80},
+              {"role": "Lead Developer", "hours": 160},
+              {"role": "Senior Developer", "hours": 280},
+              {"role": "Junior Developer", "hours": 120},
+              {"role": "QA Engineer", "hours": 100},
+              {"role": "DevOps Engineer", "hours": 80},
+              {"role": "UI/UX Designer", "hours": 60}
+            ],
+            "total_hours": 880,
+            "complexity_assessment": "Very High"
+          },
+          "case_title": "Complex Integration Project"
+        },
+        "expected_output_values": {
+          "mock_rate_card": {
+            "Product Manager": 150,
+            "Lead Developer": 140,
+            "Senior Developer": 120,
+            "Junior Developer": 90,
+            "QA Engineer": 100,
+            "DevOps Engineer": 130,
+            "UI/UX Designer": 110
+          },
+          "expected_calculations": {
+            "total_cost": 109600
+          },
+          "required_fields": ["currency", "rate_card_used", "estimated_cost", "role_costs"]
+        }
+      },
+      {
+        "inputId": "cost_minimal_003",
+        "agentName": "CostAnalystAgent",
+        "input_payload": {
+          "effort_breakdown": {
+            "roles": [
+              {"role": "Senior Developer", "hours": 40},
+              {"role": "QA Engineer", "hours": 20}
+            ],
+            "total_hours": 60,
+            "complexity_assessment": "Low"
+          },
+          "case_title": "Simple Feature Addition"
+        },
+        "expected_output_values": {
+          "mock_rate_card": {
+            "Senior Developer": 120,
+            "QA Engineer": 100
+          },
+          "expected_calculations": {
+            "total_cost": 6800
+          },
+          "required_fields": ["currency", "rate_card_used", "estimated_cost", "role_costs"]
+        }
+      }
+    ],
+    "SalesValueAnalystAgent": [
+      {
+        "inputId": "value_mobile_001",
+        "agentName": "SalesValueAnalystAgent",
+        "input_payload": {
+          "prd_content": "Patient Portal Mobile App - Secure mobile access to medical records, provider messaging, appointment scheduling. Target: 10,000 patients, reduce call center volume by 30%",
+          "case_title": "Patient Portal Mobile App"
+        },
+        "expected_characteristics_or_ideal_output": {
+          "required_scenarios": ["Low", "Base", "High"],
+          "json_schema_requirements": {
+            "scenarios": "array",
+            "methodology": "string",
+            "assumptions": "array",
+            "market_factors": "array"
+          },
+          "plausible_value_ranges": {
+            "Low": [50000, 150000],
+            "Base": [100000, 300000], 
+            "High": [200000, 500000]
+          },
+          "quality_notes": "Should consider operational savings, patient satisfaction improvements, reduced manual processes"
+        }
+      },
+      {
+        "inputId": "value_integration_002",
+        "agentName": "SalesValueAnalystAgent",
+        "input_payload": {
+          "prd_content": "EHR Integration Platform - Connects Epic, Cerner, Allscripts. Reduces manual data entry by 80%, enables real-time data sharing across 5 hospitals, 200 providers",
+          "case_title": "EHR Integration Platform"
+        },
+        "expected_characteristics_or_ideal_output": {
+          "required_scenarios": ["Low", "Base", "High"],
+          "json_schema_requirements": {
+            "scenarios": "array",
+            "methodology": "string",
+            "assumptions": "array",
+            "market_factors": "array"
+          },
+          "plausible_value_ranges": {
+            "Low": [200000, 500000],
+            "Base": [500000, 1200000],
+            "High": [1000000, 2500000]
+          },
+          "quality_notes": "Should consider large-scale efficiency gains, reduced errors, improved workflow, strategic value"
+        }
+      },
+      {
+        "inputId": "value_analytics_003",
+        "agentName": "SalesValueAnalystAgent",
+        "input_payload": {
+          "prd_content": "Population Health Analytics Dashboard - Quality measure tracking, predictive analytics, regulatory reporting. Serves 50,000 patients, improves quality scores by 15%",
+          "case_title": "Population Health Analytics Dashboard"
+        },
+        "expected_characteristics_or_ideal_output": {
+          "required_scenarios": ["Low", "Base", "High"],
+          "json_schema_requirements": {
+            "scenarios": "array",
+            "methodology": "string",
+            "assumptions": "array",
+            "market_factors": "array"
+          },
+          "plausible_value_ranges": {
+            "Low": [150000, 400000],
+            "Base": [300000, 800000],
+            "High": [600000, 1500000]
+          },
+          "quality_notes": "Should consider quality bonus payments, improved outcomes, reduced readmissions, regulatory compliance value"
+        }
+      }
+    ],
+    "FinancialModelAgent": [
+      {
+        "inputId": "financial_fixed_001",
+        "agentName": "FinancialModelAgent",
+        "input_payload": {
+          "cost_estimate": {
+            "estimated_cost": 50000,
+            "currency": "USD",
+            "rate_card_used": "Standard 2025"
+          },
+          "value_projection": {
+            "scenarios": [
+              {"case": "Low", "value": 75000},
+              {"case": "Base", "value": 150000},
+              {"case": "High", "value": 250000}
+            ],
+            "currency": "USD"
+          },
+          "case_title": "Test Financial Model"
+        },
+        "expected_output_values": {
+          "expected_calculations": {
+            "net_value_low": 25000,
+            "net_value_base": 100000,
+            "net_value_high": 200000,
+            "roi_low_percentage": 50.0,
+            "roi_base_percentage": 200.0,
+            "roi_high_percentage": 400.0
+          },
+          "required_fields": ["total_estimated_cost", "currency", "value_scenarios", "financial_metrics"]
+        }
+      },
+      {
+        "inputId": "financial_large_project_002",
+        "agentName": "FinancialModelAgent",
+        "input_payload": {
+          "cost_estimate": {
+            "estimated_cost": 500000,
+            "currency": "USD",
+            "rate_card_used": "Enterprise 2025"
+          },
+          "value_projection": {
+            "scenarios": [
+              {"case": "Low", "value": 800000},
+              {"case": "Base", "value": 1500000},
+              {"case": "High", "value": 2500000}
+            ],
+            "currency": "USD"
+          },
+          "case_title": "Large Integration Project"
+        },
+        "expected_output_values": {
+          "expected_calculations": {
+            "net_value_low": 300000,
+            "net_value_base": 1000000,
+            "net_value_high": 2000000,
+            "roi_low_percentage": 60.0,
+            "roi_base_percentage": 200.0,
+            "roi_high_percentage": 400.0
+          },
+          "required_fields": ["total_estimated_cost", "currency", "value_scenarios", "financial_metrics"]
+        }
+      },
+      {
+        "inputId": "financial_negative_roi_003",
+        "agentName": "FinancialModelAgent",
+        "input_payload": {
+          "cost_estimate": {
+            "estimated_cost": 100000,
+            "currency": "USD",
+            "rate_card_used": "Standard 2025"
+          },
+          "value_projection": {
+            "scenarios": [
+              {"case": "Low", "value": 60000},
+              {"case": "Base", "value": 90000},
+              {"case": "High", "value": 150000}
+            ],
+            "currency": "USD"
+          },
+          "case_title": "Risky Project with Low ROI"
+        },
+        "expected_output_values": {
+          "expected_calculations": {
+            "net_value_low": -40000,
+            "net_value_base": -10000,
+            "net_value_high": 50000,
+            "roi_low_percentage": -40.0,
+            "roi_base_percentage": -10.0,
+            "roi_high_percentage": 50.0
+          },
+          "required_fields": ["total_estimated_cost", "currency", "value_scenarios", "financial_metrics"]
+        }
+      },
+      {
+        "inputId": "financial_currency_mismatch_004",
+        "agentName": "FinancialModelAgent",
+        "input_payload": {
+          "cost_estimate": {
+            "estimated_cost": 75000,
+            "currency": "USD",
+            "rate_card_used": "Standard 2025"
+          },
+          "value_projection": {
+            "scenarios": [
+              {"case": "Low", "value": 80000},
+              {"case": "Base", "value": 120000},
+              {"case": "High", "value": 180000}
+            ],
+            "currency": "EUR"
+          },
+          "case_title": "Currency Mismatch Test"
+        },
+        "expected_output_values": {
+          "expected_behavior": "Should detect currency mismatch and log warning",
+          "primary_currency": "USD",
+          "warning_expected": true,
+          "required_fields": ["total_estimated_cost", "currency", "value_scenarios", "financial_metrics"]
+        }
+      }
+    ]
+  }
+} 

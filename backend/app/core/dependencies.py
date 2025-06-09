@@ -77,6 +77,87 @@ def reset_db():
     _db_client = None
 
 
+def reset_all_singletons():
+    """
+    Reset all singleton instances. Useful for reloads.
+    """
+    import logging
+    logger = logging.getLogger(__name__)
+    
+    logger.info("🔄 Resetting all singletons...")
+    
+    # Reset database client
+    reset_db()
+    logger.info("  - Database client reset")
+    
+    # Reset auth service
+    try:
+        from app.services.auth_service import get_auth_service
+        auth_service = get_auth_service()
+        auth_service.reset()
+        logger.info("  - AuthService reset")
+    except ImportError:
+        logger.warning("  - AuthService not found for reset")
+        
+    # Reset vertex AI service
+    try:
+        from app.services.vertex_ai_service import vertex_ai_service
+        vertex_ai_service.reset()
+        logger.info("  - VertexAIService reset")
+    except ImportError:
+        logger.warning("  - VertexAIService not found for reset")
+
+
+def cleanup_all_singletons():
+    """
+    Cleanup all singleton instances with proper resource management.
+    
+    This function performs comprehensive cleanup of all singleton services
+    to prevent resource leaks during application shutdown or reloads.
+    """
+    import logging
+    logger = logging.getLogger(__name__)
+    
+    logger.info("🧹 Cleaning up all singletons...")
+    
+    # Cleanup database client (Firestore)
+    try:
+        from app.core.firestore_impl import FirestoreClient
+        FirestoreClient.reset_singleton()
+        logger.info("  - ✅ Firestore client cleaned up")
+    except ImportError:
+        logger.warning("  - ⚠️ Firestore client not found for cleanup")
+    except Exception as e:
+        logger.error(f"  - ❌ Error cleaning up Firestore: {e}")
+    
+    # Cleanup auth service (Firebase Admin)
+    try:
+        from app.services.auth_service import get_auth_service
+        auth_service = get_auth_service()
+        auth_service.cleanup()
+        logger.info("  - ✅ AuthService cleaned up")
+    except ImportError:
+        logger.warning("  - ⚠️ AuthService not found for cleanup")
+    except Exception as e:
+        logger.error(f"  - ❌ Error cleaning up AuthService: {e}")
+        
+    # Cleanup vertex AI service
+    try:
+        from app.services.vertex_ai_service import vertex_ai_service
+        vertex_ai_service.cleanup()
+        logger.info("  - ✅ VertexAIService cleaned up")
+    except ImportError:
+        logger.warning("  - ⚠️ VertexAIService not found for cleanup")
+    except Exception as e:
+        logger.error(f"  - ❌ Error cleaning up VertexAIService: {e}")
+    
+    # Reset database client singleton after cleanup
+    reset_db()
+    logger.info("  - ✅ Database client singleton reset")
+    
+    logger.info("🎉 All singleton cleanup completed")
+
+
 # FirestoreService dependency injection
 def get_firestore_service():
     """

@@ -6,8 +6,9 @@ from fastapi import APIRouter, HTTPException, Depends, status, Request
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from pydantic import BaseModel
 from typing import Optional
-from app.services.auth_service import auth_service
+from app.services.auth_service import get_auth_service
 from app.middleware.rate_limiter import limiter
+import asyncio
 
 router = APIRouter()
 security = HTTPBearer()
@@ -32,7 +33,8 @@ class UserResponse(BaseModel):
 async def verify_token(request: Request, token_request: TokenRequest):
     """Verify Firebase ID token and return user information"""
     try:
-        user_info = await auth_service.verify_token(token_request.id_token)
+        auth_service = get_auth_service()
+        user_info = await auth_service.verify_id_token(token_request.id_token)
         if not user_info:
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
@@ -73,7 +75,8 @@ async def get_current_user(
         # Extract token from Authorization header
         id_token = credentials.credentials
 
-        user_info = await auth_service.verify_token(id_token)
+        auth_service = get_auth_service()
+        user_info = await auth_service.verify_id_token(id_token)
         if not user_info:
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
@@ -107,6 +110,7 @@ async def revoke_user_sessions(
         # Extract token from Authorization header
         id_token = credentials.credentials
 
+        auth_service = get_auth_service()
         user_info = await auth_service.verify_token(id_token)
         if not user_info:
             raise HTTPException(

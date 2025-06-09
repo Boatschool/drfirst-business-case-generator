@@ -7,12 +7,36 @@ yarn-error.log*
 pnpm-debug.log*
 lerna-debug.log*
 
-# Environment Variables
+# Environment Variables - Comprehensive Coverage
 .env
+.env.*
+!.env.template
+!.env.example
 .env.local
+.env.development
+.env.staging  
+.env.production
 .env.development.local
 .env.test.local
 .env.production.local
+backend/.env.development
+backend/.env.staging
+backend/.env.production
+frontend/.env.development
+frontend/.env.staging
+frontend/.env.production
+
+# Backup Files - Comprehensive Coverage
+*.bak
+*.backup
+*.old
+*.orig
+*.swp
+*.swo
+*.tmp
+*~
+.#*
+#*#
 
 # Dependencies
 node_modules/
@@ -98,6 +122,49 @@ gcp-service-account-key.json
 serviceAccountKey.json
 
 # Docker
-.dockerignore .DS_Store
+.dockerignore
+
 # Service account credentials
 backend/credentials/
+
+# Temporary directories
+temp_venv/
+.archive/
+
+# Test outputs
+tests/e2e/screenshots/
+tests/e2e/logs/
+tests/reports/*.html
+tests/reports/*.json
+
+# Binary Files and Large Test Artifacts (should not be in Git)
+*.pdf
+*.docx
+*.xlsx
+*.pptx
+*.zip
+*.tar.gz
+*.rar
+*.7z
+*.mp4
+*.mov
+*.avi
+*.mp3
+*.wav
+
+# Test generated files (avoid committing test outputs)
+*test*.pdf
+*test*.docx
+*_test_*.pdf
+*_output_*.pdf
+test-results/
+test-artifacts/
+generated-docs/
+
+# Configuration files with secrets
+config/environments/*.env
+config/environments/secrets.*
+
+# Tool outputs
+tools/cache/
+tools/temp/
